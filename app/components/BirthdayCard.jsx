@@ -1,99 +1,55 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
-/**
- * BirthdayCard (Next.js / Vercel)
- * - Calligraphy font (TTF) rendered in SVG <text>
- * - "Ink pressure" via animated mask thickness (tapered ends, thick mid-line)
- * - Paper grain overlay + ink bleed filter
- * - Audio-synced writing driven by audio.currentTime
- * - Autoplay-safe: shows a "Tap to start with sound" overlay if blocked
- *
- * Assets (default):
- *  - Font:  /public/fonts/InterSignature-q20q2.ttf  -> /fonts/InterSignature-q20q2.ttf
- *  - Audio: /public/audio/luke-poem.mp3            -> /audio/luke-poem.mp3
- *  - Photos: /public/photo1.jpg etc.
- */
 export default function BirthdayCard({
   toName = "Luke",
   photos = ["/photo1.jpg", "/photo2.jpg", "/photo3.jpg"],
+  captions = ["Memory #1", "Memory #2", "Memory #3"],
   fontUrl = "/fonts/InterSignature-q20q2.ttf",
   audioUrl = "/audio/luke-poem.mp3",
-  autoStart = true,
-
-  /**
-   * lineStartTimes: seconds for each poem line (INCLUDING blank spacer lines).
-   * If you want perfect sync, tweak these by small amounts.
-   * If you pass null, it will auto-distribute across the audio duration.
-   */
   lineStartTimes = [
-    0.000, 4.288, 7.407, 11.825, 15.464,
-    18.943, 23.189, 27.060, 31.680, 34.677,
-    36.994, 41.951, 45.941, 50.052, 53.196,
-    57.290, 62.135, 65.698, 69.403,
+    0.0, 4.2, 7.4, 11.8, 15.4,
+    18.9, 23.1, 27.0, 31.6, 34.6,
+    36.9, 41.9, 45.9, 50.0, 53.1,
+    57.2, 62.1, 65.6, 69.4,
   ],
 }) {
-  const POEM_LINES = useMemo(
-    () => [
-      "The world became a brighter place",
-      "The moment Luke arrived,",
-      "With kindness written on your face",
-      "And a spirit meant to thrive",
-      "",
-      "Through every year and every mile,",
-      "You’ve grown in heart and mind,",
-      "With a steady hand and a ready smile,",
-      "The rarest soul to find.",
-      "",
-      "May your day be filled with all you love,",
-      "With laughter, warmth, and light,",
-      "And may the year ahead hold dreams",
-      "That shine forever bright.",
-      "",
-      "So here’s to you, for all you are,",
-      "And all you’re yet to be—",
-      "Luke, you truly are a star",
-      "For everyone to see.",
-    ],
-    []
-  );
+  const POEM_LINES = [
+    "The world became a brighter place",
+    "The moment Luke arrived,",
+    "With kindness written on your face",
+    "And a spirit meant to thrive",
+    "",
+    "Through every year and every mile,",
+    "You've grown in heart and mind,",
+    "With a steady hand and a ready smile,",
+    "The rarest soul to find.",
+    "",
+    "May your day be filled with all you love,",
+    "With laughter, warmth, and light,",
+    "And may the year ahead hold dreams",
+    "That shine forever bright.",
+    "",
+    "So here's to you, for all you are,",
+    "And all you're yet to be—",
+    "Luke, you truly are a star",
+    "For everyone to see.",
+  ];
 
-  const svgRef = useRef(null);
-  const penRef = useRef(null);
-  const audioRef = useRef(null);
-
-  // Animated mask: one path per line (white reveals the ink)
-  const maskPathsRef = useRef([]);
-  const rafRef = useRef(0);
-
-  const [status, setStatus] = useState("Ready ✍️");
-  const [ready, setReady] = useState(false);
+  const [fontReady, setFontReady] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
+  const [arrowPull, setArrowPull] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [needsGesture, setNeedsGesture] = useState(false);
+  const [lineProgress, setLineProgress] = useState(() => POEM_LINES.map(() => 0));
+  const [audioLoaded, setAudioLoaded] = useState(false);
 
-  // Layout knobs
-  const viewW = 900;
-  const viewH = 560;
-  const startX = 40;
-  const startY = 90;
-  const lineGap = 48;
-  const maxRevealW = 860;
+  const audioRef = useRef(null);
+  const rafRef = useRef(null);
+  const arrowRef = useRef(null);
+  const dragStartY = useRef(0);
 
-  // Tuned "pressure" knobs
-  // Thinner starts/ends, richer mid-line, with a slightly late peak (feels more like a flourish)
-  const strokeMin = 18;   // thin
-  const strokeMax = 62;   // thick
-  const peakShift = 0.07; // shift thickness peak slightly later (0..0.15-ish)
-  const pressureGamma = 0.64; // <1 broadens the thick region
-  const baselineJitter = 2.6; // subtle per-line baseline drift (handwritten feel)
-  const personalitySpread = 0.14; // per-line pressure personality boost range
-
-  // Ink look
-  const inkFill = "rgba(255,255,255,.96)";
-  const inkGlow = "rgba(255,210,122,.22)";
-
-  // ---------- Font loading ----------
   useEffect(() => {
     let cancelled = false;
     async function loadFont() {
@@ -102,628 +58,634 @@ export default function BirthdayCard({
         await ff.load();
         document.fonts.add(ff);
         await document.fonts.ready;
-      } catch {
-        // Fallback cursive is fine.
-      }
-      if (!cancelled) setReady(true);
+      } catch {}
+      if (!cancelled) setFontReady(true);
     }
     loadFont();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [fontUrl]);
 
-  // ---------- Build mask paths once ----------
   useEffect(() => {
-    if (!ready) return;
-    const svg = svgRef.current;
-    if (!svg) return;
-
-    const maskGroup = svg.querySelector("#maskGroup");
-    maskGroup.innerHTML = "";
-    maskPathsRef.current = [];
-
-    for (let i = 0; i < POEM_LINES.length; i++) {
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("fill", "white");
-      p.setAttribute("d", capsulePath(0, lineCenterY(i), i));
-      maskGroup.appendChild(p);
-      maskPathsRef.current.push(p);
-    }
-
-    if (penRef.current) {
-      penRef.current.style.opacity = "0";
-      penRef.current.style.transform = "translate(-9999px,-9999px) rotate(18deg)";
-    }
-  }, [ready, POEM_LINES]);
-
-  // ---------- Autostart (safe) ----------
-  useEffect(() => {
-    if (!ready || !autoStart) return;
-
-    const a = audioRef.current;
-    if (!a) return;
-
-    const onMeta = async () => {
-      try {
-        await a.play();
-        setNeedsGesture(false);
-        startSyncedAnimation();
-      } catch {
-        setNeedsGesture(true);
-        setStatus("Tap to start (sound permission)");
-      }
-    };
-
-    a.addEventListener("loadedmetadata", onMeta);
-    return () => a.removeEventListener("loadedmetadata", onMeta);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, autoStart]);
-
-  // ---------- Helpers ----------
-  function stopRaf() {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = 0;
-  }
-
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
-  }
-
-  function easeInOutCubic(x) {
-    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-  }
-
-  function hash01(n) {
-    // Deterministic pseudo-random (0..1) per line
-    const x = Math.sin(n * 999.123 + 0.123) * 10000;
-    return x - Math.floor(x);
-  }
-
-  function lineCenterY(i) {
-    const jitter = (hash01(i + 7) - 0.5) * 2 * baselineJitter;
-    return startY - 10 + i * lineGap + jitter;
-  }
-
-  function svgPointToPage(svg, x, y) {
-    const pt = svg.createSVGPoint();
-    pt.x = x;
-    pt.y = y;
-    return pt.matrixTransform(svg.getScreenCTM());
-  }
-
-  function computeAutoLineStarts(duration) {
-    const weights = POEM_LINES.map((l) => (l.trim() ? Math.max(6, l.length) : 4));
-    const total = weights.reduce((a, b) => a + b, 0);
-    let acc = 0;
-    return weights.map((w) => {
-      const t = (acc / total) * duration;
-      acc += w;
-      return t;
-    });
-  }
-
-  // ---------- Pressure-tuned mask path ----------
-  // progress: 0..1
-  // cy: center y for line band
-  // lineIndex: adds small per-line personality (pressure boost, nib wobble)
-  function capsulePath(progress, cy, lineIndex) {
-    const p = clamp(progress, 0, 1);
-    const pE = easeInOutCubic(p);
-
-    // Reveal length
-    const w = Math.max(0, maxRevealW * pE);
-    const driftX = (Math.sin(pE * 3.1 + lineIndex) + Math.sin(pE * 6.2 + lineIndex * 1.9)) * 1.2;
-    const x1 = Math.max(startX, startX + w + driftX);
-
-    // Per-line pressure personality
-    const rand = hash01(lineIndex + 1);
-    const line = POEM_LINES[lineIndex] ?? "";
-    const punctuationBoost = /[—–,.;:!?]$/.test(line.trim()) ? 1.06 : 1.0;
-    const lengthBoost = clamp(0.92 + (line.trim().length / 45) * 0.18, 0.92, 1.12);
-    const personality =
-      (1 - personalitySpread / 2 + rand * personalitySpread) * punctuationBoost * lengthBoost;
-
-    // Pressure curve (thickness): thin -> thick -> thin,
-    // with a slightly late peak to feel like a flourish.
-    const linePeakShift = peakShift + (rand - 0.5) * 0.05; // per-line late/early flair
-    const shifted = clamp(pE + linePeakShift, 0, 1);
-    const bell = Math.sin(Math.PI * shifted);
-    const broadBell = Math.pow(Math.max(0, bell), pressureGamma); // broaden mid region
-    const midPlateau = 0.12 + rand * 0.08; // broad, thick mid-stroke
-    const plateauBlend = 1 - Math.abs(shifted - 0.55) / (0.55 + midPlateau);
-    const plateau = clamp(plateauBlend, 0, 1);
-    const shape = clamp(broadBell * (0.82 + 0.18 * plateau), 0, 1);
-    const t = (strokeMin + (strokeMax - strokeMin) * shape) * personality;
-
-    // Taper ends a bit more (gives a nib-like lift)
-    const taper = 0.85 + 0.15 * Math.sin(Math.PI * pE);
-    const pressureNoise =
-      1 +
-      0.055 * Math.sin(pE * 12 + lineIndex * 0.9) +
-      0.03 * Math.sin(pE * 28 + lineIndex * 1.7) +
-      0.02 * Math.sin(pE * 4.8 + lineIndex * 0.2);
-    const thickness = Math.max(6, t * taper * pressureNoise);
-
-    const r = thickness / 2;
-
-    // Ink wobble: subtle feathering feeling
-    const wobble = (Math.sin(pE * 10 + lineIndex) + Math.sin(pE * 23 + lineIndex * 2.3)) * 0.55;
-
-    const topY = cy - r + wobble;
-    const botY = cy + r + wobble;
-
-    // When nearly zero, show a dot-like nib kiss
-    if (w < 2) {
-      return `M ${startX} ${cy}
-              m -${r} 0
-              a ${r} ${r} 0 1 0 ${2 * r} 0
-              a ${r} ${r} 0 1 0 -${2 * r} 0`;
-    }
-
-    // Rounded capsule (pill)
-    return `
-      M ${startX} ${topY}
-      L ${x1} ${topY}
-      A ${r} ${r} 0 0 1 ${x1} ${botY}
-      L ${startX} ${botY}
-      A ${r} ${r} 0 0 1 ${startX} ${topY}
-      Z
-    `;
-  }
-
-  function findActiveLineIndex(tNow, starts, ends) {
-    for (let i = 0; i < starts.length; i++) {
-      if (tNow >= starts[i] && tNow < ends[i]) return i;
-    }
-    return -1;
-  }
-
-  // ---------- Animation driver (audio clock) ----------
-  function startSyncedAnimation() {
-    stopRaf();
-    const svg = svgRef.current;
-    const pen = penRef.current;
     const audio = audioRef.current;
-    const paths = maskPathsRef.current;
+    if (audio) {
+      const onLoaded = () => setAudioLoaded(true);
+      audio.addEventListener("loadedmetadata", onLoaded);
+      return () => audio.removeEventListener("loadedmetadata", onLoaded);
+    }
+  }, []);
 
-    if (!svg || !pen || !audio || !paths.length) return;
+  const handleDragStart = useCallback((e) => {
+    if (cardOpen) return;
+    setIsDragging(true);
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    dragStartY.current = clientY;
+    e.preventDefault();
+  }, [cardOpen]);
 
-    setIsPlaying(true);
-    setStatus("Writing…");
+  const handleDragMove = useCallback((e) => {
+    if (!isDragging || cardOpen) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const delta = clientY - dragStartY.current;
+    const pull = Math.min(1, Math.max(0, delta / 150));
+    setArrowPull(pull);
+  }, [isDragging, cardOpen]);
 
-    const startsProvided =
-      Array.isArray(lineStartTimes) && lineStartTimes.length === POEM_LINES.length;
+  const handleDragEnd = useCallback(() => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    if (arrowPull > 0.5) {
+      setArrowPull(0);
+      setCardOpen(true);
+    } else {
+      setArrowPull(0);
+    }
+  }, [isDragging, arrowPull]);
 
-    const starts = startsProvided
-      ? lineStartTimes
-      : computeAutoLineStarts(Number.isFinite(audio.duration) ? audio.duration : 72);
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleDragMove);
+      window.addEventListener("mouseup", handleDragEnd);
+      window.addEventListener("touchmove", handleDragMove, { passive: false });
+      window.addEventListener("touchend", handleDragEnd);
+      return () => {
+        window.removeEventListener("mousemove", handleDragMove);
+        window.removeEventListener("mouseup", handleDragEnd);
+        window.removeEventListener("touchmove", handleDragMove);
+        window.removeEventListener("touchend", handleDragEnd);
+      };
+    }
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
-    const duration = Number.isFinite(audio.duration) ? audio.duration : (starts[starts.length - 1] + 2);
-    const ends = starts.map((t, i) => (i < starts.length - 1 ? starts[i + 1] : duration));
+  const handleArrowClick = () => {
+    if (!cardOpen && !isDragging) {
+      setCardOpen(true);
+    }
+  };
+
+  const computeLineEnds = useCallback(() => {
+    const audio = audioRef.current;
+    const duration = audio?.duration || 72;
+    return lineStartTimes.map((t, i) => 
+      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : duration
+    );
+  }, [lineStartTimes]);
+
+  const startAnimation = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const ends = computeLineEnds();
 
     const tick = () => {
-      const tNow = audio.currentTime;
-
-      // Update per-line progress
-      for (let i = 0; i < paths.length; i++) {
-        const line = POEM_LINES[i];
-        const t0 = starts[i];
+      const t = audio.currentTime;
+      const newProgress = POEM_LINES.map((line, i) => {
+        if (!line.trim()) return t >= lineStartTimes[i] ? 1 : 0;
+        const t0 = lineStartTimes[i];
         const t1 = ends[i];
+        return Math.min(1, Math.max(0, (t - t0) / Math.max(0.2, t1 - t0)));
+      });
+      setLineProgress(newProgress);
 
-        if (!line.trim()) {
-          const done = tNow >= t0 ? 1 : 0;
-          paths[i].setAttribute("d", capsulePath(done, lineCenterY(i), i));
-          continue;
-        }
-
-        const p = clamp((tNow - t0) / Math.max(0.22, t1 - t0), 0, 1);
-        paths[i].setAttribute("d", capsulePath(p, lineCenterY(i), i));
-      }
-
-      // Move pen to active line
-      const activeIndex = findActiveLineIndex(tNow, starts, ends);
-      if (activeIndex >= 0) {
-        const t0 = starts[activeIndex];
-        const t1 = ends[activeIndex];
-        const p = clamp((tNow - t0) / Math.max(0.22, t1 - t0), 0, 1);
-        const pE = easeInOutCubic(p);
-
-        pen.style.opacity = "1";
-
-        const nibWobble = (Math.sin(pE * 9 + activeIndex) + Math.sin(pE * 19)) * 1.1;
-        const px = startX + maxRevealW * pE + 10 + Math.sin(pE * 4 + activeIndex) * 1.4;
-        const py = lineCenterY(activeIndex) + 10 + nibWobble;
-
-        const page = svgPointToPage(svg, px, py);
-        pen.style.transform = `translate(${page.x - 9}px, ${page.y - 9}px) rotate(${18 + Math.sin(pE * 7) * 3}deg)`;
-      } else {
-        pen.style.opacity = "0";
-      }
-
-      if (audio.ended) {
-        setStatus("Done 💛");
+      if (!audio.paused && !audio.ended) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else if (audio.ended) {
         setIsPlaying(false);
-        pen.style.opacity = "0";
-        stopRaf();
-        return;
       }
-
-      rafRef.current = requestAnimationFrame(tick);
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }
+  }, [lineStartTimes, computeLineEnds, POEM_LINES]);
 
-  async function handleStartFromOverlay() {
-    const a = audioRef.current;
-    if (!a) return;
+  const startSilentAnimation = useCallback(() => {
+    const totalDuration = 40;
+    const startTime = Date.now();
+    const ends = lineStartTimes.map((t, i) => 
+      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : totalDuration
+    );
+    const scale = totalDuration / (lineStartTimes[lineStartTimes.length - 1] + 3);
 
-    try {
-      await a.play();
-      setNeedsGesture(false);
-      startSyncedAnimation();
-    } catch {
-      setStatus("Still blocked. Tap again or unmute.");
-    }
-  }
-
-  function handlePlayPause() {
-    const a = audioRef.current;
-    if (!a) return;
-
-    if (a.paused) {
-      a.play()
-        .then(() => {
-          setNeedsGesture(false);
-          startSyncedAnimation();
-        })
-        .catch(() => {
-          setNeedsGesture(true);
-          setStatus("Tap to start (sound permission)");
-        });
-    } else {
-      a.pause();
-      setIsPlaying(false);
-      setStatus("Paused");
-      stopRaf();
-    }
-  }
-
-  function handleReplay() {
-    const a = audioRef.current;
-    if (!a) return;
-
-    a.pause();
-    a.currentTime = 0;
-    setStatus("Writing…");
-    a.play()
-      .then(() => {
-        setNeedsGesture(false);
-        startSyncedAnimation();
-      })
-      .catch(() => {
-        setNeedsGesture(true);
-        setStatus("Tap to start (sound permission)");
+    const tick = () => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const t = elapsed * scale;
+      
+      const newProgress = POEM_LINES.map((line, i) => {
+        if (!line.trim()) return t >= lineStartTimes[i] ? 1 : 0;
+        const t0 = lineStartTimes[i];
+        const t1 = ends[i];
+        return Math.min(1, Math.max(0, (t - t0) / Math.max(0.2, t1 - t0)));
       });
+      setLineProgress(newProgress);
+
+      if (elapsed < totalDuration / scale) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, [lineStartTimes, POEM_LINES]);
+
+  const handlePlayAudio = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (audio.paused) {
+      try {
+        audio.currentTime = 0;
+        setLineProgress(POEM_LINES.map(() => 0));
+        await audio.play();
+        setIsPlaying(true);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        startAnimation();
+      } catch {
+        startSilentAnimation();
+      }
+    } else {
+      audio.pause();
+      setIsPlaying(false);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    }
+  };
+
+  const handleReplay = () => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    setLineProgress(POEM_LINES.map(() => 0));
+    setIsPlaying(false);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    handlePlayAudio();
+  };
+
+  const silentAnimationRan = useRef(false);
+
+  useEffect(() => {
+    if (cardOpen && !isPlaying && !silentAnimationRan.current) {
+      const timer = setTimeout(() => {
+        if (!isPlaying) {
+          silentAnimationRan.current = true;
+          startSilentAnimation();
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [cardOpen, isPlaying, startSilentAnimation]);
+
+  if (!fontReady) {
+    return (
+      <div style={styles.loading}>
+        <div style={styles.loadingText}>Loading...</div>
+      </div>
+    );
   }
 
-  // ---------- Render ----------
   return (
-    <div className="min-h-screen w-full grid place-items-center p-6" style={{ color: "white" }}>
-      <div
-        className="w-full max-w-[980px] rounded-[22px] overflow-hidden"
+    <div style={styles.container}>
+      <audio ref={audioRef} src={audioUrl} preload="auto" />
+
+      <div 
+        className="card-wrapper-responsive"
         style={{
-          border: "1px solid rgba(255,255,255,.10)",
-          boxShadow: "0 18px 60px rgba(0,0,0,.45)",
-          background:
-            "radial-gradient(1000px 600px at 15% 15%, rgba(158,231,255,.18), transparent 60%)," +
-            "radial-gradient(900px 650px at 85% 25%, rgba(255,210,122,.16), transparent 55%)," +
-            "radial-gradient(800px 600px at 60% 90%, rgba(206,166,255,.12), transparent 55%)," +
-            "linear-gradient(160deg, #0f1220, #1a1f35)",
-        }}
-      >
-        {/* Header */}
-        <div
+          ...styles.cardWrapper,
+          perspective: cardOpen ? "2000px" : "1000px",
+        }}>
+        {!cardOpen && (
+          <div style={styles.cardFront}>
+            <div style={styles.frontContent}>
+              <h1 style={styles.frontTitle}>Happy Birthday!</h1>
+              <p style={styles.frontSubtitle}>Pull the arrow to open</p>
+              
+              <div 
+                ref={arrowRef}
+                style={{
+                  ...styles.arrowContainer,
+                  transform: `translateY(${arrowPull * 60}px)`,
+                  cursor: isDragging ? "grabbing" : "grab",
+                }}
+                onMouseDown={handleDragStart}
+                onTouchStart={handleDragStart}
+                onClick={handleArrowClick}
+              >
+                <svg width="80" height="200" viewBox="0 0 80 200" style={styles.arrowSvg}>
+                  <defs>
+                    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#ffd700" />
+                      <stop offset="100%" stopColor="#ff8c00" />
+                    </linearGradient>
+                    <filter id="arrowGlow">
+                      <feGaussianBlur stdDeviation="3" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <line x1="40" y1="30" x2="40" y2="170" stroke="url(#arrowGrad)" strokeWidth="4" strokeLinecap="round" filter="url(#arrowGlow)" />
+                  <polygon points="40,10 25,40 55,40" fill="url(#arrowGrad)" filter="url(#arrowGlow)" />
+                  <polygon points="30,165 40,180 50,165" fill="url(#arrowGrad)" opacity="0.6" />
+                  <line x1="30" y1="170" x2="40" y2="175" stroke="url(#arrowGrad)" strokeWidth="2" />
+                  <line x1="50" y1="170" x2="40" y2="175" stroke="url(#arrowGrad)" strokeWidth="2" />
+                </svg>
+                
+                <div style={{
+                  ...styles.bowString,
+                  transform: `scaleY(${1 + arrowPull * 0.3})`,
+                }} />
+              </div>
+
+              {arrowPull > 0 && (
+                <div style={{
+                  ...styles.pullIndicator,
+                  opacity: arrowPull,
+                }}>
+                  {arrowPull > 0.5 ? "Release!" : "Keep pulling..."}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div 
+          className="card-inner-responsive"
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            padding: "16px 16px",
-            borderBottom: "1px solid rgba(255,255,255,.10)",
-            backdropFilter: "blur(10px)",
-            background: "linear-gradient(90deg, rgba(158,231,255,.10), rgba(255,210,122,.08))",
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              Happy Birthday, {toName} 🎉
-            </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,.70)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              Pressure ink + paper grain + synced narration.
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <button
-              onClick={handlePlayPause}
-              style={btnStyle("primary")}
-              aria-label={isPlaying ? "Pause" : "Play"}
-            >
-              {isPlaying ? "⏸ Pause" : "▶ Play"}
-            </button>
-            <button onClick={handleReplay} style={btnStyle()} aria-label="Replay">
-              ↺ Replay
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.35fr", minHeight: 580 }}>
-          {/* Left photos */}
-          <div
-            style={{
-              padding: 16,
-              borderRight: "1px solid rgba(255,255,255,.10)",
-              display: "grid",
-              placeItems: "center",
-              background:
-                "radial-gradient(700px 450px at 30% 20%, rgba(255,210,122,.10), transparent 60%)," +
-                "radial-gradient(600px 400px at 75% 65%, rgba(158,231,255,.10), transparent 55%)",
-            }}
-          >
-            <div style={{ position: "relative", width: "92%", maxWidth: 340, aspectRatio: "4 / 5" }}>
+            ...styles.cardInner,
+            transform: cardOpen ? "rotateY(0deg)" : "rotateY(-90deg)",
+            opacity: cardOpen ? 1 : 0,
+            pointerEvents: cardOpen ? "auto" : "none",
+          }}>
+          <div className="card-left-responsive" style={styles.cardLeft}>
+            <div className="polaroid-stack-responsive" style={styles.polaroidStack}>
               {photos.slice(0, 3).map((src, i) => {
-                const rot = [-6, 5, -2][i] ?? 0;
-                const tx = [-10, 10, 0][i] ?? 0;
-                const ty = [6, 0, -4][i] ?? 0;
-                const opacity = [1, 0.95, 0.92][i] ?? 1;
+                const rotations = [-8, 5, -3];
+                const offsets = [{ x: -15, y: 10 }, { x: 20, y: -5 }, { x: 5, y: 15 }];
                 return (
-                  <div
-                    key={src + i}
+                  <div 
+                    key={i}
                     style={{
-                      position: "absolute",
-                      inset: 0,
-                      borderRadius: 18,
-                      overflow: "hidden",
-                      border: "1px solid rgba(255,255,255,.15)",
-                      boxShadow: "0 14px 35px rgba(0,0,0,.35)",
-                      background: "rgba(255,255,255,.08)",
-                      transform: `rotate(${rot}deg) translate(${tx}px, ${ty}px)`,
-                      transformOrigin: "60% 80%",
-                      opacity,
+                      ...styles.polaroid,
+                      transform: `rotate(${rotations[i]}deg) translate(${offsets[i].x}px, ${offsets[i].y}px)`,
+                      zIndex: 3 - i,
+                      animationDelay: `${i * 0.2}s`,
                     }}
                   >
-                    <img src={src} alt={`Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", background: "rgba(0,0,0,.35)", borderTop: "1px solid rgba(255,255,255,.10)", backdropFilter: "blur(6px)" }} />
-                    <div style={{ position: "absolute", left: 12, right: 12, bottom: 10, fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center", textShadow: "0 2px 14px rgba(0,0,0,.60)" }}>
-                      <span style={{ fontWeight: 800, color: "rgba(255,210,122,.95)" }}>Memory #{i + 1}</span>
-                      <span>♡</span>
+                    <div style={styles.polaroidImage}>
+                      <img src={src} alt={captions[i]} style={styles.photo} />
                     </div>
+                    <div style={styles.polaroidCaption}>{captions[i]}</div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Right poem */}
-          <div style={{ padding: 16 }}>
-            <div
-              style={{
-                position: "relative",
-                height: "100%",
-                borderRadius: 18,
-                border: "1px solid rgba(255,255,255,.10)",
-                overflow: "hidden",
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03))," +
-                  "radial-gradient(900px 600px at 50% 0%, rgba(255,210,122,.08), transparent 60%)," +
-                  "radial-gradient(700px 500px at 20% 80%, rgba(158,231,255,.08), transparent 55%)",
-              }}
-            >
-              {/* Paper grain overlay */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  pointerEvents: "none",
-                  opacity: 0.24,
-                  backgroundImage:
-                    "radial-gradient(circle at 20% 30%, rgba(255,255,255,.35) 0 1px, transparent 2px)," +
-                    "radial-gradient(circle at 70% 60%, rgba(255,255,255,.28) 0 1px, transparent 2px)," +
-                    "radial-gradient(circle at 40% 80%, rgba(255,255,255,.22) 0 1px, transparent 2px)," +
-                    "repeating-linear-gradient(25deg, rgba(255,255,255,.06) 0 1px, transparent 1px 6px)," +
-                    "repeating-linear-gradient(-20deg, rgba(0,0,0,.10) 0 1px, transparent 1px 7px)",
-                  backgroundSize: "120px 120px, 120px 120px, 120px 120px, 140px 140px, 160px 160px",
-                  mixBlendMode: "soft-light",
-                }}
-              />
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, padding: "18px 20px 0", position: "relative" }}>
-                <div style={{ fontSize: 16, fontWeight: 800 }}>To {toName},</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,.70)", whiteSpace: "nowrap" }}>{status}</div>
-              </div>
-
-              <div
-                style={{
-                  margin: "10px 20px 14px",
-                  height: 1,
-                  opacity: 0.7,
-                  background: "linear-gradient(90deg, rgba(255,210,122,.45), rgba(158,231,255,.35), transparent)",
-                }}
-              />
-
-              <div style={{ padding: "0 20px 64px", position: "relative" }}>
-                <svg ref={svgRef} viewBox={`0 0 ${viewW} ${viewH}`} width="100%" height="auto" style={{ display: "block" }} aria-label="Poem">
-                  <defs>
-                    <mask id="revealMask">
-                      <rect x="0" y="0" width={viewW} height={viewH} fill="black" />
-                      <g id="maskGroup" />
-                    </mask>
-
-                    {/* Ink bleed: blurred underlayer */}
-                    <filter id="inkBleed" x="-20%" y="-20%" width="140%" height="140%">
-                      <feMorphology in="SourceGraphic" operator="dilate" radius="0.6" result="spread" />
-                      <feGaussianBlur in="spread" stdDeviation="1.35" result="blur" />
-                      <feColorMatrix
-                        in="blur"
-                        type="matrix"
-                        values="
-                          1 0 0 0 0
-                          0 1 0 0 0
-                          0 0 1 0 0
-                          0 0 0 0.6 0"
-                        result="bleed"
-                      />
-                      <feMerge>
-                        <feMergeNode in="bleed" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                  </defs>
-
-                  {/* Bleed underlayer */}
-                  <text
-                    x={startX}
-                    y={startY}
-                    mask="url(#revealMask)"
-                    style={{
-                      fontFamily: `"InterSignature", cursive`,
-                      fontSize: 42,
-                      fill: "rgba(255,255,255,.22)",
-                      filter: "url(#inkBleed)",
-                    }}
-                  >
-                    {POEM_LINES.map((line, i) => (
-                      <tspan key={i} x={startX} y={startY + i * lineGap}>
-                        {line || " "}
-                      </tspan>
-                    ))}
-                  </text>
-
-                  {/* Main ink */}
-                  <text
-                    x={startX}
-                    y={startY}
-                    mask="url(#revealMask)"
-                    style={{
-                      fontFamily: `"InterSignature", cursive`,
-                      fontSize: 42,
-                      fill: inkFill,
-                      filter: `drop-shadow(0 0 10px ${inkGlow})`,
-                    }}
-                  >
-                    {POEM_LINES.map((line, i) => (
-                      <tspan key={i} x={startX} y={startY + i * lineGap}>
-                        {line || " "}
-                      </tspan>
-                    ))}
-                  </text>
-                </svg>
-              </div>
-
-              {/* Pen nib */}
-              <div
-                ref={penRef}
-                style={{
-                  position: "absolute",
-                  width: 18,
-                  height: 18,
-                  borderRadius: 6,
-                  boxShadow: "0 10px 24px rgba(0,0,0,.35)",
-                  pointerEvents: "none",
-                  opacity: 0,
-                  background: "linear-gradient(160deg, rgba(255,210,122,.9), rgba(158,231,255,.55))",
-                  transform: "translate(-9999px,-9999px) rotate(18deg)",
-                }}
-              >
-                <div style={{ position: "absolute", left: 5, top: 5, width: 8, height: 8, borderRadius: 3, background: "rgba(0,0,0,.55)" }} />
-              </div>
-
-              {/* Audio */}
-              <audio ref={audioRef} src={audioUrl} preload="metadata" />
-
-              {/* Autoplay overlay */}
-              {needsGesture && (
-                <button
-                  onClick={handleStartFromOverlay}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "grid",
-                    placeItems: "center",
-                    background: "rgba(0,0,0,.42)",
-                    backdropFilter: "blur(6px)",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "white",
-                  }}
-                >
-                  <span
-                    style={{
-                      padding: "12px 18px",
-                      borderRadius: 999,
-                      border: "1px solid rgba(255,255,255,.25)",
-                      background: "rgba(255,255,255,.10)",
-                      fontWeight: 900,
-                    }}
-                  >
-                    Tap to start with sound ▶
-                  </span>
+          <div className="card-right-responsive" style={styles.cardRight}>
+            <div style={styles.poemHeader}>
+              <span style={styles.toName}>To {toName},</span>
+              <div style={styles.audioControls}>
+                <button onClick={handlePlayAudio} style={styles.playBtn}>
+                  {isPlaying ? "⏸" : "▶"}
                 </button>
-              )}
-
-              <div style={{ position: "absolute", left: 18, right: 18, bottom: 14, fontSize: 12, color: "rgba(255,255,255,.70)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 999,
-                    background: "rgba(255,210,122,.95)",
-                    boxShadow: "0 0 18px rgba(255,210,122,.65), 0 0 40px rgba(158,231,255,.22)",
-                  }}
-                />
-                <span>Audio: {audioUrl}</span>
+                <button onClick={handleReplay} style={styles.replayBtn}>↺</button>
               </div>
+            </div>
+
+            <div style={styles.poemContainer}>
+              <svg viewBox="0 0 500 650" className="poem-svg-responsive" style={styles.poemSvg}>
+                <defs>
+                  <filter id="inkBleed" x="-10%" y="-10%" width="120%" height="120%">
+                    <feMorphology operator="dilate" radius="0.3" />
+                    <feGaussianBlur stdDeviation="0.8" />
+                  </filter>
+                </defs>
+                
+                {POEM_LINES.map((line, i) => {
+                  if (!line.trim()) return null;
+                  const y = 40 + i * 34;
+                  const progress = lineProgress[i] || 0;
+                  const clipWidth = 500 * progress;
+                  
+                  const isEmphasis = line.includes("Luke") || line.includes("star") || line.includes("thrive");
+                  const strokeOpacity = isEmphasis ? 1 : 0.95;
+                  const glowIntensity = isEmphasis ? "0 0 12px rgba(255,210,120,0.6)" : "0 0 6px rgba(255,210,120,0.3)";
+
+                  return (
+                    <g key={i}>
+                      <defs>
+                        <clipPath id={`clip-${i}`}>
+                          <rect x="0" y={y - 30} width={clipWidth} height="40" />
+                        </clipPath>
+                      </defs>
+                      <text
+                        x="20"
+                        y={y}
+                        style={{
+                          fontFamily: '"InterSignature", cursive',
+                          fontSize: 26,
+                          fill: `rgba(255,255,255,${strokeOpacity * 0.15})`,
+                          filter: "url(#inkBleed)",
+                        }}
+                        clipPath={`url(#clip-${i})`}
+                      >
+                        {line}
+                      </text>
+                      <text
+                        x="20"
+                        y={y}
+                        style={{
+                          fontFamily: '"InterSignature", cursive',
+                          fontSize: 26,
+                          fill: `rgba(255,255,255,${strokeOpacity})`,
+                          filter: `drop-shadow(${glowIntensity})`,
+                        }}
+                        clipPath={`url(#clip-${i})`}
+                      >
+                        {line}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+
+            <div style={styles.audioStatus}>
+              {audioLoaded ? (
+                <span>🎵 Audio ready</span>
+              ) : (
+                <span>Loading audio...</span>
+              )}
             </div>
           </div>
         </div>
-
-        {/* Mobile stacking */}
-        <style>{`
-          @media (max-width: 860px) {
-            .stackGrid {
-              grid-template-columns: 1fr !important;
-            }
-          }
-        `}</style>
       </div>
+
+      <style>{`
+        @keyframes polaroidIn {
+          from {
+            opacity: 0;
+            transform: rotate(0deg) translateY(30px) scale(0.8);
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+
+        @media (max-width: 768px) {
+          .card-inner-responsive {
+            grid-template-columns: 1fr !important;
+            min-height: auto !important;
+          }
+          .card-left-responsive {
+            padding: 20px !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+          }
+          .polaroid-stack-responsive {
+            max-width: 200px !important;
+          }
+          .card-right-responsive {
+            padding: 16px 20px !important;
+          }
+          .poem-svg-responsive {
+            min-height: 500px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .card-wrapper-responsive {
+            min-height: auto !important;
+          }
+          .polaroid-stack-responsive {
+            max-width: 160px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
-function btnStyle(kind) {
-  const base = {
-    appearance: "none",
-    borderRadius: 999,
-    padding: "10px 12px",
-    fontWeight: 900,
-    letterSpacing: "0.2px",
-    cursor: "pointer",
-    border: "1px solid rgba(255,255,255,.16)",
-    background: "rgba(0,0,0,.20)",
+const styles = {
+  container: {
+    minHeight: "100vh",
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+    background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+    boxSizing: "border-box",
+  },
+  loading: {
+    minHeight: "100vh",
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#1a1a2e",
+  },
+  loadingText: {
     color: "white",
-    transition: "transform .08s ease, background .2s ease, border-color .2s ease",
-  };
-
-  if (kind === "primary") {
-    return {
-      ...base,
-      border: "1px solid rgba(255,255,255,.20)",
-      background: "linear-gradient(90deg, rgba(255,210,122,.22), rgba(158,231,255,.18))",
-    };
-  }
-
-  return base;
-}
+    fontSize: 18,
+    fontFamily: "system-ui, sans-serif",
+  },
+  cardWrapper: {
+    width: "100%",
+    maxWidth: 1000,
+    minHeight: 600,
+    position: "relative",
+    transformStyle: "preserve-3d",
+  },
+  cardFront: {
+    position: "absolute",
+    inset: 0,
+    background: "linear-gradient(145deg, #2d3561 0%, #1e2243 100%)",
+    borderRadius: 24,
+    boxShadow: "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid rgba(255,255,255,0.1)",
+  },
+  frontContent: {
+    textAlign: "center",
+    color: "white",
+  },
+  frontTitle: {
+    fontSize: "clamp(28px, 5vw, 48px)",
+    fontWeight: 700,
+    margin: "0 0 16px",
+    background: "linear-gradient(135deg, #ffd700, #ff8c00)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    textShadow: "0 2px 20px rgba(255,215,0,0.3)",
+  },
+  frontSubtitle: {
+    fontSize: 16,
+    opacity: 0.7,
+    marginBottom: 40,
+    animation: "pulse 2s infinite",
+  },
+  arrowContainer: {
+    display: "inline-block",
+    padding: 20,
+    transition: "transform 0.1s ease-out",
+    userSelect: "none",
+    touchAction: "none",
+  },
+  arrowSvg: {
+    filter: "drop-shadow(0 4px 12px rgba(255,215,0,0.4))",
+    animation: "float 3s ease-in-out infinite",
+  },
+  bowString: {
+    position: "absolute",
+    left: "50%",
+    bottom: 0,
+    width: 2,
+    height: 60,
+    background: "linear-gradient(to bottom, rgba(255,215,0,0.6), transparent)",
+    transform: "translateX(-50%)",
+    transformOrigin: "top center",
+    transition: "transform 0.1s ease-out",
+  },
+  pullIndicator: {
+    marginTop: 20,
+    fontSize: 14,
+    color: "#ffd700",
+    fontWeight: 600,
+    transition: "opacity 0.2s",
+  },
+  cardInner: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1.3fr",
+    minHeight: 600,
+    background: "linear-gradient(145deg, #1e2243 0%, #0f1225 100%)",
+    borderRadius: 24,
+    boxShadow: "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,0.1)",
+    transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease",
+    transformOrigin: "left center",
+  },
+  cardLeft: {
+    padding: 30,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "radial-gradient(circle at 30% 30%, rgba(255,210,120,0.08), transparent 60%)",
+    borderRight: "1px solid rgba(255,255,255,0.08)",
+  },
+  polaroidStack: {
+    position: "relative",
+    width: "100%",
+    maxWidth: 280,
+    aspectRatio: "3/4",
+  },
+  polaroid: {
+    position: "absolute",
+    inset: 0,
+    background: "#fefefe",
+    padding: "12px 12px 40px",
+    borderRadius: 4,
+    boxShadow: "0 8px 30px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)",
+    animation: "polaroidIn 0.6s ease-out forwards",
+    opacity: 0,
+  },
+  polaroidImage: {
+    width: "100%",
+    height: "100%",
+    background: "#e0e0e0",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  photo: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+  },
+  polaroidCaption: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontFamily: '"InterSignature", cursive',
+    fontSize: 14,
+    color: "#333",
+  },
+  cardRight: {
+    padding: "24px 30px",
+    display: "flex",
+    flexDirection: "column",
+    background: "radial-gradient(ellipse at 70% 20%, rgba(158,231,255,0.06), transparent 50%)",
+  },
+  poemHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+  },
+  toName: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: "white",
+  },
+  audioControls: {
+    display: "flex",
+    gap: 8,
+  },
+  playBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: "50%",
+    border: "1px solid rgba(255,255,255,0.2)",
+    background: "rgba(255,255,255,0.1)",
+    color: "white",
+    fontSize: 16,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s",
+  },
+  replayBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: "50%",
+    border: "1px solid rgba(255,255,255,0.2)",
+    background: "rgba(255,255,255,0.05)",
+    color: "white",
+    fontSize: 18,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s",
+  },
+  poemContainer: {
+    flex: 1,
+    overflow: "hidden",
+  },
+  poemSvg: {
+    width: "100%",
+    height: "100%",
+    display: "block",
+  },
+  audioStatus: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 12,
+  },
+};

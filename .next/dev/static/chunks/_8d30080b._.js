@@ -16,84 +16,68 @@ function BirthdayCard({ toName = "Luke", photos = [
     "/photo1.jpg",
     "/photo2.jpg",
     "/photo3.jpg"
-], fontUrl = "/fonts/InterSignature-q20q2.ttf", audioUrl = "/audio/luke-poem.mp3", autoStart = true, /**
-   * lineStartTimes: seconds for each poem line (INCLUDING blank spacer lines).
-   * If you want perfect sync, tweak these by small amounts.
-   * If you pass null, it will auto-distribute across the audio duration.
-   */ lineStartTimes = [
-    0.000,
-    4.288,
-    7.407,
-    11.825,
-    15.464,
-    18.943,
-    23.189,
-    27.060,
-    31.680,
-    34.677,
-    36.994,
-    41.951,
-    45.941,
-    50.052,
-    53.196,
-    57.290,
-    62.135,
-    65.698,
-    69.403
+], captions = [
+    "Memory #1",
+    "Memory #2",
+    "Memory #3"
+], fontUrl = "/fonts/InterSignature-q20q2.ttf", audioUrl = "/audio/luke-poem.mp3", lineStartTimes = [
+    0.0,
+    4.2,
+    7.4,
+    11.8,
+    15.4,
+    18.9,
+    23.1,
+    27.0,
+    31.6,
+    34.6,
+    36.9,
+    41.9,
+    45.9,
+    50.0,
+    53.1,
+    57.2,
+    62.1,
+    65.6,
+    69.4
 ] }) {
     _s();
-    const POEM_LINES = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useMemo"])({
-        "BirthdayCard.useMemo[POEM_LINES]": ()=>[
-                "The world became a brighter place",
-                "The moment Luke arrived,",
-                "With kindness written on your face",
-                "And a spirit meant to thrive",
-                "",
-                "Through every year and every mile,",
-                "You’ve grown in heart and mind,",
-                "With a steady hand and a ready smile,",
-                "The rarest soul to find.",
-                "",
-                "May your day be filled with all you love,",
-                "With laughter, warmth, and light,",
-                "And may the year ahead hold dreams",
-                "That shine forever bright.",
-                "",
-                "So here’s to you, for all you are,",
-                "And all you’re yet to be—",
-                "Luke, you truly are a star",
-                "For everyone to see."
-            ]
-    }["BirthdayCard.useMemo[POEM_LINES]"], []);
-    const svgRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
-    const penRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
-    const audioRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
-    // Animated mask: one path per line (white reveals the ink)
-    const maskPathsRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])([]);
-    const rafRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(0);
-    const [status, setStatus] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("Ready ✍️");
-    const [ready, setReady] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const POEM_LINES = [
+        "The world became a brighter place",
+        "The moment Luke arrived,",
+        "With kindness written on your face",
+        "And a spirit meant to thrive",
+        "",
+        "Through every year and every mile,",
+        "You've grown in heart and mind,",
+        "With a steady hand and a ready smile,",
+        "The rarest soul to find.",
+        "",
+        "May your day be filled with all you love,",
+        "With laughter, warmth, and light,",
+        "And may the year ahead hold dreams",
+        "That shine forever bright.",
+        "",
+        "So here's to you, for all you are,",
+        "And all you're yet to be—",
+        "Luke, you truly are a star",
+        "For everyone to see."
+    ];
+    const [fontReady, setFontReady] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [cardOpen, setCardOpen] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [arrowPull, setArrowPull] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(0);
+    const [isDragging, setIsDragging] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
     const [isPlaying, setIsPlaying] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
-    const [needsGesture, setNeedsGesture] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
-    // Layout knobs
-    const viewW = 900;
-    const viewH = 560;
-    const startX = 40;
-    const startY = 90;
-    const lineGap = 48;
-    const maxRevealW = 860;
-    // Tuned "pressure" knobs
-    // Thinner starts/ends, richer mid-line, with a slightly late peak (feels more like a flourish)
-    const strokeMin = 18; // thin
-    const strokeMax = 62; // thick
-    const peakShift = 0.07; // shift thickness peak slightly later (0..0.15-ish)
-    const pressureGamma = 0.64; // <1 broadens the thick region
-    const baselineJitter = 2.6; // subtle per-line baseline drift (handwritten feel)
-    const personalitySpread = 0.14; // per-line pressure personality boost range
-    // Ink look
-    const inkFill = "rgba(255,255,255,.96)";
-    const inkGlow = "rgba(255,210,122,.22)";
-    // ---------- Font loading ----------
+    const [lineProgress, setLineProgress] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
+        "BirthdayCard.useState": ()=>POEM_LINES.map({
+                "BirthdayCard.useState": ()=>0
+            }["BirthdayCard.useState"])
+    }["BirthdayCard.useState"]);
+    const [audioLoaded, setAudioLoaded] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    const audioRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const rafRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const arrowRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const dragStartY = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(0);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "BirthdayCard.useEffect": ()=>{
             let cancelled = false;
@@ -103,10 +87,8 @@ function BirthdayCard({ toName = "Luke", photos = [
                     await ff.load();
                     document.fonts.add(ff);
                     await document.fonts.ready;
-                } catch  {
-                // Fallback cursive is fine.
-                }
-                if (!cancelled) setReady(true);
+                } catch  {}
+                if (!cancelled) setFontReady(true);
             }
             loadFont();
             return ({
@@ -118,551 +100,557 @@ function BirthdayCard({ toName = "Luke", photos = [
     }["BirthdayCard.useEffect"], [
         fontUrl
     ]);
-    // ---------- Build mask paths once ----------
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "BirthdayCard.useEffect": ()=>{
-            if (!ready) return;
-            const svg = svgRef.current;
-            if (!svg) return;
-            const maskGroup = svg.querySelector("#maskGroup");
-            maskGroup.innerHTML = "";
-            maskPathsRef.current = [];
-            for(let i = 0; i < POEM_LINES.length; i++){
-                const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                p.setAttribute("fill", "white");
-                p.setAttribute("d", capsulePath(0, lineCenterY(i), i));
-                maskGroup.appendChild(p);
-                maskPathsRef.current.push(p);
+            const audio = audioRef.current;
+            if (audio) {
+                const onLoaded = {
+                    "BirthdayCard.useEffect.onLoaded": ()=>setAudioLoaded(true)
+                }["BirthdayCard.useEffect.onLoaded"];
+                audio.addEventListener("loadedmetadata", onLoaded);
+                return ({
+                    "BirthdayCard.useEffect": ()=>audio.removeEventListener("loadedmetadata", onLoaded)
+                })["BirthdayCard.useEffect"];
             }
-            if (penRef.current) {
-                penRef.current.style.opacity = "0";
-                penRef.current.style.transform = "translate(-9999px,-9999px) rotate(18deg)";
+        }
+    }["BirthdayCard.useEffect"], []);
+    const handleDragStart = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "BirthdayCard.useCallback[handleDragStart]": (e)=>{
+            if (cardOpen) return;
+            setIsDragging(true);
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            dragStartY.current = clientY;
+            e.preventDefault();
+        }
+    }["BirthdayCard.useCallback[handleDragStart]"], [
+        cardOpen
+    ]);
+    const handleDragMove = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "BirthdayCard.useCallback[handleDragMove]": (e)=>{
+            if (!isDragging || cardOpen) return;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const delta = clientY - dragStartY.current;
+            const pull = Math.min(1, Math.max(0, delta / 150));
+            setArrowPull(pull);
+        }
+    }["BirthdayCard.useCallback[handleDragMove]"], [
+        isDragging,
+        cardOpen
+    ]);
+    const handleDragEnd = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "BirthdayCard.useCallback[handleDragEnd]": ()=>{
+            if (!isDragging) return;
+            setIsDragging(false);
+            if (arrowPull > 0.5) {
+                setArrowPull(0);
+                setCardOpen(true);
+            } else {
+                setArrowPull(0);
+            }
+        }
+    }["BirthdayCard.useCallback[handleDragEnd]"], [
+        isDragging,
+        arrowPull
+    ]);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "BirthdayCard.useEffect": ()=>{
+            if (isDragging) {
+                window.addEventListener("mousemove", handleDragMove);
+                window.addEventListener("mouseup", handleDragEnd);
+                window.addEventListener("touchmove", handleDragMove, {
+                    passive: false
+                });
+                window.addEventListener("touchend", handleDragEnd);
+                return ({
+                    "BirthdayCard.useEffect": ()=>{
+                        window.removeEventListener("mousemove", handleDragMove);
+                        window.removeEventListener("mouseup", handleDragEnd);
+                        window.removeEventListener("touchmove", handleDragMove);
+                        window.removeEventListener("touchend", handleDragEnd);
+                    }
+                })["BirthdayCard.useEffect"];
             }
         }
     }["BirthdayCard.useEffect"], [
-        ready,
-        POEM_LINES
+        isDragging,
+        handleDragMove,
+        handleDragEnd
     ]);
-    // ---------- Autostart (safe) ----------
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
-        "BirthdayCard.useEffect": ()=>{
-            if (!ready || !autoStart) return;
-            const a = audioRef.current;
-            if (!a) return;
-            const onMeta = {
-                "BirthdayCard.useEffect.onMeta": async ()=>{
-                    try {
-                        await a.play();
-                        setNeedsGesture(false);
-                        startSyncedAnimation();
-                    } catch  {
-                        setNeedsGesture(true);
-                        setStatus("Tap to start (sound permission)");
+    const handleArrowClick = ()=>{
+        if (!cardOpen && !isDragging) {
+            setCardOpen(true);
+        }
+    };
+    const computeLineEnds = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "BirthdayCard.useCallback[computeLineEnds]": ()=>{
+            const audio = audioRef.current;
+            const duration = audio?.duration || 72;
+            return lineStartTimes.map({
+                "BirthdayCard.useCallback[computeLineEnds]": (t, i)=>i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : duration
+            }["BirthdayCard.useCallback[computeLineEnds]"]);
+        }
+    }["BirthdayCard.useCallback[computeLineEnds]"], [
+        lineStartTimes
+    ]);
+    const startAnimation = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "BirthdayCard.useCallback[startAnimation]": ()=>{
+            const audio = audioRef.current;
+            if (!audio) return;
+            const ends = computeLineEnds();
+            const tick = {
+                "BirthdayCard.useCallback[startAnimation].tick": ()=>{
+                    const t = audio.currentTime;
+                    const newProgress = POEM_LINES.map({
+                        "BirthdayCard.useCallback[startAnimation].tick.newProgress": (line, i)=>{
+                            if (!line.trim()) return t >= lineStartTimes[i] ? 1 : 0;
+                            const t0 = lineStartTimes[i];
+                            const t1 = ends[i];
+                            return Math.min(1, Math.max(0, (t - t0) / Math.max(0.2, t1 - t0)));
+                        }
+                    }["BirthdayCard.useCallback[startAnimation].tick.newProgress"]);
+                    setLineProgress(newProgress);
+                    if (!audio.paused && !audio.ended) {
+                        rafRef.current = requestAnimationFrame(tick);
+                    } else if (audio.ended) {
+                        setIsPlaying(false);
                     }
                 }
-            }["BirthdayCard.useEffect.onMeta"];
-            a.addEventListener("loadedmetadata", onMeta);
-            return ({
-                "BirthdayCard.useEffect": ()=>a.removeEventListener("loadedmetadata", onMeta)
-            })["BirthdayCard.useEffect"];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+            }["BirthdayCard.useCallback[startAnimation].tick"];
+            rafRef.current = requestAnimationFrame(tick);
+        }
+    }["BirthdayCard.useCallback[startAnimation]"], [
+        lineStartTimes,
+        computeLineEnds,
+        POEM_LINES
+    ]);
+    const startSilentAnimation = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "BirthdayCard.useCallback[startSilentAnimation]": ()=>{
+            const totalDuration = 40;
+            const startTime = Date.now();
+            const ends = lineStartTimes.map({
+                "BirthdayCard.useCallback[startSilentAnimation].ends": (t, i)=>i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : totalDuration
+            }["BirthdayCard.useCallback[startSilentAnimation].ends"]);
+            const scale = totalDuration / (lineStartTimes[lineStartTimes.length - 1] + 3);
+            const tick = {
+                "BirthdayCard.useCallback[startSilentAnimation].tick": ()=>{
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const t = elapsed * scale;
+                    const newProgress = POEM_LINES.map({
+                        "BirthdayCard.useCallback[startSilentAnimation].tick.newProgress": (line, i)=>{
+                            if (!line.trim()) return t >= lineStartTimes[i] ? 1 : 0;
+                            const t0 = lineStartTimes[i];
+                            const t1 = ends[i];
+                            return Math.min(1, Math.max(0, (t - t0) / Math.max(0.2, t1 - t0)));
+                        }
+                    }["BirthdayCard.useCallback[startSilentAnimation].tick.newProgress"]);
+                    setLineProgress(newProgress);
+                    if (elapsed < totalDuration / scale) {
+                        rafRef.current = requestAnimationFrame(tick);
+                    }
+                }
+            }["BirthdayCard.useCallback[startSilentAnimation].tick"];
+            rafRef.current = requestAnimationFrame(tick);
+        }
+    }["BirthdayCard.useCallback[startSilentAnimation]"], [
+        lineStartTimes,
+        POEM_LINES
+    ]);
+    const handlePlayAudio = async ()=>{
+        const audio = audioRef.current;
+        if (!audio) return;
+        if (audio.paused) {
+            try {
+                audio.currentTime = 0;
+                setLineProgress(POEM_LINES.map(()=>0));
+                await audio.play();
+                setIsPlaying(true);
+                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+                startAnimation();
+            } catch  {
+                startSilentAnimation();
+            }
+        } else {
+            audio.pause();
+            setIsPlaying(false);
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        }
+    };
+    const handleReplay = ()=>{
+        const audio = audioRef.current;
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+        setLineProgress(POEM_LINES.map(()=>0));
+        setIsPlaying(false);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        handlePlayAudio();
+    };
+    const silentAnimationRan = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(false);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "BirthdayCard.useEffect": ()=>{
+            if (cardOpen && !isPlaying && !silentAnimationRan.current) {
+                const timer = setTimeout({
+                    "BirthdayCard.useEffect.timer": ()=>{
+                        if (!isPlaying) {
+                            silentAnimationRan.current = true;
+                            startSilentAnimation();
+                        }
+                    }
+                }["BirthdayCard.useEffect.timer"], 1500);
+                return ({
+                    "BirthdayCard.useEffect": ()=>clearTimeout(timer)
+                })["BirthdayCard.useEffect"];
+            }
         }
     }["BirthdayCard.useEffect"], [
-        ready,
-        autoStart
+        cardOpen,
+        isPlaying,
+        startSilentAnimation
     ]);
-    // ---------- Helpers ----------
-    function stopRaf() {
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
+    if (!fontReady) {
+        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+            style: styles.loading,
+            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                style: styles.loadingText,
+                children: "Loading..."
+            }, void 0, false, {
+                fileName: "[project]/app/components/BirthdayCard.jsx",
+                lineNumber: 238,
+                columnNumber: 9
+            }, this)
+        }, void 0, false, {
+            fileName: "[project]/app/components/BirthdayCard.jsx",
+            lineNumber: 237,
+            columnNumber: 7
+        }, this);
     }
-    function clamp(v, a, b) {
-        return Math.max(a, Math.min(b, v));
-    }
-    function easeInOutCubic(x) {
-        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-    }
-    function hash01(n) {
-        // Deterministic pseudo-random (0..1) per line
-        const x = Math.sin(n * 999.123 + 0.123) * 10000;
-        return x - Math.floor(x);
-    }
-    function lineCenterY(i) {
-        const jitter = (hash01(i + 7) - 0.5) * 2 * baselineJitter;
-        return startY - 10 + i * lineGap + jitter;
-    }
-    function svgPointToPage(svg, x, y) {
-        const pt = svg.createSVGPoint();
-        pt.x = x;
-        pt.y = y;
-        return pt.matrixTransform(svg.getScreenCTM());
-    }
-    function computeAutoLineStarts(duration) {
-        const weights = POEM_LINES.map((l)=>l.trim() ? Math.max(6, l.length) : 4);
-        const total = weights.reduce((a, b)=>a + b, 0);
-        let acc = 0;
-        return weights.map((w)=>{
-            const t = acc / total * duration;
-            acc += w;
-            return t;
-        });
-    }
-    // ---------- Pressure-tuned mask path ----------
-    // progress: 0..1
-    // cy: center y for line band
-    // lineIndex: adds small per-line personality (pressure boost, nib wobble)
-    function capsulePath(progress, cy, lineIndex) {
-        const p = clamp(progress, 0, 1);
-        const pE = easeInOutCubic(p);
-        // Reveal length
-        const w = Math.max(0, maxRevealW * pE);
-        const driftX = (Math.sin(pE * 3.1 + lineIndex) + Math.sin(pE * 6.2 + lineIndex * 1.9)) * 1.2;
-        const x1 = Math.max(startX, startX + w + driftX);
-        // Per-line pressure personality
-        const rand = hash01(lineIndex + 1);
-        const line = POEM_LINES[lineIndex] ?? "";
-        const punctuationBoost = /[—–,.;:!?]$/.test(line.trim()) ? 1.06 : 1.0;
-        const lengthBoost = clamp(0.92 + line.trim().length / 45 * 0.18, 0.92, 1.12);
-        const personality = (1 - personalitySpread / 2 + rand * personalitySpread) * punctuationBoost * lengthBoost;
-        // Pressure curve (thickness): thin -> thick -> thin,
-        // with a slightly late peak to feel like a flourish.
-        const linePeakShift = peakShift + (rand - 0.5) * 0.05; // per-line late/early flair
-        const shifted = clamp(pE + linePeakShift, 0, 1);
-        const bell = Math.sin(Math.PI * shifted);
-        const broadBell = Math.pow(Math.max(0, bell), pressureGamma); // broaden mid region
-        const midPlateau = 0.12 + rand * 0.08; // broad, thick mid-stroke
-        const plateauBlend = 1 - Math.abs(shifted - 0.55) / (0.55 + midPlateau);
-        const plateau = clamp(plateauBlend, 0, 1);
-        const shape = clamp(broadBell * (0.82 + 0.18 * plateau), 0, 1);
-        const t = (strokeMin + (strokeMax - strokeMin) * shape) * personality;
-        // Taper ends a bit more (gives a nib-like lift)
-        const taper = 0.85 + 0.15 * Math.sin(Math.PI * pE);
-        const pressureNoise = 1 + 0.055 * Math.sin(pE * 12 + lineIndex * 0.9) + 0.03 * Math.sin(pE * 28 + lineIndex * 1.7) + 0.02 * Math.sin(pE * 4.8 + lineIndex * 0.2);
-        const thickness = Math.max(6, t * taper * pressureNoise);
-        const r = thickness / 2;
-        // Ink wobble: subtle feathering feeling
-        const wobble = (Math.sin(pE * 10 + lineIndex) + Math.sin(pE * 23 + lineIndex * 2.3)) * 0.55;
-        const topY = cy - r + wobble;
-        const botY = cy + r + wobble;
-        // When nearly zero, show a dot-like nib kiss
-        if (w < 2) {
-            return `M ${startX} ${cy}
-              m -${r} 0
-              a ${r} ${r} 0 1 0 ${2 * r} 0
-              a ${r} ${r} 0 1 0 -${2 * r} 0`;
-        }
-        // Rounded capsule (pill)
-        return `
-      M ${startX} ${topY}
-      L ${x1} ${topY}
-      A ${r} ${r} 0 0 1 ${x1} ${botY}
-      L ${startX} ${botY}
-      A ${r} ${r} 0 0 1 ${startX} ${topY}
-      Z
-    `;
-    }
-    function findActiveLineIndex(tNow, starts, ends) {
-        for(let i = 0; i < starts.length; i++){
-            if (tNow >= starts[i] && tNow < ends[i]) return i;
-        }
-        return -1;
-    }
-    // ---------- Animation driver (audio clock) ----------
-    function startSyncedAnimation() {
-        stopRaf();
-        const svg = svgRef.current;
-        const pen = penRef.current;
-        const audio = audioRef.current;
-        const paths = maskPathsRef.current;
-        if (!svg || !pen || !audio || !paths.length) return;
-        setIsPlaying(true);
-        setStatus("Writing…");
-        const startsProvided = Array.isArray(lineStartTimes) && lineStartTimes.length === POEM_LINES.length;
-        const starts = startsProvided ? lineStartTimes : computeAutoLineStarts(Number.isFinite(audio.duration) ? audio.duration : 72);
-        const duration = Number.isFinite(audio.duration) ? audio.duration : starts[starts.length - 1] + 2;
-        const ends = starts.map((t, i)=>i < starts.length - 1 ? starts[i + 1] : duration);
-        const tick = ()=>{
-            const tNow = audio.currentTime;
-            // Update per-line progress
-            for(let i = 0; i < paths.length; i++){
-                const line = POEM_LINES[i];
-                const t0 = starts[i];
-                const t1 = ends[i];
-                if (!line.trim()) {
-                    const done = tNow >= t0 ? 1 : 0;
-                    paths[i].setAttribute("d", capsulePath(done, lineCenterY(i), i));
-                    continue;
-                }
-                const p = clamp((tNow - t0) / Math.max(0.22, t1 - t0), 0, 1);
-                paths[i].setAttribute("d", capsulePath(p, lineCenterY(i), i));
-            }
-            // Move pen to active line
-            const activeIndex = findActiveLineIndex(tNow, starts, ends);
-            if (activeIndex >= 0) {
-                const t0 = starts[activeIndex];
-                const t1 = ends[activeIndex];
-                const p = clamp((tNow - t0) / Math.max(0.22, t1 - t0), 0, 1);
-                const pE = easeInOutCubic(p);
-                pen.style.opacity = "1";
-                const nibWobble = (Math.sin(pE * 9 + activeIndex) + Math.sin(pE * 19)) * 1.1;
-                const px = startX + maxRevealW * pE + 10 + Math.sin(pE * 4 + activeIndex) * 1.4;
-                const py = lineCenterY(activeIndex) + 10 + nibWobble;
-                const page = svgPointToPage(svg, px, py);
-                pen.style.transform = `translate(${page.x - 9}px, ${page.y - 9}px) rotate(${18 + Math.sin(pE * 7) * 3}deg)`;
-            } else {
-                pen.style.opacity = "0";
-            }
-            if (audio.ended) {
-                setStatus("Done 💛");
-                setIsPlaying(false);
-                pen.style.opacity = "0";
-                stopRaf();
-                return;
-            }
-            rafRef.current = requestAnimationFrame(tick);
-        };
-        rafRef.current = requestAnimationFrame(tick);
-    }
-    async function handleStartFromOverlay() {
-        const a = audioRef.current;
-        if (!a) return;
-        try {
-            await a.play();
-            setNeedsGesture(false);
-            startSyncedAnimation();
-        } catch  {
-            setStatus("Still blocked. Tap again or unmute.");
-        }
-    }
-    function handlePlayPause() {
-        const a = audioRef.current;
-        if (!a) return;
-        if (a.paused) {
-            a.play().then(()=>{
-                setNeedsGesture(false);
-                startSyncedAnimation();
-            }).catch(()=>{
-                setNeedsGesture(true);
-                setStatus("Tap to start (sound permission)");
-            });
-        } else {
-            a.pause();
-            setIsPlaying(false);
-            setStatus("Paused");
-            stopRaf();
-        }
-    }
-    function handleReplay() {
-        const a = audioRef.current;
-        if (!a) return;
-        a.pause();
-        a.currentTime = 0;
-        setStatus("Writing…");
-        a.play().then(()=>{
-            setNeedsGesture(false);
-            startSyncedAnimation();
-        }).catch(()=>{
-            setNeedsGesture(true);
-            setStatus("Tap to start (sound permission)");
-        });
-    }
-    // ---------- Render ----------
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "min-h-screen w-full grid place-items-center p-6",
-        style: {
-            color: "white"
-        },
-        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-            className: "w-full max-w-[980px] rounded-[22px] overflow-hidden",
-            style: {
-                border: "1px solid rgba(255,255,255,.10)",
-                boxShadow: "0 18px 60px rgba(0,0,0,.45)",
-                background: "radial-gradient(1000px 600px at 15% 15%, rgba(158,231,255,.18), transparent 60%)," + "radial-gradient(900px 650px at 85% 25%, rgba(255,210,122,.16), transparent 55%)," + "radial-gradient(800px 600px at 60% 90%, rgba(206,166,255,.12), transparent 55%)," + "linear-gradient(160deg, #0f1220, #1a1f35)"
-            },
-            children: [
-                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    style: {
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        padding: "16px 16px",
-                        borderBottom: "1px solid rgba(255,255,255,.10)",
-                        backdropFilter: "blur(10px)",
-                        background: "linear-gradient(90deg, rgba(158,231,255,.10), rgba(255,210,122,.08))"
-                    },
-                    children: [
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            style: {
-                                minWidth: 0
-                            },
+        style: styles.container,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("audio", {
+                ref: audioRef,
+                src: audioUrl,
+                preload: "auto"
+            }, void 0, false, {
+                fileName: "[project]/app/components/BirthdayCard.jsx",
+                lineNumber: 245,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "card-wrapper-responsive",
+                style: {
+                    ...styles.cardWrapper,
+                    perspective: cardOpen ? "2000px" : "1000px"
+                },
+                children: [
+                    !cardOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        style: styles.cardFront,
+                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            style: styles.frontContent,
                             children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
+                                    style: styles.frontTitle,
+                                    children: "Happy Birthday!"
+                                }, void 0, false, {
+                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                    lineNumber: 256,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                    style: styles.frontSubtitle,
+                                    children: "Pull the arrow to open"
+                                }, void 0, false, {
+                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                    lineNumber: 257,
+                                    columnNumber: 15
+                                }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    ref: arrowRef,
                                     style: {
-                                        fontSize: 18,
-                                        fontWeight: 800,
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis"
+                                        ...styles.arrowContainer,
+                                        transform: `translateY(${arrowPull * 60}px)`,
+                                        cursor: isDragging ? "grabbing" : "grab"
                                     },
+                                    onMouseDown: handleDragStart,
+                                    onTouchStart: handleDragStart,
+                                    onClick: handleArrowClick,
                                     children: [
-                                        "Happy Birthday, ",
-                                        toName,
-                                        " 🎉"
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+                                            width: "80",
+                                            height: "200",
+                                            viewBox: "0 0 80 200",
+                                            style: styles.arrowSvg,
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("defs", {
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("linearGradient", {
+                                                            id: "arrowGrad",
+                                                            x1: "0%",
+                                                            y1: "0%",
+                                                            x2: "0%",
+                                                            y2: "100%",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("stop", {
+                                                                    offset: "0%",
+                                                                    stopColor: "#ffd700"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                    lineNumber: 273,
+                                                                    columnNumber: 23
+                                                                }, this),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("stop", {
+                                                                    offset: "100%",
+                                                                    stopColor: "#ff8c00"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                    lineNumber: 274,
+                                                                    columnNumber: 23
+                                                                }, this)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                            lineNumber: 272,
+                                                            columnNumber: 21
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("filter", {
+                                                            id: "arrowGlow",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feGaussianBlur", {
+                                                                    stdDeviation: "3",
+                                                                    result: "blur"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                    lineNumber: 277,
+                                                                    columnNumber: 23
+                                                                }, this),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMerge", {
+                                                                    children: [
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMergeNode", {
+                                                                            in: "blur"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                            lineNumber: 279,
+                                                                            columnNumber: 25
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMergeNode", {
+                                                                            in: "SourceGraphic"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                            lineNumber: 280,
+                                                                            columnNumber: 25
+                                                                        }, this)
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                    lineNumber: 278,
+                                                                    columnNumber: 23
+                                                                }, this)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                            lineNumber: 276,
+                                                            columnNumber: 21
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 271,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("line", {
+                                                    x1: "40",
+                                                    y1: "30",
+                                                    x2: "40",
+                                                    y2: "170",
+                                                    stroke: "url(#arrowGrad)",
+                                                    strokeWidth: "4",
+                                                    strokeLinecap: "round",
+                                                    filter: "url(#arrowGlow)"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 284,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("polygon", {
+                                                    points: "40,10 25,40 55,40",
+                                                    fill: "url(#arrowGrad)",
+                                                    filter: "url(#arrowGlow)"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 285,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("polygon", {
+                                                    points: "30,165 40,180 50,165",
+                                                    fill: "url(#arrowGrad)",
+                                                    opacity: "0.6"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 286,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("line", {
+                                                    x1: "30",
+                                                    y1: "170",
+                                                    x2: "40",
+                                                    y2: "175",
+                                                    stroke: "url(#arrowGrad)",
+                                                    strokeWidth: "2"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 287,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("line", {
+                                                    x1: "50",
+                                                    y1: "170",
+                                                    x2: "40",
+                                                    y2: "175",
+                                                    stroke: "url(#arrowGrad)",
+                                                    strokeWidth: "2"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 288,
+                                                    columnNumber: 19
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                            lineNumber: 270,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            style: {
+                                                ...styles.bowString,
+                                                transform: `scaleY(${1 + arrowPull * 0.3})`
+                                            }
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                            lineNumber: 291,
+                                            columnNumber: 17
+                                        }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 440,
-                                    columnNumber: 13
+                                    lineNumber: 259,
+                                    columnNumber: 15
                                 }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                arrowPull > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     style: {
-                                        fontSize: 13,
-                                        color: "rgba(255,255,255,.70)",
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis"
+                                        ...styles.pullIndicator,
+                                        opacity: arrowPull
                                     },
-                                    children: "Pressure ink + paper grain + synced narration."
+                                    children: arrowPull > 0.5 ? "Release!" : "Keep pulling..."
                                 }, void 0, false, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 443,
-                                    columnNumber: 13
+                                    lineNumber: 298,
+                                    columnNumber: 17
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 439,
-                            columnNumber: 11
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            style: {
-                                display: "flex",
-                                gap: 10,
-                                flexWrap: "wrap",
-                                justifyContent: "flex-end"
-                            },
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                    onClick: handlePlayPause,
-                                    style: btnStyle("primary"),
-                                    "aria-label": isPlaying ? "Pause" : "Play",
-                                    children: isPlaying ? "⏸ Pause" : "▶ Play"
-                                }, void 0, false, {
-                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 449,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                    onClick: handleReplay,
-                                    style: btnStyle(),
-                                    "aria-label": "Replay",
-                                    children: "↺ Replay"
-                                }, void 0, false, {
-                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 456,
-                                    columnNumber: 13
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 448,
-                            columnNumber: 11
+                            lineNumber: 255,
+                            columnNumber: 13
                         }, this)
-                    ]
-                }, void 0, true, {
-                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                    lineNumber: 427,
-                    columnNumber: 9
-                }, this),
-                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    style: {
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1.35fr",
-                        minHeight: 580
-                    },
-                    children: [
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            style: {
-                                padding: 16,
-                                borderRight: "1px solid rgba(255,255,255,.10)",
-                                display: "grid",
-                                placeItems: "center",
-                                background: "radial-gradient(700px 450px at 30% 20%, rgba(255,210,122,.10), transparent 60%)," + "radial-gradient(600px 400px at 75% 65%, rgba(158,231,255,.10), transparent 55%)"
-                            },
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                style: {
-                                    position: "relative",
-                                    width: "92%",
-                                    maxWidth: 340,
-                                    aspectRatio: "4 / 5"
-                                },
-                                children: photos.slice(0, 3).map((src, i)=>{
-                                    const rot = [
-                                        -6,
-                                        5,
-                                        -2
-                                    ][i] ?? 0;
-                                    const tx = [
-                                        -10,
-                                        10,
-                                        0
-                                    ][i] ?? 0;
-                                    const ty = [
-                                        6,
-                                        0,
-                                        -4
-                                    ][i] ?? 0;
-                                    const opacity = [
-                                        1,
-                                        0.95,
-                                        0.92
-                                    ][i] ?? 1;
-                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        style: {
-                                            position: "absolute",
-                                            inset: 0,
-                                            borderRadius: 18,
-                                            overflow: "hidden",
-                                            border: "1px solid rgba(255,255,255,.15)",
-                                            boxShadow: "0 14px 35px rgba(0,0,0,.35)",
-                                            background: "rgba(255,255,255,.08)",
-                                            transform: `rotate(${rot}deg) translate(${tx}px, ${ty}px)`,
-                                            transformOrigin: "60% 80%",
-                                            opacity
-                                        },
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("img", {
-                                                src: src,
-                                                alt: `Photo ${i + 1}`,
-                                                style: {
-                                                    width: "100%",
-                                                    height: "100%",
-                                                    objectFit: "cover",
-                                                    display: "block"
-                                                }
-                                            }, void 0, false, {
-                                                fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 498,
-                                                columnNumber: 21
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                style: {
-                                                    position: "absolute",
-                                                    left: 0,
-                                                    right: 0,
-                                                    bottom: 0,
-                                                    height: "22%",
-                                                    background: "rgba(0,0,0,.35)",
-                                                    borderTop: "1px solid rgba(255,255,255,.10)",
-                                                    backdropFilter: "blur(6px)"
-                                                }
-                                            }, void 0, false, {
-                                                fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 499,
-                                                columnNumber: 21
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                style: {
-                                                    position: "absolute",
-                                                    left: 12,
-                                                    right: 12,
-                                                    bottom: 10,
-                                                    fontSize: 12,
-                                                    display: "flex",
-                                                    justifyContent: "space-between",
-                                                    alignItems: "center",
-                                                    textShadow: "0 2px 14px rgba(0,0,0,.60)"
-                                                },
-                                                children: [
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                        style: {
-                                                            fontWeight: 800,
-                                                            color: "rgba(255,210,122,.95)"
-                                                        },
-                                                        children: [
-                                                            "Memory #",
-                                                            i + 1
-                                                        ]
-                                                    }, void 0, true, {
-                                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 501,
-                                                        columnNumber: 23
-                                                    }, this),
-                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                        children: "♡"
+                    }, void 0, false, {
+                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                        lineNumber: 254,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "card-inner-responsive",
+                        style: {
+                            ...styles.cardInner,
+                            transform: cardOpen ? "rotateY(0deg)" : "rotateY(-90deg)",
+                            opacity: cardOpen ? 1 : 0,
+                            pointerEvents: cardOpen ? "auto" : "none"
+                        },
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "card-left-responsive",
+                                style: styles.cardLeft,
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "polaroid-stack-responsive",
+                                    style: styles.polaroidStack,
+                                    children: photos.slice(0, 3).map((src, i)=>{
+                                        const rotations = [
+                                            -8,
+                                            5,
+                                            -3
+                                        ];
+                                        const offsets = [
+                                            {
+                                                x: -15,
+                                                y: 10
+                                            },
+                                            {
+                                                x: 20,
+                                                y: -5
+                                            },
+                                            {
+                                                x: 5,
+                                                y: 15
+                                            }
+                                        ];
+                                        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            style: {
+                                                ...styles.polaroid,
+                                                transform: `rotate(${rotations[i]}deg) translate(${offsets[i].x}px, ${offsets[i].y}px)`,
+                                                zIndex: 3 - i,
+                                                animationDelay: `${i * 0.2}s`
+                                            },
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    style: styles.polaroidImage,
+                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("img", {
+                                                        src: src,
+                                                        alt: captions[i],
+                                                        style: styles.photo
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 502,
+                                                        lineNumber: 333,
                                                         columnNumber: 23
                                                     }, this)
-                                                ]
-                                            }, void 0, true, {
-                                                fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 500,
-                                                columnNumber: 21
-                                            }, this)
-                                        ]
-                                    }, src + i, true, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 483,
-                                        columnNumber: 19
-                                    }, this);
-                                })
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 332,
+                                                    columnNumber: 21
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    style: styles.polaroidCaption,
+                                                    children: captions[i]
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 335,
+                                                    columnNumber: 21
+                                                }, this)
+                                            ]
+                                        }, i, true, {
+                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                            lineNumber: 323,
+                                            columnNumber: 19
+                                        }, this);
+                                    })
+                                }, void 0, false, {
+                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                    lineNumber: 318,
+                                    columnNumber: 13
+                                }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                lineNumber: 476,
-                                columnNumber: 13
-                            }, this)
-                        }, void 0, false, {
-                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 465,
-                            columnNumber: 11
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            style: {
-                                padding: 16
-                            },
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                style: {
-                                    position: "relative",
-                                    height: "100%",
-                                    borderRadius: 18,
-                                    border: "1px solid rgba(255,255,255,.10)",
-                                    overflow: "hidden",
-                                    background: "linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03))," + "radial-gradient(900px 600px at 50% 0%, rgba(255,210,122,.08), transparent 60%)," + "radial-gradient(700px 500px at 20% 80%, rgba(158,231,255,.08), transparent 55%)"
-                                },
+                                lineNumber: 317,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "card-right-responsive",
+                                style: styles.cardRight,
                                 children: [
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        style: {
-                                            position: "absolute",
-                                            inset: 0,
-                                            pointerEvents: "none",
-                                            opacity: 0.24,
-                                            backgroundImage: "radial-gradient(circle at 20% 30%, rgba(255,255,255,.35) 0 1px, transparent 2px)," + "radial-gradient(circle at 70% 60%, rgba(255,255,255,.28) 0 1px, transparent 2px)," + "radial-gradient(circle at 40% 80%, rgba(255,255,255,.22) 0 1px, transparent 2px)," + "repeating-linear-gradient(25deg, rgba(255,255,255,.06) 0 1px, transparent 1px 6px)," + "repeating-linear-gradient(-20deg, rgba(0,0,0,.10) 0 1px, transparent 1px 7px)",
-                                            backgroundSize: "120px 120px, 120px 120px, 120px 120px, 140px 140px, 160px 160px",
-                                            mixBlendMode: "soft-light"
-                                        }
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 526,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        style: {
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "flex-end",
-                                            gap: 12,
-                                            padding: "18px 20px 0",
-                                            position: "relative"
-                                        },
+                                        style: styles.poemHeader,
                                         children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                style: {
-                                                    fontSize: 16,
-                                                    fontWeight: 800
-                                                },
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                style: styles.toName,
                                                 children: [
                                                     "To ",
                                                     toName,
@@ -670,395 +658,484 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 544,
-                                                columnNumber: 17
+                                                lineNumber: 344,
+                                                columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                style: {
-                                                    fontSize: 12,
-                                                    color: "rgba(255,255,255,.70)",
-                                                    whiteSpace: "nowrap"
-                                                },
-                                                children: status
-                                            }, void 0, false, {
-                                                fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 545,
-                                                columnNumber: 17
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 543,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        style: {
-                                            margin: "10px 20px 14px",
-                                            height: 1,
-                                            opacity: 0.7,
-                                            background: "linear-gradient(90deg, rgba(255,210,122,.45), rgba(158,231,255,.35), transparent)"
-                                        }
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 548,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        style: {
-                                            padding: "0 20px 64px",
-                                            position: "relative"
-                                        },
-                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
-                                            ref: svgRef,
-                                            viewBox: `0 0 ${viewW} ${viewH}`,
-                                            width: "100%",
-                                            height: "auto",
-                                            style: {
-                                                display: "block"
-                                            },
-                                            "aria-label": "Poem",
-                                            children: [
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("defs", {
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("mask", {
-                                                            id: "revealMask",
-                                                            children: [
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
-                                                                    x: "0",
-                                                                    y: "0",
-                                                                    width: viewW,
-                                                                    height: viewH,
-                                                                    fill: "black"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 561,
-                                                                    columnNumber: 23
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("g", {
-                                                                    id: "maskGroup"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 562,
-                                                                    columnNumber: 23
-                                                                }, this)
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 560,
-                                                            columnNumber: 21
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("filter", {
-                                                            id: "inkBleed",
-                                                            x: "-20%",
-                                                            y: "-20%",
-                                                            width: "140%",
-                                                            height: "140%",
-                                                            children: [
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMorphology", {
-                                                                    in: "SourceGraphic",
-                                                                    operator: "dilate",
-                                                                    radius: "0.6",
-                                                                    result: "spread"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 567,
-                                                                    columnNumber: 23
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feGaussianBlur", {
-                                                                    in: "spread",
-                                                                    stdDeviation: "1.35",
-                                                                    result: "blur"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 568,
-                                                                    columnNumber: 23
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feColorMatrix", {
-                                                                    in: "blur",
-                                                                    type: "matrix",
-                                                                    values: " 1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.6 0",
-                                                                    result: "bleed"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 569,
-                                                                    columnNumber: 23
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMerge", {
-                                                                    children: [
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMergeNode", {
-                                                                            in: "bleed"
-                                                                        }, void 0, false, {
-                                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 580,
-                                                                            columnNumber: 25
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMergeNode", {
-                                                                            in: "SourceGraphic"
-                                                                        }, void 0, false, {
-                                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 581,
-                                                                            columnNumber: 25
-                                                                        }, this)
-                                                                    ]
-                                                                }, void 0, true, {
-                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 579,
-                                                                    columnNumber: 23
-                                                                }, this)
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 566,
-                                                            columnNumber: 21
-                                                        }, this)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 559,
-                                                    columnNumber: 19
-                                                }, this),
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
-                                                    x: startX,
-                                                    y: startY,
-                                                    mask: "url(#revealMask)",
-                                                    style: {
-                                                        fontFamily: `"InterSignature", cursive`,
-                                                        fontSize: 42,
-                                                        fill: "rgba(255,255,255,.22)",
-                                                        filter: "url(#inkBleed)"
-                                                    },
-                                                    children: POEM_LINES.map((line, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tspan", {
-                                                            x: startX,
-                                                            y: startY + i * lineGap,
-                                                            children: line || " "
-                                                        }, i, false, {
-                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 599,
-                                                            columnNumber: 23
-                                                        }, this))
-                                                }, void 0, false, {
-                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 587,
-                                                    columnNumber: 19
-                                                }, this),
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
-                                                    x: startX,
-                                                    y: startY,
-                                                    mask: "url(#revealMask)",
-                                                    style: {
-                                                        fontFamily: `"InterSignature", cursive`,
-                                                        fontSize: 42,
-                                                        fill: inkFill,
-                                                        filter: `drop-shadow(0 0 10px ${inkGlow})`
-                                                    },
-                                                    children: POEM_LINES.map((line, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tspan", {
-                                                            x: startX,
-                                                            y: startY + i * lineGap,
-                                                            children: line || " "
-                                                        }, i, false, {
-                                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 618,
-                                                            columnNumber: 23
-                                                        }, this))
-                                                }, void 0, false, {
-                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 606,
-                                                    columnNumber: 19
-                                                }, this)
-                                            ]
-                                        }, void 0, true, {
-                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 558,
-                                            columnNumber: 17
-                                        }, this)
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 557,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        ref: penRef,
-                                        style: {
-                                            position: "absolute",
-                                            width: 18,
-                                            height: 18,
-                                            borderRadius: 6,
-                                            boxShadow: "0 10px 24px rgba(0,0,0,.35)",
-                                            pointerEvents: "none",
-                                            opacity: 0,
-                                            background: "linear-gradient(160deg, rgba(255,210,122,.9), rgba(158,231,255,.55))",
-                                            transform: "translate(-9999px,-9999px) rotate(18deg)"
-                                        },
-                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                            style: {
-                                                position: "absolute",
-                                                left: 5,
-                                                top: 5,
-                                                width: 8,
-                                                height: 8,
-                                                borderRadius: 3,
-                                                background: "rgba(0,0,0,.55)"
-                                            }
-                                        }, void 0, false, {
-                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 641,
-                                            columnNumber: 17
-                                        }, this)
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 627,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("audio", {
-                                        ref: audioRef,
-                                        src: audioUrl,
-                                        preload: "metadata"
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 645,
-                                        columnNumber: 15
-                                    }, this),
-                                    needsGesture && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                        onClick: handleStartFromOverlay,
-                                        style: {
-                                            position: "absolute",
-                                            inset: 0,
-                                            display: "grid",
-                                            placeItems: "center",
-                                            background: "rgba(0,0,0,.42)",
-                                            backdropFilter: "blur(6px)",
-                                            border: "none",
-                                            cursor: "pointer",
-                                            color: "white"
-                                        },
-                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                            style: {
-                                                padding: "12px 18px",
-                                                borderRadius: 999,
-                                                border: "1px solid rgba(255,255,255,.25)",
-                                                background: "rgba(255,255,255,.10)",
-                                                fontWeight: 900
-                                            },
-                                            children: "Tap to start with sound ▶"
-                                        }, void 0, false, {
-                                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 663,
-                                            columnNumber: 19
-                                        }, this)
-                                    }, void 0, false, {
-                                        fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 649,
-                                        columnNumber: 17
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        style: {
-                                            position: "absolute",
-                                            left: 18,
-                                            right: 18,
-                                            bottom: 14,
-                                            fontSize: 12,
-                                            color: "rgba(255,255,255,.70)",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 10,
-                                            flexWrap: "wrap"
-                                        },
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                style: {
-                                                    width: 10,
-                                                    height: 10,
-                                                    borderRadius: 999,
-                                                    background: "rgba(255,210,122,.95)",
-                                                    boxShadow: "0 0 18px rgba(255,210,122,.65), 0 0 40px rgba(158,231,255,.22)"
-                                                }
-                                            }, void 0, false, {
-                                                fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 678,
-                                                columnNumber: 17
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                style: styles.audioControls,
                                                 children: [
-                                                    "Audio: ",
-                                                    audioUrl
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                                        onClick: handlePlayAudio,
+                                                        style: styles.playBtn,
+                                                        children: isPlaying ? "⏸" : "▶"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                        lineNumber: 346,
+                                                        columnNumber: 17
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                                        onClick: handleReplay,
+                                                        style: styles.replayBtn,
+                                                        children: "↺"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                        lineNumber: 349,
+                                                        columnNumber: 17
+                                                    }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 687,
-                                                columnNumber: 17
+                                                lineNumber: 345,
+                                                columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 677,
-                                        columnNumber: 15
+                                        lineNumber: 343,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        style: styles.poemContainer,
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+                                            viewBox: "0 0 500 650",
+                                            style: styles.poemSvg,
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("defs", {
+                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("filter", {
+                                                        id: "inkBleed",
+                                                        x: "-10%",
+                                                        y: "-10%",
+                                                        width: "120%",
+                                                        height: "120%",
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMorphology", {
+                                                                operator: "dilate",
+                                                                radius: "0.3"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                lineNumber: 357,
+                                                                columnNumber: 21
+                                                            }, this),
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feGaussianBlur", {
+                                                                stdDeviation: "0.8"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                lineNumber: 358,
+                                                                columnNumber: 21
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                        lineNumber: 356,
+                                                        columnNumber: 19
+                                                    }, this)
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                    lineNumber: 355,
+                                                    columnNumber: 17
+                                                }, this),
+                                                POEM_LINES.map((line, i)=>{
+                                                    if (!line.trim()) return null;
+                                                    const y = 40 + i * 34;
+                                                    const progress = lineProgress[i] || 0;
+                                                    const clipWidth = 500 * progress;
+                                                    const isEmphasis = line.includes("Luke") || line.includes("star") || line.includes("thrive");
+                                                    const strokeOpacity = isEmphasis ? 1 : 0.95;
+                                                    const glowIntensity = isEmphasis ? "0 0 12px rgba(255,210,120,0.6)" : "0 0 6px rgba(255,210,120,0.3)";
+                                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("g", {
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("defs", {
+                                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("clipPath", {
+                                                                    id: `clip-${i}`,
+                                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("rect", {
+                                                                        x: "0",
+                                                                        y: y - 30,
+                                                                        width: clipWidth,
+                                                                        height: "40"
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                        lineNumber: 376,
+                                                                        columnNumber: 27
+                                                                    }, this)
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                    lineNumber: 375,
+                                                                    columnNumber: 25
+                                                                }, this)
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                lineNumber: 374,
+                                                                columnNumber: 23
+                                                            }, this),
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
+                                                                x: "20",
+                                                                y: y,
+                                                                style: {
+                                                                    fontFamily: '"InterSignature", cursive',
+                                                                    fontSize: 26,
+                                                                    fill: `rgba(255,255,255,${strokeOpacity * 0.15})`,
+                                                                    filter: "url(#inkBleed)"
+                                                                },
+                                                                clipPath: `url(#clip-${i})`,
+                                                                children: line
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                lineNumber: 379,
+                                                                columnNumber: 23
+                                                            }, this),
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
+                                                                x: "20",
+                                                                y: y,
+                                                                style: {
+                                                                    fontFamily: '"InterSignature", cursive',
+                                                                    fontSize: 26,
+                                                                    fill: `rgba(255,255,255,${strokeOpacity})`,
+                                                                    filter: `drop-shadow(${glowIntensity})`
+                                                                },
+                                                                clipPath: `url(#clip-${i})`,
+                                                                children: line
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                                lineNumber: 392,
+                                                                columnNumber: 23
+                                                            }, this)
+                                                        ]
+                                                    }, i, true, {
+                                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                                        lineNumber: 373,
+                                                        columnNumber: 21
+                                                    }, this);
+                                                })
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                            lineNumber: 354,
+                                            columnNumber: 15
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                        lineNumber: 353,
+                                        columnNumber: 13
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        style: styles.audioStatus,
+                                        children: audioLoaded ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                            children: "🎵 Audio ready"
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                            lineNumber: 413,
+                                            columnNumber: 17
+                                        }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                            children: "Loading audio..."
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/components/BirthdayCard.jsx",
+                                            lineNumber: 415,
+                                            columnNumber: 17
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                        lineNumber: 411,
+                                        columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                lineNumber: 512,
-                                columnNumber: 13
+                                lineNumber: 342,
+                                columnNumber: 11
                             }, this)
-                        }, void 0, false, {
-                            fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 511,
-                            columnNumber: 11
-                        }, this)
-                    ]
-                }, void 0, true, {
-                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                    lineNumber: 463,
-                    columnNumber: 9
-                }, this),
-                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("style", {
-                    children: `
-          @media (max-width: 860px) {
-            .stackGrid {
-              grid-template-columns: 1fr !important;
-            }
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                        lineNumber: 309,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/app/components/BirthdayCard.jsx",
+                lineNumber: 247,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("style", {
+                children: `
+        @keyframes polaroidIn {
+          from {
+            opacity: 0;
+            transform: rotate(0deg) translateY(30px) scale(0.8);
           }
-        `
-                }, void 0, false, {
-                    fileName: "[project]/app/components/BirthdayCard.jsx",
-                    lineNumber: 694,
-                    columnNumber: 9
-                }, this)
-            ]
-        }, void 0, true, {
-            fileName: "[project]/app/components/BirthdayCard.jsx",
-            lineNumber: 414,
-            columnNumber: 7
-        }, this)
-    }, void 0, false, {
+          to {
+            opacity: 1;
+          }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+
+        @media (max-width: 768px) {
+          .card-inner-responsive {
+            grid-template-columns: 1fr !important;
+            min-height: auto !important;
+          }
+          .card-left-responsive {
+            padding: 20px !important;
+            border-right: none !important;
+            border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+          }
+          .polaroid-stack-responsive {
+            max-width: 200px !important;
+          }
+          .card-right-responsive {
+            padding: 16px 20px !important;
+          }
+          .poem-svg-responsive {
+            min-height: 500px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .card-wrapper-responsive {
+            min-height: auto !important;
+          }
+          .polaroid-stack-responsive {
+            max-width: 160px !important;
+          }
+        }
+      `
+            }, void 0, false, {
+                fileName: "[project]/app/components/BirthdayCard.jsx",
+                lineNumber: 422,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
         fileName: "[project]/app/components/BirthdayCard.jsx",
-        lineNumber: 413,
+        lineNumber: 244,
         columnNumber: 5
     }, this);
 }
-_s(BirthdayCard, "iVvyn9GkLlLgyTfs6N0MH5dS57M=");
+_s(BirthdayCard, "3U2KgzR6JpA9K4aimeEIrN+80iY=");
 _c = BirthdayCard;
-function btnStyle(kind) {
-    const base = {
-        appearance: "none",
-        borderRadius: 999,
-        padding: "10px 12px",
-        fontWeight: 900,
-        letterSpacing: "0.2px",
-        cursor: "pointer",
-        border: "1px solid rgba(255,255,255,.16)",
-        background: "rgba(0,0,0,.20)",
+const styles = {
+    container: {
+        minHeight: "100vh",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+        boxSizing: "border-box"
+    },
+    loading: {
+        minHeight: "100vh",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#1a1a2e"
+    },
+    loadingText: {
         color: "white",
-        transition: "transform .08s ease, background .2s ease, border-color .2s ease"
-    };
-    if (kind === "primary") {
-        return {
-            ...base,
-            border: "1px solid rgba(255,255,255,.20)",
-            background: "linear-gradient(90deg, rgba(255,210,122,.22), rgba(158,231,255,.18))"
-        };
+        fontSize: 18,
+        fontFamily: "system-ui, sans-serif"
+    },
+    cardWrapper: {
+        width: "100%",
+        maxWidth: 1000,
+        minHeight: 600,
+        position: "relative",
+        transformStyle: "preserve-3d"
+    },
+    cardFront: {
+        position: "absolute",
+        inset: 0,
+        background: "linear-gradient(145deg, #2d3561 0%, #1e2243 100%)",
+        borderRadius: 24,
+        boxShadow: "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "1px solid rgba(255,255,255,0.1)"
+    },
+    frontContent: {
+        textAlign: "center",
+        color: "white"
+    },
+    frontTitle: {
+        fontSize: "clamp(28px, 5vw, 48px)",
+        fontWeight: 700,
+        margin: "0 0 16px",
+        background: "linear-gradient(135deg, #ffd700, #ff8c00)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        textShadow: "0 2px 20px rgba(255,215,0,0.3)"
+    },
+    frontSubtitle: {
+        fontSize: 16,
+        opacity: 0.7,
+        marginBottom: 40,
+        animation: "pulse 2s infinite"
+    },
+    arrowContainer: {
+        display: "inline-block",
+        padding: 20,
+        transition: "transform 0.1s ease-out",
+        userSelect: "none",
+        touchAction: "none"
+    },
+    arrowSvg: {
+        filter: "drop-shadow(0 4px 12px rgba(255,215,0,0.4))",
+        animation: "float 3s ease-in-out infinite"
+    },
+    bowString: {
+        position: "absolute",
+        left: "50%",
+        bottom: 0,
+        width: 2,
+        height: 60,
+        background: "linear-gradient(to bottom, rgba(255,215,0,0.6), transparent)",
+        transform: "translateX(-50%)",
+        transformOrigin: "top center",
+        transition: "transform 0.1s ease-out"
+    },
+    pullIndicator: {
+        marginTop: 20,
+        fontSize: 14,
+        color: "#ffd700",
+        fontWeight: 600,
+        transition: "opacity 0.2s"
+    },
+    cardInner: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1.3fr",
+        minHeight: 600,
+        background: "linear-gradient(145deg, #1e2243 0%, #0f1225 100%)",
+        borderRadius: 24,
+        boxShadow: "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+        overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.1)",
+        transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease",
+        transformOrigin: "left center"
+    },
+    cardLeft: {
+        padding: 30,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "radial-gradient(circle at 30% 30%, rgba(255,210,120,0.08), transparent 60%)",
+        borderRight: "1px solid rgba(255,255,255,0.08)"
+    },
+    polaroidStack: {
+        position: "relative",
+        width: "100%",
+        maxWidth: 280,
+        aspectRatio: "3/4"
+    },
+    polaroid: {
+        position: "absolute",
+        inset: 0,
+        background: "#fefefe",
+        padding: "12px 12px 40px",
+        borderRadius: 4,
+        boxShadow: "0 8px 30px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)",
+        animation: "polaroidIn 0.6s ease-out forwards",
+        opacity: 0
+    },
+    polaroidImage: {
+        width: "100%",
+        height: "100%",
+        background: "#e0e0e0",
+        borderRadius: 2,
+        overflow: "hidden"
+    },
+    photo: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block"
+    },
+    polaroidCaption: {
+        position: "absolute",
+        bottom: 10,
+        left: 0,
+        right: 0,
+        textAlign: "center",
+        fontFamily: '"InterSignature", cursive',
+        fontSize: 14,
+        color: "#333"
+    },
+    cardRight: {
+        padding: "24px 30px",
+        display: "flex",
+        flexDirection: "column",
+        background: "radial-gradient(ellipse at 70% 20%, rgba(158,231,255,0.06), transparent 50%)"
+    },
+    poemHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        paddingBottom: 12,
+        borderBottom: "1px solid rgba(255,255,255,0.1)"
+    },
+    toName: {
+        fontSize: 20,
+        fontWeight: 700,
+        color: "white"
+    },
+    audioControls: {
+        display: "flex",
+        gap: 8
+    },
+    playBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: "50%",
+        border: "1px solid rgba(255,255,255,0.2)",
+        background: "rgba(255,255,255,0.1)",
+        color: "white",
+        fontSize: 16,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "all 0.2s"
+    },
+    replayBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: "50%",
+        border: "1px solid rgba(255,255,255,0.2)",
+        background: "rgba(255,255,255,0.05)",
+        color: "white",
+        fontSize: 18,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "all 0.2s"
+    },
+    poemContainer: {
+        flex: 1,
+        overflow: "hidden"
+    },
+    poemSvg: {
+        width: "100%",
+        height: "100%",
+        display: "block"
+    },
+    audioStatus: {
+        fontSize: 12,
+        color: "rgba(255,255,255,0.5)",
+        marginTop: 12
     }
-    return base;
-}
+};
 var _c;
 __turbopack_context__.k.register(_c, "BirthdayCard");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {

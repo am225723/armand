@@ -64,8 +64,7 @@ function Page() {
             "/photo3.jpg"
         ],
         fontUrl: "/fonts/InterSignature-q20q2.ttf",
-        audioUrl: "/audio/luke-poem.mp3",
-        autoStart: true
+        audioUrl: "/audio/luke-poem.mp3"
     }, void 0, false, {
         fileName: "[project]/app/page.jsx",
         lineNumber: 5,

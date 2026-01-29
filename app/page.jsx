@@ -6,7 +6,6 @@ export default function Page() {
       photos={["/photo1.jpg", "/photo2.jpg", "/photo3.jpg"]}
       fontUrl="/fonts/InterSignature-q20q2.ttf"
       audioUrl="/audio/luke-poem.mp3"
-      autoStart={true}
     />
   );
 }
