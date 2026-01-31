@@ -103,13 +103,16 @@ export default function BirthdayCard({
       setTimeout(() => {
         setCandleLit(false);
         setShowSmoke(true);
-      }, 300);
+      }, 700);
       
       setTimeout(() => {
         setShowSmoke(false);
+      }, 1800);
+
+      setTimeout(() => {
         setCardOpen(true);
         setArrowFlying(false);
-      }, 1200);
+      }, 2200);
     } else {
       setArrowPull(0);
     }
@@ -136,12 +139,14 @@ export default function BirthdayCard({
       setTimeout(() => {
         setCandleLit(false);
         setShowSmoke(true);
-      }, 300);
+      }, 700);
       setTimeout(() => {
         setShowSmoke(false);
+      }, 1800);
+      setTimeout(() => {
         setCardOpen(true);
         setArrowFlying(false);
-      }, 1200);
+      }, 2200);
     }
   };
 
@@ -271,7 +276,12 @@ export default function BirthdayCard({
             <div style={styles.cardEdgeLeft} />
             <div style={styles.cardEdgeRight} />
             
-            <div style={styles.cardFold} />
+            <div style={styles.embossedBorder} />
+            
+            <div style={styles.cornerTL}>❧</div>
+            <div style={styles.cornerTR}>❧</div>
+            <div style={styles.cornerBL}>❧</div>
+            <div style={styles.cornerBR}>❧</div>
             
             <div style={styles.decorTop} />
             <div style={styles.decorBottom} />
@@ -327,7 +337,7 @@ export default function BirthdayCard({
                       }}
                     />
                     
-                    {candleLit && !arrowFlying && (
+                    {candleLit && (
                       <div style={styles.flameContainer}>
                         <div style={styles.flameOuter} />
                         <div style={styles.flameInner} />
@@ -518,9 +528,10 @@ export default function BirthdayCard({
         }
 
         @keyframes flyArrow {
-          0% { transform: translateX(-200px) rotate(0deg); opacity: 1; }
-          80% { opacity: 1; }
-          100% { transform: translateX(20px) rotate(5deg); opacity: 0; }
+          0% { transform: translateX(-280px) rotate(0deg); opacity: 1; }
+          75% { transform: translateX(30px) rotate(0deg); opacity: 1; }
+          85% { transform: translateX(30px) rotate(3deg); opacity: 1; }
+          100% { transform: translateX(30px) rotate(3deg); opacity: 0; }
         }
 
         @media (max-width: 768px) {
@@ -585,16 +596,35 @@ const styles = {
   },
   cardPaper: {
     position: "relative",
-    background: "linear-gradient(165deg, #faf8f5 0%, #f5f0e8 30%, #ebe4d8 100%)",
-    borderRadius: 12,
-    padding: "50px 40px",
-    boxShadow: `
-      0 2px 4px rgba(0,0,0,0.1),
-      0 8px 16px rgba(0,0,0,0.1),
-      0 24px 48px rgba(0,0,0,0.15),
-      inset 0 1px 0 rgba(255,255,255,0.8)
+    background: `
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 28px,
+        rgba(200,180,160,0.08) 28px,
+        rgba(200,180,160,0.08) 29px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 28px,
+        rgba(200,180,160,0.05) 28px,
+        rgba(200,180,160,0.05) 29px
+      ),
+      linear-gradient(165deg, #fdf9f3 0%, #f8f3eb 30%, #f0e8db 70%, #e8dfd0 100%)
     `,
-    border: "1px solid rgba(200,180,160,0.3)",
+    borderRadius: 16,
+    padding: "60px 50px",
+    boxShadow: `
+      0 1px 2px rgba(0,0,0,0.07),
+      0 4px 8px rgba(0,0,0,0.07),
+      0 8px 16px rgba(0,0,0,0.08),
+      0 16px 32px rgba(0,0,0,0.1),
+      0 32px 64px rgba(0,0,0,0.12),
+      inset 0 2px 0 rgba(255,255,255,0.9),
+      inset 0 -1px 0 rgba(0,0,0,0.05)
+    `,
+    border: "1px solid rgba(180,160,140,0.25)",
     overflow: "hidden",
   },
   cardEdgeLeft: {
@@ -622,21 +652,64 @@ const styles = {
     background: "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.06) 20%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.06) 80%, transparent 100%)",
     transform: "translateX(-50%)",
   },
+  embossedBorder: {
+    position: "absolute",
+    top: 25,
+    left: 25,
+    right: 25,
+    bottom: 25,
+    border: "2px solid rgba(180,150,120,0.2)",
+    borderRadius: 8,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.05)",
+    pointerEvents: "none",
+  },
+  cornerTL: {
+    position: "absolute",
+    top: 35,
+    left: 35,
+    fontSize: 24,
+    color: "rgba(180,150,120,0.4)",
+    transform: "rotate(-45deg)",
+  },
+  cornerTR: {
+    position: "absolute",
+    top: 35,
+    right: 35,
+    fontSize: 24,
+    color: "rgba(180,150,120,0.4)",
+    transform: "rotate(45deg) scaleX(-1)",
+  },
+  cornerBL: {
+    position: "absolute",
+    bottom: 35,
+    left: 35,
+    fontSize: 24,
+    color: "rgba(180,150,120,0.4)",
+    transform: "rotate(-135deg)",
+  },
+  cornerBR: {
+    position: "absolute",
+    bottom: 35,
+    right: 35,
+    fontSize: 24,
+    color: "rgba(180,150,120,0.4)",
+    transform: "rotate(135deg) scaleX(-1)",
+  },
   decorTop: {
     position: "absolute",
-    top: 20,
-    left: 40,
-    right: 40,
-    height: 2,
-    background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.3) 20%, rgba(180,140,100,0.4) 50%, rgba(180,140,100,0.3) 80%, transparent)",
+    top: 45,
+    left: 60,
+    right: 60,
+    height: 1,
+    background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
   },
   decorBottom: {
     position: "absolute",
-    bottom: 20,
-    left: 40,
-    right: 40,
-    height: 2,
-    background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.3) 20%, rgba(180,140,100,0.4) 50%, rgba(180,140,100,0.3) 80%, transparent)",
+    bottom: 45,
+    left: 60,
+    right: 60,
+    height: 1,
+    background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
   },
   frontContent: {
     position: "relative",
@@ -685,10 +758,10 @@ const styles = {
     justifyContent: "flex-end",
   },
   bowImage: {
-    width: 120,
+    width: 140,
     height: "auto",
     filter: "drop-shadow(2px 4px 6px rgba(0,0,0,0.3))",
-    transform: "rotate(90deg)",
+    transform: "rotate(0deg)",
   },
   arrowWrapper: {
     position: "absolute",
@@ -813,7 +886,7 @@ const styles = {
     top: "50%",
     left: -200,
     transform: "translateY(-50%)",
-    animation: "flyArrow 0.4s ease-out forwards",
+    animation: "flyArrow 0.65s ease-out forwards",
     filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))",
   },
   instructionBox: {
