@@ -45,9 +45,9 @@ export default function BirthdayCard({
   const [isDragging, setIsDragging] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [lineProgress, setLineProgress] = useState(() => POEM_LINES.map(() => 0));
-  const [candlesLit, setCandlesLit] = useState([true, true, true]);
+  const [candlesLit, setCandlesLit] = useState([true, true, true, true, true]);
   const [arrowFlying, setArrowFlying] = useState(false);
-  const [showSmoke, setShowSmoke] = useState([false, false, false]);
+  const [showSmoke, setShowSmoke] = useState([false, false, false, false, false]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [photoSwipeOffset, setPhotoSwipeOffset] = useState(0);
   const [isPhotoSwiping, setIsPhotoSwiping] = useState(false);
@@ -96,7 +96,7 @@ export default function BirthdayCard({
       setArrowFlying(true);
       setArrowPull(0);
       
-      [400, 550, 700].forEach((delay, i) => {
+      [300, 400, 500, 600, 700].forEach((delay, i) => {
         setTimeout(() => {
           setCandlesLit(prev => {
             const newState = [...prev];
@@ -112,7 +112,7 @@ export default function BirthdayCard({
       });
       
       setTimeout(() => {
-        setShowSmoke([false, false, false]);
+        setShowSmoke([false, false, false, false, false]);
       }, 1800);
 
       setTimeout(() => {
@@ -142,7 +142,7 @@ export default function BirthdayCard({
   const handleArrowClick = () => {
     if (!cardOpen && !isDragging && !arrowFlying) {
       setArrowFlying(true);
-      [400, 550, 700].forEach((delay, i) => {
+      [300, 400, 500, 600, 700].forEach((delay, i) => {
         setTimeout(() => {
           setCandlesLit(prev => {
             const newState = [...prev];
@@ -156,7 +156,7 @@ export default function BirthdayCard({
           });
         }, delay);
       });
-      setTimeout(() => setShowSmoke([false, false, false]), 1800);
+      setTimeout(() => setShowSmoke([false, false, false, false, false]), 1800);
       setTimeout(() => {
         setCardOpen(true);
         setArrowFlying(false);
@@ -418,7 +418,7 @@ export default function BirthdayCard({
                   <div 
                     style={{
                       ...styles.bowContainer,
-                      transform: `scaleX(${1 - arrowPull * 0.15})`,
+                      transform: `scaleX(${1 + arrowPull * 0.1})`,
                     }}
                   >
                     <img 
@@ -431,7 +431,7 @@ export default function BirthdayCard({
                   <div 
                     style={{
                       ...styles.arrowWrapper,
-                      transform: `translateY(${arrowPull * 60}px)`,
+                      transform: `translateY(-50%) translateX(${-arrowPull * 50}px)`,
                       opacity: arrowFlying ? 0 : 1,
                       transition: arrowFlying ? 'opacity 0.15s' : 'transform 0.05s',
                     }}
@@ -446,23 +446,26 @@ export default function BirthdayCard({
                     />
                   </div>
 
-                  <div style={{
-                    ...styles.bowString,
-                    height: 80 + arrowPull * 40,
-                  }} />
-                </div>
+                                  </div>
 
                 <div style={styles.targetSection}>
-                  <div style={styles.candlesRow}>
-                    {[0, 1, 2].map((i) => {
-                      const offsets = [-30, 0, 30];
-                      const heights = [5, -8, 0];
+                  <div style={styles.candlesCluster}>
+                    {[0, 1, 2, 3, 4].map((i) => {
+                      const positions = [
+                        { x: -35, y: 0, scale: 0.9, z: 1 },
+                        { x: 35, y: 0, scale: 0.9, z: 1 },
+                        { x: -55, y: -30, scale: 0.75, z: 0 },
+                        { x: 0, y: -35, scale: 0.8, z: 0 },
+                        { x: 55, y: -30, scale: 0.75, z: 0 },
+                      ];
+                      const pos = positions[i];
                       return (
                         <div 
                           key={i} 
                           style={{
                             ...styles.candleContainer,
-                            transform: `translateX(${offsets[i]}px) translateY(${heights[i]}px)`,
+                            transform: `translateX(${pos.x}px) translateY(${pos.y}px) scale(${pos.scale})`,
+                            zIndex: pos.z,
                           }}
                         >
                           <img 
@@ -493,20 +496,20 @@ export default function BirthdayCard({
                       );
                     })}
                     
-                    {arrowFlying && (
-                      <img 
-                        src="/arrow.png" 
-                        alt="Flying Arrow" 
-                        style={styles.flyingArrow}
-                      />
-                    )}
                   </div>
+                  {arrowFlying && (
+                    <img 
+                      src="/arrow.png" 
+                      alt="Flying Arrow" 
+                      style={styles.flyingArrow}
+                    />
+                  )}
                 </div>
               </div>
 
               <div style={styles.instructionBox}>
                 <p style={styles.instruction}>
-                  {arrowPull > 0.5 ? "Release to shoot!" : arrowPull > 0 ? "Pull back more..." : "Pull the arrow down to extinguish the candles"}
+                  {arrowPull > 0.5 ? "Release to shoot!" : arrowPull > 0 ? "Pull back more..." : "Pull the arrow back to extinguish the candles"}
                 </p>
                 <div style={styles.pullMeter}>
                   <div style={{
@@ -693,23 +696,23 @@ export default function BirthdayCard({
 
         @keyframes flyArrow {
           0% { 
-            transform: translateY(-50%) translateX(-100px) rotate(-90deg); 
+            transform: translateY(-50%) translateX(0px) rotate(0deg); 
             opacity: 1; 
           }
-          20% {
-            transform: translateY(-50%) translateX(50px) rotate(-90deg);
+          25% {
+            transform: translateY(-50%) translateX(80px) rotate(0deg);
             opacity: 1;
           }
-          60% { 
-            transform: translateY(-50%) translateX(320px) rotate(-88deg); 
+          70% { 
+            transform: translateY(-50%) translateX(180px) rotate(2deg); 
             opacity: 1; 
           }
-          80% { 
-            transform: translateY(-50%) translateX(340px) rotate(-92deg); 
+          90% { 
+            transform: translateY(-50%) translateX(200px) rotate(-1deg); 
             opacity: 1; 
           }
           100% { 
-            transform: translateY(-50%) translateX(340px) rotate(-90deg); 
+            transform: translateY(-50%) translateX(220px) rotate(0deg); 
             opacity: 0; 
           }
         }
@@ -926,9 +929,9 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    padding: "20px 10px",
-    gap: 60,
-    minHeight: 280,
+    padding: "15px 10px",
+    gap: 50,
+    minHeight: 250,
   },
   bowSection: {
     position: "relative",
@@ -942,15 +945,16 @@ const styles = {
     transformOrigin: "center",
   },
   bowImage: {
-    width: 120,
+    width: 100,
     height: "auto",
     filter: "drop-shadow(3px 5px 8px rgba(0,0,0,0.35))",
-    transform: "rotate(135deg)",
+    transform: "rotate(0deg)",
   },
   arrowWrapper: {
     position: "absolute",
-    top: -20,
-    left: 15,
+    top: "50%",
+    left: 70,
+    transform: "translateY(-50%)",
     cursor: "grab",
     zIndex: 10,
     padding: 10,
@@ -958,90 +962,82 @@ const styles = {
     touchAction: "none",
   },
   arrowImage: {
-    width: 160,
+    width: 140,
     height: "auto",
     filter: "drop-shadow(2px 3px 5px rgba(0,0,0,0.35))",
-    transform: "rotate(-45deg)",
+    transform: "rotate(0deg)",
     pointerEvents: "none",
   },
   bowString: {
-    position: "absolute",
-    left: "50%",
-    top: 20,
-    width: 2,
-    background: "linear-gradient(180deg, rgba(60,40,20,0.7), rgba(80,60,40,0.85), rgba(60,40,20,0.7))",
-    transformOrigin: "top center",
-    transition: "height 0.08s ease-out",
-    borderRadius: 1,
-    marginLeft: -1,
+    display: "none",
   },
   targetSection: {
     display: "flex",
     justifyContent: "center",
     alignItems: "flex-end",
   },
-  candlesRow: {
+  candlesCluster: {
     position: "relative",
     display: "flex",
     alignItems: "flex-end",
     justifyContent: "center",
-    width: 280,
-    height: 300,
-    gap: 0,
+    width: 220,
+    height: 220,
   },
   candleContainer: {
-    position: "relative",
+    position: "absolute",
+    bottom: 0,
+    left: "50%",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    marginBottom: 0,
-    marginLeft: -60,
+    marginLeft: -45,
   },
   candleImage: {
-    width: 180,
+    width: 90,
     height: "auto",
-    filter: "drop-shadow(4px 10px 15px rgba(0,0,0,0.4))",
+    filter: "drop-shadow(3px 8px 10px rgba(0,0,0,0.35))",
     transition: "filter 0.4s ease-out",
   },
   flameContainer: {
     position: "absolute",
-    top: -90,
+    top: -50,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 70,
-    height: 100,
+    width: 50,
+    height: 70,
   },
   flameOuter: {
     position: "absolute",
     bottom: 0,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 32,
-    height: 55,
-    background: "radial-gradient(ellipse at 50% 90%, #ff4500 0%, #ff6b35 25%, #ff9500 50%, #ffcc00 75%, transparent 100%)",
-    borderRadius: "45% 45% 45% 45% / 70% 70% 30% 30%",
-    animation: "naturalFlicker 0.6s ease-in-out infinite",
+    width: 30,
+    height: 50,
+    background: "radial-gradient(ellipse at 50% 85%, #ff4500 0%, #ff6b35 20%, #ff9500 45%, #ffcc00 70%, transparent 100%)",
+    borderRadius: "50% 50% 50% 50% / 65% 65% 35% 35%",
+    animation: "naturalFlicker 0.5s ease-in-out infinite",
   },
   flameInner: {
     position: "absolute",
     bottom: 5,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 14,
-    height: 30,
-    background: "radial-gradient(ellipse at 50% 85%, #fff 0%, #fffbe6 40%, #ffd54f 70%, transparent 100%)",
-    borderRadius: "45% 45% 45% 45% / 75% 75% 25% 25%",
-    animation: "naturalFlicker 0.35s ease-in-out infinite",
+    width: 12,
+    height: 25,
+    background: "radial-gradient(ellipse at 50% 80%, #fff 0%, #fffbe6 45%, #ffd54f 75%, transparent 100%)",
+    borderRadius: "50% 50% 50% 50% / 70% 70% 30% 30%",
+    animation: "naturalFlicker 0.3s ease-in-out infinite",
   },
   flameGlow: {
     position: "absolute",
-    bottom: -15,
+    bottom: -10,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 80,
-    height: 80,
-    background: "radial-gradient(circle, rgba(255,150,50,0.4) 0%, rgba(255,100,30,0.2) 40%, transparent 70%)",
-    animation: "glowPulse 1s ease-in-out infinite",
+    width: 60,
+    height: 60,
+    background: "radial-gradient(circle, rgba(255,150,50,0.35) 0%, rgba(255,100,30,0.15) 45%, transparent 70%)",
+    animation: "glowPulse 0.9s ease-in-out infinite",
     pointerEvents: "none",
   },
   smokeContainer: {
@@ -1081,9 +1077,9 @@ const styles = {
     width: 140,
     height: "auto",
     top: "50%",
-    left: -100,
-    transform: "translateY(-50%) rotate(-90deg)",
-    animation: "flyArrow 0.8s ease-out forwards",
+    left: -180,
+    transform: "translateY(-50%) rotate(0deg)",
+    animation: "flyArrow 0.7s ease-out forwards",
     filter: "drop-shadow(3px 3px 6px rgba(0,0,0,0.4))",
     zIndex: 20,
   },

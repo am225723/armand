@@ -28,9 +28,9 @@ Built with Next.js 16 and React 18.
 
 ## Features
 ### Card Front
-- **Vertical Bow**: Rotated 90 degrees with pullback animation
-- **Large Candles**: 3 candles with dramatic flickering flames and glow effects
-- **Arrow Mechanic**: Pull arrow down to shoot; arrow flies across to extinguish candles sequentially
+- **Horizontal Bow**: Bow on left pointing toward candles with pullback animation
+- **Candle Cluster**: 5 candles arranged in 2 rows (3 back, 2 front) with flickering flames
+- **Arrow Mechanic**: Pull arrow back (drag left) to shoot; arrow flies across to extinguish candles
 - **Paper Texture**: Realistic cream paper with grid lines, embossed border, corner flourishes
 
 ### Card Interior
