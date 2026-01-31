@@ -1,6 +1,17 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+
+const BOW_ARROW_CONFIG = {
+  bowRotation: 90,
+  bowWidth: 100,
+  arrowRotation: 0,
+  arrowWidth: 140,
+  arrowOffsetX: 50,
+  arrowOffsetY: 0,
+  pullDistance: 50,
+  flyDistance: 250,
+};
 
 export default function BirthdayCard({
   toName = "Luke",
@@ -431,7 +442,7 @@ export default function BirthdayCard({
                   <div 
                     style={{
                       ...styles.arrowWrapper,
-                      transform: `translateY(-50%) translateX(${-arrowPull * 50}px)`,
+                      transform: `translateY(-50%) translateX(${-arrowPull * BOW_ARROW_CONFIG.pullDistance}px)`,
                       opacity: arrowFlying ? 0 : 1,
                       transition: arrowFlying ? 'opacity 0.15s' : 'transform 0.05s',
                     }}
@@ -699,20 +710,20 @@ export default function BirthdayCard({
             transform: translateY(-50%) translateX(0px) rotate(0deg); 
             opacity: 1; 
           }
-          25% {
-            transform: translateY(-50%) translateX(80px) rotate(0deg);
+          30% {
+            transform: translateY(-50%) translateX(100px) rotate(0deg);
             opacity: 1;
           }
-          70% { 
-            transform: translateY(-50%) translateX(180px) rotate(2deg); 
+          75% { 
+            transform: translateY(-50%) translateX(220px) rotate(1deg); 
             opacity: 1; 
           }
-          90% { 
-            transform: translateY(-50%) translateX(200px) rotate(-1deg); 
-            opacity: 1; 
+          95% { 
+            transform: translateY(-50%) translateX(250px) rotate(0deg); 
+            opacity: 0.8; 
           }
           100% { 
-            transform: translateY(-50%) translateX(220px) rotate(0deg); 
+            transform: translateY(-50%) translateX(260px) rotate(0deg); 
             opacity: 0; 
           }
         }
@@ -945,15 +956,15 @@ const styles = {
     transformOrigin: "center",
   },
   bowImage: {
-    width: 100,
+    width: BOW_ARROW_CONFIG.bowWidth,
     height: "auto",
     filter: "drop-shadow(3px 5px 8px rgba(0,0,0,0.35))",
-    transform: "rotate(0deg)",
+    transform: `rotate(${BOW_ARROW_CONFIG.bowRotation}deg)`,
   },
   arrowWrapper: {
     position: "absolute",
-    top: "50%",
-    left: 70,
+    top: `calc(50% + ${BOW_ARROW_CONFIG.arrowOffsetY}px)`,
+    left: BOW_ARROW_CONFIG.arrowOffsetX,
     transform: "translateY(-50%)",
     cursor: "grab",
     zIndex: 10,
@@ -962,10 +973,10 @@ const styles = {
     touchAction: "none",
   },
   arrowImage: {
-    width: 140,
+    width: BOW_ARROW_CONFIG.arrowWidth,
     height: "auto",
     filter: "drop-shadow(2px 3px 5px rgba(0,0,0,0.35))",
-    transform: "rotate(0deg)",
+    transform: `rotate(${BOW_ARROW_CONFIG.arrowRotation}deg)`,
     pointerEvents: "none",
   },
   bowString: {
@@ -1074,12 +1085,12 @@ const styles = {
   },
   flyingArrow: {
     position: "absolute",
-    width: 140,
+    width: BOW_ARROW_CONFIG.arrowWidth,
     height: "auto",
     top: "50%",
-    left: -180,
-    transform: "translateY(-50%) rotate(0deg)",
-    animation: "flyArrow 0.7s ease-out forwards",
+    left: -200,
+    transform: `translateY(-50%) rotate(${BOW_ARROW_CONFIG.arrowRotation}deg)`,
+    animation: "flyArrow 0.6s ease-out forwards",
     filter: "drop-shadow(3px 3px 6px rgba(0,0,0,0.4))",
     zIndex: 20,
   },
