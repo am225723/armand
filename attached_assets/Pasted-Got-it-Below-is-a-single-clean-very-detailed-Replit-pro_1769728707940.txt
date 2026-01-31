@@ -1,0 +1,128 @@
+Got it. Below is a single, clean, very detailed Replit prompt you can paste directly into Replit (or any “AI generate app” field). It is written to force a much higher-quality result, especially for:
+	•	realistic handwriting (no straight-line wipe)
+	•	expressive ink pressure
+	•	paper texture + ink bleed
+	•	a strong, memorable front-of-card interaction using the candle → arrow idea
+
+You don’t need to explain anything around it—just paste this as-is.
+
+⸻
+
+🔥 REPLIT PROMPT (FULL, HIGH-DETAIL)
+
+Build an advanced React web app that functions as a cinematic, interactive eBirthday card. This should feel handcrafted, emotional, and tactile—not like a standard animation demo.
+
+1. FRONT OF THE CARD (FIRST IMPRESSION)
+
+When the site loads, show ONLY the front of a closed birthday card, centered on the screen.
+No poem, no photos yet.
+
+Front interaction concept:
+	•	The main visual element is a birthday candle that doubles as an arrow.
+	•	The candle wick is subtly animated (small flame flicker, soft glow).
+	•	The candle is nocked onto a stylized bow (minimalist, elegant—not cartoonish).
+	•	The user can click and drag the candle backward, stretching the bowstring.
+	•	As the candle is pulled back:
+	•	The flame elongates slightly
+	•	The glow intensifies
+	•	A subtle tension sound or visual vibration can occur (optional)
+	•	When the user releases:
+	•	The candle-arrow fires forward
+	•	This triggers a page-opening / card-flip animation
+	•	The front of the card opens smoothly into the inside view
+
+This interaction should feel intentional and delightful, like opening a physical keepsake.
+
+⸻
+
+2. INSIDE OF THE CARD (LAYOUT)
+
+Once opened, the card displays two pages:
+
+LEFT PAGE – PHOTOS
+	•	Show up to 3 photos in a Polaroid-style layout
+	•	Each photo:
+	•	Slight rotation (different angles)
+	•	Soft drop shadow
+	•	White Polaroid border
+	•	Optional handwritten-style caption underneath
+	•	Photos should feel casually placed, not grid-aligned
+
+RIGHT PAGE – HANDWRITTEN POEM
+	•	Display a poem written line-by-line using the custom font
+Font name (must be used exactly): InterSignature-q20q2
+	•	The font file already exists in the project and must be loaded properly via @font-face or FontFace API.
+
+⸻
+
+3. HANDWRITING ANIMATION (CRITICAL)
+
+The handwriting must NOT be a simple horizontal mask or straight wipe.
+
+Instead:
+	•	Simulate real pen motion, including:
+	•	Slight curved paths
+	•	Variable stroke direction
+	•	Natural pauses at commas, line breaks, and punctuation
+	•	Ink pressure variation:
+	•	Stroke starts thin
+	•	Thickens through the middle of the line
+	•	Tapers at the end
+	•	Emphasized words should:
+	•	Appear slightly darker or thicker
+	•	Have a tiny pause before or after writing
+	•	Optionally show a subtle glow or ink pooling
+
+This should feel like a hand actually writing—imperfect, expressive, and organic.
+
+⸻
+
+4. PAPER & INK REALISM
+
+The poem page should look like real paper:
+	•	Add a subtle paper grain texture (light noise or fiber effect)
+	•	Add ink bleed:
+	•	Slight feathering around strokes
+	•	Soft blurred underlayer beneath the main text
+	•	Avoid anything harsh or digital-looking
+
+⸻
+
+5. AUDIO SYNC (OPTIONAL BUT ALWAYS DRIVING TIMING)
+	•	An audio file exists in the project named:
+LukesPoem.mp3
+	•	The user can choose to press Play, but even if they don’t, the handwriting animation should still follow the same timing as if the audio were playing silently.
+	•	When audio is played:
+	•	The handwriting must sync precisely to the spoken lines
+	•	Audio currentTime should drive animation progress
+	•	When audio is not played:
+	•	Use the same internal timing map so emphasis and pacing remain identical
+
+⸻
+
+6. UX & POLISH
+	•	All animations should use smooth easing (no linear motion)
+	•	Everything must be responsive (desktop + mobile)
+	•	Avoid heavy libraries unless absolutely necessary
+	•	Prefer SVG, CSS, and React state over canvas unless needed
+	•	The experience should feel like a digital keepsake, not a tech demo
+
+⸻
+
+7. OVERALL GOAL
+
+This project should feel:
+	•	intimate
+	•	handcrafted
+	•	emotionally intentional
+
+Imagine the user opening this once a year and smiling every time.
+
+Do not simplify the handwriting animation. Do not replace it with a basic mask. Prioritize realism over speed of implementation.
+
+⸻
+
+If you want, next I can:
+	•	rewrite this prompt for Claude / GPT-4 / Replit Agent specifically
+	•	give you a step-by-step build order
+	•	or sketch the exact SVG strategy to avoid the “straight-line reveal” problem entirely
