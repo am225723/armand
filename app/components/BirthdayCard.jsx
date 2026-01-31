@@ -3,14 +3,23 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 
 const BOW_ARROW_CONFIG = {
-  bowRotation: 90,
-  bowWidth: 100,
-  arrowRotation: 0,
-  arrowWidth: 140,
-  arrowOffsetX: 50,
-  arrowOffsetY: 0,
-  pullDistance: 50,
-  flyDistance: 250,
+  // Bow settings
+  bowRotation: 90,           // Degrees to rotate the bow (90 = vertical)
+  bowWidth: 100,             // Size of the bow in pixels
+  
+  // Arrow settings
+  arrowRotation: 0,          // Degrees to rotate the arrow (0 = horizontal right)
+  arrowWidth: 140,           // Size of the arrow in pixels
+  arrowOffsetX: 50,          // Horizontal offset from bow center
+  arrowOffsetY: 0,           // Vertical offset from bow center
+  pullDistance: 50,          // How far arrow moves when pulled back
+  
+  // Flight settings
+  arrowFlightDistance: 260,  // How far the arrow flies (in pixels)
+  arrowFlightDuration: 0.6,  // Flight animation duration (in seconds)
+  
+  // Candle extinguish timing (milliseconds after arrow release)
+  candleExtinguishDelays: [300, 400, 500, 600, 700],
 };
 
 export default function BirthdayCard({
@@ -107,7 +116,7 @@ export default function BirthdayCard({
       setArrowFlying(true);
       setArrowPull(0);
       
-      [300, 400, 500, 600, 700].forEach((delay, i) => {
+      BOW_ARROW_CONFIG.candleExtinguishDelays.forEach((delay, i) => {
         setTimeout(() => {
           setCandlesLit(prev => {
             const newState = [...prev];
@@ -711,19 +720,19 @@ export default function BirthdayCard({
             opacity: 1; 
           }
           30% {
-            transform: translateY(-50%) translateX(100px) rotate(0deg);
+            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance * 0.4}px) rotate(0deg);
             opacity: 1;
           }
           75% { 
-            transform: translateY(-50%) translateX(220px) rotate(1deg); 
+            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance * 0.85}px) rotate(1deg); 
             opacity: 1; 
           }
           95% { 
-            transform: translateY(-50%) translateX(250px) rotate(0deg); 
+            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance * 0.96}px) rotate(0deg); 
             opacity: 0.8; 
           }
           100% { 
-            transform: translateY(-50%) translateX(260px) rotate(0deg); 
+            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance}px) rotate(0deg); 
             opacity: 0; 
           }
         }
@@ -1090,7 +1099,7 @@ const styles = {
     top: "50%",
     left: -200,
     transform: `translateY(-50%) rotate(${BOW_ARROW_CONFIG.arrowRotation}deg)`,
-    animation: "flyArrow 0.6s ease-out forwards",
+    animation: `flyArrow ${BOW_ARROW_CONFIG.arrowFlightDuration}s ease-out forwards`,
     filter: "drop-shadow(3px 3px 6px rgba(0,0,0,0.4))",
     zIndex: 20,
   },
