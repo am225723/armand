@@ -669,6 +669,17 @@ export default function BirthdayCard({
           75% { transform: scaleY(1.08) scaleX(0.95); opacity: 0.9; }
         }
         
+        @keyframes naturalFlicker {
+          0% { transform: translateX(-50%) scaleY(1) scaleX(1) skewX(0deg); opacity: 1; }
+          15% { transform: translateX(-50%) scaleY(1.08) scaleX(0.94) skewX(2deg); opacity: 0.92; }
+          30% { transform: translateX(-50%) scaleY(0.95) scaleX(1.04) skewX(-1deg); opacity: 1; }
+          45% { transform: translateX(-50%) scaleY(1.12) scaleX(0.9) skewX(3deg); opacity: 0.88; }
+          60% { transform: translateX(-50%) scaleY(0.92) scaleX(1.06) skewX(-2deg); opacity: 0.95; }
+          75% { transform: translateX(-50%) scaleY(1.05) scaleX(0.96) skewX(1deg); opacity: 1; }
+          90% { transform: translateX(-50%) scaleY(0.98) scaleX(1.02) skewX(-1deg); opacity: 0.9; }
+          100% { transform: translateX(-50%) scaleY(1) scaleX(1) skewX(0deg); opacity: 1; }
+        }
+        
         @keyframes glowPulse {
           0%, 100% { opacity: 0.5; transform: scale(1); }
           50% { opacity: 0.85; transform: scale(1.15); }
@@ -934,11 +945,12 @@ const styles = {
     width: 120,
     height: "auto",
     filter: "drop-shadow(3px 5px 8px rgba(0,0,0,0.35))",
-    transform: "rotate(90deg)",
+    transform: "rotate(135deg)",
   },
   arrowWrapper: {
     position: "absolute",
-    top: -30,
+    top: -20,
+    left: 15,
     cursor: "grab",
     zIndex: 10,
     padding: 10,
@@ -949,7 +961,7 @@ const styles = {
     width: 160,
     height: "auto",
     filter: "drop-shadow(2px 3px 5px rgba(0,0,0,0.35))",
-    transform: "rotate(-90deg)",
+    transform: "rotate(-45deg)",
     pointerEvents: "none",
   },
   bowString: {
@@ -973,8 +985,9 @@ const styles = {
     display: "flex",
     alignItems: "flex-end",
     justifyContent: "center",
-    width: 350,
+    width: 280,
     height: 300,
+    gap: 0,
   },
   candleContainer: {
     position: "relative",
@@ -982,7 +995,7 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     marginBottom: 0,
-    marginLeft: -40,
+    marginLeft: -60,
   },
   candleImage: {
     width: 180,
@@ -1003,32 +1016,32 @@ const styles = {
     bottom: 0,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 50,
-    height: 85,
-    background: "radial-gradient(ellipse at bottom, #ff6b35 0%, #ff9500 35%, #ffcc00 65%, transparent 100%)",
-    borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
-    animation: "flicker 0.4s ease-in-out infinite",
+    width: 32,
+    height: 55,
+    background: "radial-gradient(ellipse at 50% 90%, #ff4500 0%, #ff6b35 25%, #ff9500 50%, #ffcc00 75%, transparent 100%)",
+    borderRadius: "45% 45% 45% 45% / 70% 70% 30% 30%",
+    animation: "naturalFlicker 0.6s ease-in-out infinite",
   },
   flameInner: {
     position: "absolute",
-    bottom: 8,
+    bottom: 5,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 25,
-    height: 50,
-    background: "radial-gradient(ellipse at bottom, #fff 0%, #fffbe6 50%, transparent 100%)",
-    borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
-    animation: "flicker 0.25s ease-in-out infinite",
+    width: 14,
+    height: 30,
+    background: "radial-gradient(ellipse at 50% 85%, #fff 0%, #fffbe6 40%, #ffd54f 70%, transparent 100%)",
+    borderRadius: "45% 45% 45% 45% / 75% 75% 25% 25%",
+    animation: "naturalFlicker 0.35s ease-in-out infinite",
   },
   flameGlow: {
     position: "absolute",
-    bottom: -25,
+    bottom: -15,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 140,
-    height: 140,
-    background: "radial-gradient(circle, rgba(255,150,50,0.5) 0%, transparent 70%)",
-    animation: "glowPulse 0.8s ease-in-out infinite",
+    width: 80,
+    height: 80,
+    background: "radial-gradient(circle, rgba(255,150,50,0.4) 0%, rgba(255,100,30,0.2) 40%, transparent 70%)",
+    animation: "glowPulse 1s ease-in-out infinite",
     pointerEvents: "none",
   },
   smokeContainer: {
@@ -1137,20 +1150,22 @@ const styles = {
     animation: "fadeIn 0.8s ease-out",
   },
   cardLeft: {
-    padding: 25,
+    padding: 20,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     background: "radial-gradient(circle at 30% 30%, rgba(255,210,120,0.08), transparent 60%)",
     borderRight: "1px solid rgba(255,255,255,0.08)",
+    maxWidth: 320,
   },
   photoGallery: {
     width: "100%",
-    maxWidth: 320,
+    maxWidth: 280,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 15,
+    gap: 12,
+    overflow: "hidden",
   },
   photoCarousel: {
     display: "flex",
@@ -1169,11 +1184,12 @@ const styles = {
   polaroid: {
     position: "relative",
     background: "#fefefe",
-    padding: "15px 15px 50px",
+    padding: "12px 12px 45px",
     borderRadius: 4,
     boxShadow: "0 10px 40px rgba(0,0,0,0.4), 0 3px 10px rgba(0,0,0,0.2)",
     transform: "rotate(-2deg)",
-    maxWidth: 260,
+    width: 220,
+    maxWidth: "100%",
   },
   polaroidTape: {
     position: "absolute",
@@ -1188,7 +1204,7 @@ const styles = {
   },
   polaroidImage: {
     width: "100%",
-    aspectRatio: "4/3",
+    aspectRatio: "1/1",
     background: "#e0e0e0",
     borderRadius: 2,
     overflow: "hidden",
