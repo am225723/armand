@@ -2,10 +2,11 @@
 
 ## Overview
 An interactive personalized birthday card web app featuring:
-- Draggable arrow on the front that triggers a page-flip animation
-- Polaroid-style photo layout on the left side
-- Calligraphy handwriting animation synced to audio on the right side
-- Custom handwriting font with natural pen stroke simulation
+- Bow and arrow interaction where pulling the arrow extinguishes birthday candles
+- Elegant paper card design with embossed borders and corner flourishes
+- Swipeable Polaroid photo gallery on the left side
+- Calligraphy handwriting animation with ink splatter effects synced to audio
+- Natural handwriting with emphasized words and wet ink styling
 
 Built with Next.js 16 and React 18.
 
@@ -17,6 +18,7 @@ Built with Next.js 16 and React 18.
 - `public/` - Static assets
   - `fonts/` - Custom handwriting font (InterSignature-q20q2.ttf)
   - `audio/` - Narration audio (luke-poem.mp3)
+  - `bow.png`, `arrow.png`, `candle.png` - Interactive elements
   - Photos (photo1.jpg, photo2.jpg, photo3.jpg)
 
 ## Development
@@ -25,28 +27,41 @@ Built with Next.js 16 and React 18.
 - **Start**: `npm run start`
 
 ## Features
-- **Interactive Arrow**: Pull/drag or click to open the card
-- **Page Flip Animation**: Smooth 3D flip effect when opening
-- **Polaroid Photos**: Up to 3 photos displayed with rotation and shadow effects
-- **Handwriting Animation**: SVG text revealed progressively with clip-path
-- **Audio Sync**: Handwriting syncs to spoken narration timing
+### Card Front
+- **Vertical Bow**: Rotated 90 degrees with pullback animation
+- **Large Candles**: 3 candles with dramatic flickering flames and glow effects
+- **Arrow Mechanic**: Pull arrow down to shoot; arrow flies across to extinguish candles sequentially
+- **Paper Texture**: Realistic cream paper with grid lines, embossed border, corner flourishes
+
+### Card Interior
+- **Swipeable Photos**: Photo carousel with dot navigation and tape decoration
+- **Natural Handwriting**: Text with slight rotation and wobble per line
+- **Emphasized Words**: Key words (Luke, star, thrive, love, bright, dreams, heart) appear bolder with glow
+- **Ink Effects**: Static ink spots and splatter dots throughout the poem
+- **Audio Sync**: Handwriting reveals progressively synced to spoken narration
 - **Silent Fallback**: Animation plays at natural pace without audio
-- **Responsive Design**: Adapts to mobile and tablet screens
 
 ## Recent Changes
+- 2026-01-31: Enhanced card design
+  - Flipped bow to vertical orientation with pullback animation
+  - Increased candle size 3x with larger flames and glow
+  - Arrow now flies across screen to hit candle flames
+  - Added sequential candle extinguishing effect
+  - Redesigned interior with natural handwriting, ink splatter, and emphasis
+  - Made photos swipeable with carousel navigation
+  - Removed "loading audio" text
 - 2026-01-29: Migrated from Vercel to Replit
-  - Updated Next.js to v16.1.6 (fixed security vulnerability)
+  - Updated Next.js to v16.1.6
   - Configured port bindings for Replit (0.0.0.0:5000)
-  - Set up deployment configuration for autoscale
-- 2026-01-29: Rebuilt interactive birthday card
+- 2026-01-29: Built initial interactive birthday card
   - Added draggable arrow with page-flip animation
   - Implemented Polaroid-style photo layout
   - Created handwriting animation with audio sync
-  - Added responsive CSS for mobile devices
 
 ## Technical Notes
 - Uses Next.js App Router with client components
 - Font loaded via FontFace API
 - SVG-based handwriting animation with clip-path reveal
+- Ink dots use useMemo for stable positioning across renders
 - Audio sync using requestAnimationFrame loop
 - No database or external API dependencies

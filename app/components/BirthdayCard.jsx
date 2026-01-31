@@ -37,20 +37,25 @@ export default function BirthdayCard({
     "For everyone to see.",
   ];
 
+  const EMPHASIS_WORDS = ["Luke", "star", "thrive", "love", "bright", "dreams", "heart"];
+
   const [fontReady, setFontReady] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [arrowPull, setArrowPull] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [lineProgress, setLineProgress] = useState(() => POEM_LINES.map(() => 0));
-  const [audioLoaded, setAudioLoaded] = useState(false);
-  const [candleLit, setCandleLit] = useState(true);
+  const [candlesLit, setCandlesLit] = useState([true, true, true]);
   const [arrowFlying, setArrowFlying] = useState(false);
-  const [showSmoke, setShowSmoke] = useState(false);
+  const [showSmoke, setShowSmoke] = useState([false, false, false]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [photoSwipeOffset, setPhotoSwipeOffset] = useState(0);
+  const [isPhotoSwiping, setIsPhotoSwiping] = useState(false);
 
   const audioRef = useRef(null);
   const rafRef = useRef(null);
   const dragStartX = useRef(0);
+  const photoSwipeStartX = useRef(0);
   const silentAnimationRan = useRef(false);
 
   useEffect(() => {
@@ -68,15 +73,6 @@ export default function BirthdayCard({
     return () => { cancelled = true; };
   }, [fontUrl]);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      const onLoaded = () => setAudioLoaded(true);
-      audio.addEventListener("loadedmetadata", onLoaded);
-      return () => audio.removeEventListener("loadedmetadata", onLoaded);
-    }
-  }, []);
-
   const handleDragStart = useCallback((e) => {
     if (cardOpen || arrowFlying) return;
     setIsDragging(true);
@@ -89,30 +85,40 @@ export default function BirthdayCard({
     if (!isDragging || cardOpen || arrowFlying) return;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const delta = dragStartX.current - clientX;
-    const pull = Math.min(1, Math.max(0, delta / 120));
+    const pull = Math.min(1, Math.max(0, delta / 100));
     setArrowPull(pull);
   }, [isDragging, cardOpen, arrowFlying]);
 
   const handleDragEnd = useCallback(() => {
     if (!isDragging) return;
     setIsDragging(false);
-    if (arrowPull > 0.6) {
+    if (arrowPull > 0.5) {
       setArrowFlying(true);
       setArrowPull(0);
       
-      setTimeout(() => {
-        setCandleLit(false);
-        setShowSmoke(true);
-      }, 700);
+      [400, 550, 700].forEach((delay, i) => {
+        setTimeout(() => {
+          setCandlesLit(prev => {
+            const newState = [...prev];
+            newState[i] = false;
+            return newState;
+          });
+          setShowSmoke(prev => {
+            const newState = [...prev];
+            newState[i] = true;
+            return newState;
+          });
+        }, delay);
+      });
       
       setTimeout(() => {
-        setShowSmoke(false);
+        setShowSmoke([false, false, false]);
       }, 1800);
 
       setTimeout(() => {
         setCardOpen(true);
         setArrowFlying(false);
-      }, 2200);
+      }, 2000);
     } else {
       setArrowPull(0);
     }
@@ -136,18 +142,53 @@ export default function BirthdayCard({
   const handleArrowClick = () => {
     if (!cardOpen && !isDragging && !arrowFlying) {
       setArrowFlying(true);
-      setTimeout(() => {
-        setCandleLit(false);
-        setShowSmoke(true);
-      }, 700);
-      setTimeout(() => {
-        setShowSmoke(false);
-      }, 1800);
+      [400, 550, 700].forEach((delay, i) => {
+        setTimeout(() => {
+          setCandlesLit(prev => {
+            const newState = [...prev];
+            newState[i] = false;
+            return newState;
+          });
+          setShowSmoke(prev => {
+            const newState = [...prev];
+            newState[i] = true;
+            return newState;
+          });
+        }, delay);
+      });
+      setTimeout(() => setShowSmoke([false, false, false]), 1800);
       setTimeout(() => {
         setCardOpen(true);
         setArrowFlying(false);
-      }, 2200);
+      }, 2000);
     }
+  };
+
+  const handlePhotoSwipeStart = (e) => {
+    setIsPhotoSwiping(true);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    photoSwipeStartX.current = clientX;
+  };
+
+  const handlePhotoSwipeMove = (e) => {
+    if (!isPhotoSwiping) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const delta = clientX - photoSwipeStartX.current;
+    setPhotoSwipeOffset(delta);
+  };
+
+  const handlePhotoSwipeEnd = () => {
+    if (!isPhotoSwiping) return;
+    setIsPhotoSwiping(false);
+    
+    if (Math.abs(photoSwipeOffset) > 50) {
+      if (photoSwipeOffset < 0 && currentPhotoIndex < photos.length - 1) {
+        setCurrentPhotoIndex(prev => prev + 1);
+      } else if (photoSwipeOffset > 0 && currentPhotoIndex > 0) {
+        setCurrentPhotoIndex(prev => prev - 1);
+      }
+    }
+    setPhotoSwipeOffset(0);
   };
 
   const computeLineEnds = useCallback(() => {
@@ -258,6 +299,84 @@ export default function BirthdayCard({
     }
   }, [cardOpen, isPlaying, startSilentAnimation]);
 
+  const inkSplatters = React.useMemo(() => [
+    { x: 45, y: 120, size: 3 },
+    { x: 380, y: 200, size: 4 },
+    { x: 120, y: 340, size: 2 },
+    { x: 420, y: 420, size: 3 },
+    { x: 70, y: 500, size: 2 },
+    { x: 350, y: 560, size: 4 },
+    { x: 200, y: 150, size: 2 },
+    { x: 450, y: 300, size: 3 },
+  ], []);
+
+  const inkDotsStatic = React.useMemo(() => {
+    const seed = 12345;
+    const dots = [];
+    for (let i = 0; i < 25; i++) {
+      const pseudoRandom = (seed * (i + 1) * 9301 + 49297) % 233280;
+      const x = 20 + (pseudoRandom % 460);
+      const y = 30 + ((pseudoRandom * 7) % 620);
+      const size = 1 + (pseudoRandom % 3);
+      const opacity = 0.1 + ((pseudoRandom % 30) / 100);
+      dots.push({ x, y, size, opacity });
+    }
+    return dots;
+  }, []);
+
+  const renderLineWithEmphasis = (line, i, progress) => {
+    if (!line.trim()) return null;
+    
+    const y = 50 + i * 38;
+    const clipWidth = 520 * progress;
+    const wobble = Math.sin(i * 1.5) * 2;
+    const rotation = (Math.sin(i * 0.7) * 0.8);
+    
+    const words = line.split(' ');
+    let xOffset = 25;
+    
+    return (
+      <g key={i}>
+        <defs>
+          <clipPath id={`clip-${i}`}>
+            <rect x="0" y={y - 35} width={clipWidth} height="50" />
+          </clipPath>
+        </defs>
+        <g 
+          clipPath={`url(#clip-${i})`}
+          transform={`rotate(${rotation} 250 ${y})`}
+        >
+          {words.map((word, wordIdx) => {
+            const isEmphasis = EMPHASIS_WORDS.some(ew => word.includes(ew));
+            const wordX = xOffset;
+            xOffset += word.length * 14 + 12;
+            
+            return (
+              <text
+                key={wordIdx}
+                x={wordX}
+                y={y + wobble}
+                style={{
+                  fontFamily: '"InterSignature", cursive',
+                  fontSize: isEmphasis ? 34 : 30,
+                  fontWeight: isEmphasis ? 600 : 400,
+                  fill: isEmphasis ? "#fff" : "rgba(255,255,255,0.92)",
+                  filter: isEmphasis 
+                    ? "drop-shadow(0 0 8px rgba(255,220,150,0.5)) drop-shadow(0 0 15px rgba(255,180,100,0.3))"
+                    : "drop-shadow(0 0 4px rgba(255,210,120,0.2))",
+                  letterSpacing: isEmphasis ? 1.5 : 0.5,
+                }}
+              >
+                {word}
+              </text>
+            );
+          })}
+        </g>
+      </g>
+    );
+  };
+
+  
   if (!fontReady) {
     return (
       <div style={styles.loading}>
@@ -288,26 +407,33 @@ export default function BirthdayCard({
             
             <div style={styles.frontContent}>
               <div style={styles.titleSection}>
-                <div style={styles.starDecor}>✦</div>
+                <div style={styles.starDecor}>✦ ✦ ✦</div>
                 <h1 style={styles.mainTitle}>Happy Birthday</h1>
                 <h2 style={styles.nameTitle}>{toName}</h2>
-                <div style={styles.starDecor}>✦</div>
+                <div style={styles.starDecor}>✦ ✦ ✦</div>
               </div>
 
               <div style={styles.interactionArea}>
                 <div style={styles.bowSection}>
-                  <img 
-                    src="/bow.png" 
-                    alt="Bow" 
-                    style={styles.bowImage}
-                  />
+                  <div 
+                    style={{
+                      ...styles.bowContainer,
+                      transform: `scaleX(${1 - arrowPull * 0.15})`,
+                    }}
+                  >
+                    <img 
+                      src="/bow.png" 
+                      alt="Bow" 
+                      style={styles.bowImage}
+                    />
+                  </div>
                   
                   <div 
                     style={{
                       ...styles.arrowWrapper,
-                      transform: `translateX(${-arrowPull * 80}px)`,
+                      transform: `translateY(${arrowPull * 60}px)`,
                       opacity: arrowFlying ? 0 : 1,
-                      transition: arrowFlying ? 'opacity 0.2s' : 'transform 0.05s',
+                      transition: arrowFlying ? 'opacity 0.15s' : 'transform 0.05s',
                     }}
                     onMouseDown={handleDragStart}
                     onTouchStart={handleDragStart}
@@ -322,36 +448,50 @@ export default function BirthdayCard({
 
                   <div style={{
                     ...styles.bowString,
-                    transform: `scaleX(${1 - arrowPull * 0.3})`,
+                    height: 80 + arrowPull * 40,
                   }} />
                 </div>
 
                 <div style={styles.targetSection}>
-                  <div style={styles.candleContainer}>
-                    <img 
-                      src="/candle.png" 
-                      alt="Candle" 
-                      style={{
-                        ...styles.candleImage,
-                        filter: candleLit ? 'brightness(1)' : 'brightness(0.7)',
-                      }}
-                    />
-                    
-                    {candleLit && (
-                      <div style={styles.flameContainer}>
-                        <div style={styles.flameOuter} />
-                        <div style={styles.flameInner} />
-                        <div style={styles.flameGlow} />
-                      </div>
-                    )}
-                    
-                    {showSmoke && (
-                      <div style={styles.smokeContainer}>
-                        <div style={styles.smoke1} />
-                        <div style={styles.smoke2} />
-                        <div style={styles.smoke3} />
-                      </div>
-                    )}
+                  <div style={styles.candlesRow}>
+                    {[0, 1, 2].map((i) => {
+                      const offsets = [-30, 0, 30];
+                      const heights = [5, -8, 0];
+                      return (
+                        <div 
+                          key={i} 
+                          style={{
+                            ...styles.candleContainer,
+                            transform: `translateX(${offsets[i]}px) translateY(${heights[i]}px)`,
+                          }}
+                        >
+                          <img 
+                            src="/candle.png" 
+                            alt="Candle" 
+                            style={{
+                              ...styles.candleImage,
+                              filter: candlesLit[i] ? 'brightness(1)' : 'brightness(0.65) saturate(0.7)',
+                            }}
+                          />
+                          
+                          {candlesLit[i] && (
+                            <div style={styles.flameContainer}>
+                              <div style={styles.flameOuter} />
+                              <div style={styles.flameInner} />
+                              <div style={styles.flameGlow} />
+                            </div>
+                          )}
+                          
+                          {showSmoke[i] && (
+                            <div style={styles.smokeContainer}>
+                              <div style={styles.smoke1} />
+                              <div style={styles.smoke2} />
+                              <div style={styles.smoke3} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     
                     {arrowFlying && (
                       <img 
@@ -366,13 +506,13 @@ export default function BirthdayCard({
 
               <div style={styles.instructionBox}>
                 <p style={styles.instruction}>
-                  {arrowPull > 0.6 ? "Release to shoot!" : arrowPull > 0 ? "Pull back more..." : "Pull the arrow back to extinguish the candle"}
+                  {arrowPull > 0.5 ? "Release to shoot!" : arrowPull > 0 ? "Pull back more..." : "Pull the arrow down to extinguish the candles"}
                 </p>
                 <div style={styles.pullMeter}>
                   <div style={{
                     ...styles.pullFill,
                     width: `${arrowPull * 100}%`,
-                    background: arrowPull > 0.6 ? '#4ade80' : '#fbbf24',
+                    background: arrowPull > 0.5 ? 'linear-gradient(90deg, #4ade80, #22c55e)' : 'linear-gradient(90deg, #fbbf24, #f59e0b)',
                   }} />
                 </div>
               </div>
@@ -395,27 +535,48 @@ export default function BirthdayCard({
           style={styles.cardInner}
         >
           <div className="card-left-responsive" style={styles.cardLeft}>
-            <div className="polaroid-stack-responsive" style={styles.polaroidStack}>
-              {photos.slice(0, 3).map((src, i) => {
-                const rotations = [-8, 5, -3];
-                const offsets = [{ x: -15, y: 10 }, { x: 20, y: -5 }, { x: 5, y: 15 }];
-                return (
-                  <div 
-                    key={i}
-                    style={{
-                      ...styles.polaroid,
-                      transform: `rotate(${rotations[i]}deg) translate(${offsets[i].x}px, ${offsets[i].y}px)`,
-                      zIndex: 3 - i,
-                      animationDelay: `${i * 0.2}s`,
-                    }}
-                  >
-                    <div style={styles.polaroidImage}>
-                      <img src={src} alt={captions[i]} style={styles.photo} />
+            <div style={styles.photoGallery}>
+              <div 
+                style={{
+                  ...styles.photoCarousel,
+                  transform: `translateX(${-currentPhotoIndex * 100 + photoSwipeOffset * 0.3}%)`,
+                }}
+                onMouseDown={handlePhotoSwipeStart}
+                onMouseMove={handlePhotoSwipeMove}
+                onMouseUp={handlePhotoSwipeEnd}
+                onMouseLeave={handlePhotoSwipeEnd}
+                onTouchStart={handlePhotoSwipeStart}
+                onTouchMove={handlePhotoSwipeMove}
+                onTouchEnd={handlePhotoSwipeEnd}
+              >
+                {photos.map((src, i) => (
+                  <div key={i} style={styles.photoSlide}>
+                    <div style={styles.polaroid}>
+                      <div style={styles.polaroidTape} />
+                      <div style={styles.polaroidImage}>
+                        <img src={src} alt={captions[i]} style={styles.photo} />
+                      </div>
+                      <div style={styles.polaroidCaption}>{captions[i]}</div>
                     </div>
-                    <div style={styles.polaroidCaption}>{captions[i]}</div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+              
+              <div style={styles.photoDots}>
+                {photos.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPhotoIndex(i)}
+                    style={{
+                      ...styles.photoDot,
+                      background: i === currentPhotoIndex ? '#fff' : 'rgba(255,255,255,0.3)',
+                      transform: i === currentPhotoIndex ? 'scale(1.3)' : 'scale(1)',
+                    }}
+                  />
+                ))}
+              </div>
+              
+              <p style={styles.swipeHint}>← Swipe to see more →</p>
             </div>
           </div>
 
@@ -431,69 +592,60 @@ export default function BirthdayCard({
             </div>
 
             <div style={styles.poemContainer}>
-              <svg viewBox="0 0 500 650" className="poem-svg-responsive" style={styles.poemSvg}>
+              <svg viewBox="0 0 520 720" className="poem-svg-responsive" style={styles.poemSvg}>
                 <defs>
-                  <filter id="inkBleed" x="-10%" y="-10%" width="120%" height="120%">
-                    <feMorphology operator="dilate" radius="0.3" />
-                    <feGaussianBlur stdDeviation="0.8" />
+                  <filter id="inkBleed" x="-20%" y="-20%" width="140%" height="140%">
+                    <feMorphology operator="dilate" radius="0.4" />
+                    <feGaussianBlur stdDeviation="0.6" />
+                  </filter>
+                  <filter id="wetInk" x="-10%" y="-10%" width="120%" height="120%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
+                    <feOffset in="blur" dx="0.5" dy="0.5" result="offsetBlur" />
+                    <feMerge>
+                      <feMergeNode in="offsetBlur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
                   </filter>
                 </defs>
                 
-                {POEM_LINES.map((line, i) => {
-                  if (!line.trim()) return null;
-                  const y = 40 + i * 34;
-                  const progress = lineProgress[i] || 0;
-                  const clipWidth = 500 * progress;
-                  
-                  const isEmphasis = line.includes("Luke") || line.includes("star") || line.includes("thrive");
-                  const strokeOpacity = isEmphasis ? 1 : 0.95;
-                  const glowIntensity = isEmphasis ? "0 0 12px rgba(255,210,120,0.6)" : "0 0 6px rgba(255,210,120,0.3)";
+                {inkDotsStatic.map((dot, i) => (
+                  <circle
+                    key={`dot-${i}`}
+                    cx={dot.x}
+                    cy={dot.y}
+                    r={dot.size}
+                    fill={`rgba(255,255,255,${dot.opacity})`}
+                  />
+                ))}
+                
+                {inkSplatters.map((spot, i) => (
+                  <g key={`splat-${i}`}>
+                    <circle
+                      cx={spot.x}
+                      cy={spot.y}
+                      r={spot.size}
+                      fill="rgba(255,255,255,0.25)"
+                      filter="url(#inkBleed)"
+                    />
+                    <circle
+                      cx={spot.x + 2}
+                      cy={spot.y - 1}
+                      r={spot.size * 0.5}
+                      fill="rgba(255,255,255,0.15)"
+                    />
+                  </g>
+                ))}
+                
+                {POEM_LINES.map((line, i) => renderLineWithEmphasis(line, i, lineProgress[i] || 0))}
 
-                  return (
-                    <g key={i}>
-                      <defs>
-                        <clipPath id={`clip-${i}`}>
-                          <rect x="0" y={y - 30} width={clipWidth} height="40" />
-                        </clipPath>
-                      </defs>
-                      <text
-                        x="20"
-                        y={y}
-                        style={{
-                          fontFamily: '"InterSignature", cursive',
-                          fontSize: 26,
-                          fill: `rgba(255,255,255,${strokeOpacity * 0.15})`,
-                          filter: "url(#inkBleed)",
-                        }}
-                        clipPath={`url(#clip-${i})`}
-                      >
-                        {line}
-                      </text>
-                      <text
-                        x="20"
-                        y={y}
-                        style={{
-                          fontFamily: '"InterSignature", cursive',
-                          fontSize: 26,
-                          fill: `rgba(255,255,255,${strokeOpacity})`,
-                          filter: `drop-shadow(${glowIntensity})`,
-                        }}
-                        clipPath={`url(#clip-${i})`}
-                      >
-                        {line}
-                      </text>
-                    </g>
-                  );
-                })}
+                <path
+                  d="M 25 680 Q 80 675, 150 680 T 280 678"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.3)"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
               </svg>
-            </div>
-
-            <div style={styles.audioStatus}>
-              {audioLoaded ? (
-                <span>🎵 Audio ready</span>
-              ) : (
-                <span>Loading audio...</span>
-              )}
             </div>
           </div>
         </div>
@@ -512,26 +664,54 @@ export default function BirthdayCard({
         
         @keyframes flicker {
           0%, 100% { transform: scaleY(1) scaleX(1); opacity: 1; }
-          25% { transform: scaleY(1.1) scaleX(0.95); opacity: 0.9; }
-          50% { transform: scaleY(0.95) scaleX(1.05); opacity: 1; }
-          75% { transform: scaleY(1.05) scaleX(0.98); opacity: 0.95; }
+          25% { transform: scaleY(1.15) scaleX(0.92); opacity: 0.85; }
+          50% { transform: scaleY(0.9) scaleX(1.08); opacity: 1; }
+          75% { transform: scaleY(1.08) scaleX(0.95); opacity: 0.9; }
         }
         
         @keyframes glowPulse {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.1); }
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.85; transform: scale(1.15); }
         }
 
         @keyframes smokeRise {
-          0% { opacity: 0.8; transform: translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateY(-60px) scale(2); }
+          0% { opacity: 0.7; transform: translateY(0) scale(1) rotate(0deg); }
+          50% { opacity: 0.4; transform: translateY(-40px) scale(1.8) rotate(10deg); }
+          100% { opacity: 0; transform: translateY(-80px) scale(2.5) rotate(-5deg); }
         }
 
         @keyframes flyArrow {
-          0% { transform: translateX(-280px) rotate(0deg); opacity: 1; }
-          75% { transform: translateX(30px) rotate(0deg); opacity: 1; }
-          85% { transform: translateX(30px) rotate(3deg); opacity: 1; }
-          100% { transform: translateX(30px) rotate(3deg); opacity: 0; }
+          0% { 
+            transform: translateY(-50%) translateX(-100px) rotate(-90deg); 
+            opacity: 1; 
+          }
+          20% {
+            transform: translateY(-50%) translateX(50px) rotate(-90deg);
+            opacity: 1;
+          }
+          60% { 
+            transform: translateY(-50%) translateX(320px) rotate(-88deg); 
+            opacity: 1; 
+          }
+          80% { 
+            transform: translateY(-50%) translateX(340px) rotate(-92deg); 
+            opacity: 1; 
+          }
+          100% { 
+            transform: translateY(-50%) translateX(340px) rotate(-90deg); 
+            opacity: 0; 
+          }
+        }
+
+        @keyframes bowPullback {
+          0% { transform: scaleY(1); }
+          100% { transform: scaleY(0.9); }
+        }
+
+        @keyframes arrowShake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-2px); }
+          75% { transform: translateX(2px); }
         }
 
         @media (max-width: 768px) {
@@ -544,20 +724,17 @@ export default function BirthdayCard({
             border-right: none !important;
             border-bottom: 1px solid rgba(255,255,255,0.08) !important;
           }
-          .polaroid-stack-responsive {
-            max-width: 200px !important;
-          }
           .card-right-responsive {
             padding: 16px 20px !important;
           }
           .poem-svg-responsive {
-            min-height: 500px;
+            min-height: 600px;
           }
         }
 
         @media (max-width: 480px) {
-          .polaroid-stack-responsive {
-            max-width: 160px !important;
+          .card-left-responsive {
+            padding: 15px !important;
           }
         }
       `}</style>
@@ -591,7 +768,7 @@ const styles = {
   },
   cardFront: {
     width: "100%",
-    maxWidth: 700,
+    maxWidth: 750,
     perspective: "1500px",
   },
   cardPaper: {
@@ -614,7 +791,7 @@ const styles = {
       linear-gradient(165deg, #fdf9f3 0%, #f8f3eb 30%, #f0e8db 70%, #e8dfd0 100%)
     `,
     borderRadius: 16,
-    padding: "60px 50px",
+    padding: "50px 40px",
     boxShadow: `
       0 1px 2px rgba(0,0,0,0.07),
       0 4px 8px rgba(0,0,0,0.07),
@@ -643,21 +820,12 @@ const styles = {
     width: 8,
     background: "linear-gradient(-90deg, rgba(0,0,0,0.05), transparent)",
   },
-  cardFold: {
-    position: "absolute",
-    left: "50%",
-    top: 0,
-    bottom: 0,
-    width: 2,
-    background: "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.06) 20%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.06) 80%, transparent 100%)",
-    transform: "translateX(-50%)",
-  },
   embossedBorder: {
     position: "absolute",
-    top: 25,
-    left: 25,
-    right: 25,
-    bottom: 25,
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 20,
     border: "2px solid rgba(180,150,120,0.2)",
     borderRadius: 8,
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.05)",
@@ -665,49 +833,49 @@ const styles = {
   },
   cornerTL: {
     position: "absolute",
-    top: 35,
-    left: 35,
-    fontSize: 24,
+    top: 30,
+    left: 30,
+    fontSize: 22,
     color: "rgba(180,150,120,0.4)",
     transform: "rotate(-45deg)",
   },
   cornerTR: {
     position: "absolute",
-    top: 35,
-    right: 35,
-    fontSize: 24,
+    top: 30,
+    right: 30,
+    fontSize: 22,
     color: "rgba(180,150,120,0.4)",
     transform: "rotate(45deg) scaleX(-1)",
   },
   cornerBL: {
     position: "absolute",
-    bottom: 35,
-    left: 35,
-    fontSize: 24,
+    bottom: 30,
+    left: 30,
+    fontSize: 22,
     color: "rgba(180,150,120,0.4)",
     transform: "rotate(-135deg)",
   },
   cornerBR: {
     position: "absolute",
-    bottom: 35,
-    right: 35,
-    fontSize: 24,
+    bottom: 30,
+    right: 30,
+    fontSize: 22,
     color: "rgba(180,150,120,0.4)",
     transform: "rotate(135deg) scaleX(-1)",
   },
   decorTop: {
     position: "absolute",
-    top: 45,
-    left: 60,
-    right: 60,
+    top: 40,
+    left: 50,
+    right: 50,
     height: 1,
     background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
   },
   decorBottom: {
     position: "absolute",
-    bottom: 45,
-    left: 60,
-    right: 60,
+    bottom: 40,
+    left: 50,
+    right: 50,
     height: 1,
     background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
   },
@@ -717,55 +885,60 @@ const styles = {
   },
   titleSection: {
     textAlign: "center",
-    marginBottom: 30,
+    marginBottom: 20,
   },
   starDecor: {
     color: "#c9a55a",
-    fontSize: 18,
-    letterSpacing: 8,
-    marginBottom: 8,
+    fontSize: 16,
+    letterSpacing: 12,
+    marginBottom: 6,
   },
   mainTitle: {
     fontFamily: '"InterSignature", Georgia, serif',
-    fontSize: "clamp(32px, 6vw, 52px)",
+    fontSize: "clamp(30px, 5.5vw, 48px)",
     fontWeight: 400,
     color: "#3d2914",
-    margin: "8px 0",
+    margin: "6px 0",
     letterSpacing: 2,
     textShadow: "1px 1px 2px rgba(0,0,0,0.1)",
   },
   nameTitle: {
     fontFamily: '"InterSignature", Georgia, serif',
-    fontSize: "clamp(40px, 8vw, 68px)",
+    fontSize: "clamp(38px, 7.5vw, 62px)",
     fontWeight: 400,
     color: "#8b5a2b",
-    margin: "0 0 8px",
+    margin: "0 0 6px",
     letterSpacing: 3,
     textShadow: "2px 2px 4px rgba(0,0,0,0.1)",
   },
   interactionArea: {
     display: "flex",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
-    padding: "30px 20px",
-    gap: 40,
+    padding: "20px 10px",
+    gap: 60,
+    minHeight: 280,
   },
   bowSection: {
     position: "relative",
-    flex: 1,
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+  },
+  bowContainer: {
+    transition: "transform 0.1s ease-out",
+    transformOrigin: "center",
   },
   bowImage: {
-    width: 140,
+    width: 120,
     height: "auto",
-    filter: "drop-shadow(2px 4px 6px rgba(0,0,0,0.3))",
-    transform: "rotate(0deg)",
+    filter: "drop-shadow(3px 5px 8px rgba(0,0,0,0.35))",
+    transform: "rotate(90deg)",
   },
   arrowWrapper: {
     position: "absolute",
-    right: 40,
+    top: -30,
     cursor: "grab",
     zIndex: 10,
     padding: 10,
@@ -773,140 +946,152 @@ const styles = {
     touchAction: "none",
   },
   arrowImage: {
-    width: 200,
+    width: 160,
     height: "auto",
-    filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))",
+    filter: "drop-shadow(2px 3px 5px rgba(0,0,0,0.35))",
+    transform: "rotate(-90deg)",
     pointerEvents: "none",
   },
   bowString: {
     position: "absolute",
-    right: 55,
-    width: 3,
-    height: 80,
-    background: "linear-gradient(180deg, rgba(60,40,20,0.8), rgba(80,60,40,0.9), rgba(60,40,20,0.8))",
-    transformOrigin: "center",
-    transition: "transform 0.05s",
-    borderRadius: 2,
+    left: "50%",
+    top: 20,
+    width: 2,
+    background: "linear-gradient(180deg, rgba(60,40,20,0.7), rgba(80,60,40,0.85), rgba(60,40,20,0.7))",
+    transformOrigin: "top center",
+    transition: "height 0.08s ease-out",
+    borderRadius: 1,
+    marginLeft: -1,
   },
   targetSection: {
-    flex: 1,
     display: "flex",
-    justifyContent: "flex-start",
-    paddingLeft: 40,
+    justifyContent: "center",
+    alignItems: "flex-end",
+  },
+  candlesRow: {
+    position: "relative",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    width: 350,
+    height: 300,
   },
   candleContainer: {
     position: "relative",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+    marginBottom: 0,
+    marginLeft: -40,
   },
   candleImage: {
-    width: 100,
+    width: 180,
     height: "auto",
-    filter: "drop-shadow(2px 4px 8px rgba(0,0,0,0.3))",
-    transition: "filter 0.3s",
+    filter: "drop-shadow(4px 10px 15px rgba(0,0,0,0.4))",
+    transition: "filter 0.4s ease-out",
   },
   flameContainer: {
     position: "absolute",
-    top: -30,
+    top: -90,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 30,
-    height: 45,
+    width: 70,
+    height: 100,
   },
   flameOuter: {
     position: "absolute",
     bottom: 0,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 20,
-    height: 35,
-    background: "radial-gradient(ellipse at bottom, #ff6b35 0%, #ff9500 40%, #ffcc00 70%, transparent 100%)",
+    width: 50,
+    height: 85,
+    background: "radial-gradient(ellipse at bottom, #ff6b35 0%, #ff9500 35%, #ffcc00 65%, transparent 100%)",
     borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
-    animation: "flicker 0.5s ease-in-out infinite",
+    animation: "flicker 0.4s ease-in-out infinite",
   },
   flameInner: {
     position: "absolute",
-    bottom: 2,
+    bottom: 8,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 10,
-    height: 20,
+    width: 25,
+    height: 50,
     background: "radial-gradient(ellipse at bottom, #fff 0%, #fffbe6 50%, transparent 100%)",
     borderRadius: "50% 50% 50% 50% / 60% 60% 40% 40%",
-    animation: "flicker 0.3s ease-in-out infinite",
+    animation: "flicker 0.25s ease-in-out infinite",
   },
   flameGlow: {
     position: "absolute",
-    bottom: -10,
+    bottom: -25,
     left: "50%",
     transform: "translateX(-50%)",
-    width: 60,
-    height: 60,
-    background: "radial-gradient(circle, rgba(255,150,50,0.4) 0%, transparent 70%)",
-    animation: "glowPulse 1s ease-in-out infinite",
+    width: 140,
+    height: 140,
+    background: "radial-gradient(circle, rgba(255,150,50,0.5) 0%, transparent 70%)",
+    animation: "glowPulse 0.8s ease-in-out infinite",
     pointerEvents: "none",
   },
   smokeContainer: {
     position: "absolute",
-    top: -20,
+    top: -60,
     left: "50%",
     transform: "translateX(-50%)",
   },
   smoke1: {
     position: "absolute",
-    width: 8,
-    height: 8,
+    width: 18,
+    height: 18,
     background: "rgba(150,150,150,0.6)",
     borderRadius: "50%",
-    animation: "smokeRise 1s ease-out forwards",
-    left: -5,
+    animation: "smokeRise 1.2s ease-out forwards",
+    left: -10,
   },
   smoke2: {
     position: "absolute",
-    width: 10,
-    height: 10,
+    width: 22,
+    height: 22,
     background: "rgba(130,130,130,0.5)",
     borderRadius: "50%",
-    animation: "smokeRise 1.2s ease-out 0.1s forwards",
+    animation: "smokeRise 1.4s ease-out 0.1s forwards",
   },
   smoke3: {
     position: "absolute",
-    width: 6,
-    height: 6,
+    width: 14,
+    height: 14,
     background: "rgba(140,140,140,0.4)",
     borderRadius: "50%",
-    animation: "smokeRise 1s ease-out 0.2s forwards",
-    left: 8,
+    animation: "smokeRise 1.1s ease-out 0.2s forwards",
+    left: 16,
   },
   flyingArrow: {
     position: "absolute",
-    width: 180,
+    width: 140,
     height: "auto",
     top: "50%",
-    left: -200,
-    transform: "translateY(-50%)",
-    animation: "flyArrow 0.65s ease-out forwards",
-    filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.3))",
+    left: -100,
+    transform: "translateY(-50%) rotate(-90deg)",
+    animation: "flyArrow 0.8s ease-out forwards",
+    filter: "drop-shadow(3px 3px 6px rgba(0,0,0,0.4))",
+    zIndex: 20,
   },
   instructionBox: {
     textAlign: "center",
-    marginTop: 20,
-    padding: "16px 24px",
+    marginTop: 15,
+    padding: "14px 20px",
     background: "rgba(60,40,20,0.05)",
     borderRadius: 8,
     border: "1px solid rgba(180,140,100,0.2)",
   },
   instruction: {
     fontFamily: "Georgia, serif",
-    fontSize: 15,
+    fontSize: 14,
     color: "#5a4030",
-    margin: "0 0 12px",
+    margin: "0 0 10px",
     fontStyle: "italic",
   },
   pullMeter: {
     width: "100%",
-    maxWidth: 200,
+    maxWidth: 180,
     height: 6,
     background: "rgba(0,0,0,0.1)",
     borderRadius: 3,
@@ -916,34 +1101,34 @@ const styles = {
   pullFill: {
     height: "100%",
     borderRadius: 3,
-    transition: "width 0.1s, background 0.2s",
+    transition: "width 0.08s, background 0.2s",
   },
   footerDecor: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-    marginTop: 30,
+    gap: 10,
+    marginTop: 20,
     color: "#c9a55a",
   },
   decorDot: {
-    fontSize: 10,
+    fontSize: 9,
     opacity: 0.7,
   },
   decorLine: {
-    width: 60,
+    width: 50,
     height: 1,
     background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.4), transparent)",
   },
   decorStar: {
-    fontSize: 14,
+    fontSize: 13,
   },
   cardInner: {
     display: "grid",
-    gridTemplateColumns: "1fr 1.3fr",
-    minHeight: 600,
+    gridTemplateColumns: "1fr 1.4fr",
+    minHeight: 650,
     width: "100%",
-    maxWidth: 1000,
+    maxWidth: 1100,
     background: "linear-gradient(145deg, #1e2243 0%, #0f1225 100%)",
     borderRadius: 24,
     boxShadow: "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
@@ -952,32 +1137,58 @@ const styles = {
     animation: "fadeIn 0.8s ease-out",
   },
   cardLeft: {
-    padding: 30,
+    padding: 25,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     background: "radial-gradient(circle at 30% 30%, rgba(255,210,120,0.08), transparent 60%)",
     borderRight: "1px solid rgba(255,255,255,0.08)",
   },
-  polaroidStack: {
-    position: "relative",
+  photoGallery: {
     width: "100%",
-    maxWidth: 280,
-    aspectRatio: "3/4",
+    maxWidth: 320,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 15,
+  },
+  photoCarousel: {
+    display: "flex",
+    width: "100%",
+    transition: "transform 0.3s ease-out",
+    cursor: "grab",
+  },
+  photoSlide: {
+    minWidth: "100%",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "0 10px",
+    boxSizing: "border-box",
   },
   polaroid: {
-    position: "absolute",
-    inset: 0,
+    position: "relative",
     background: "#fefefe",
-    padding: "12px 12px 40px",
+    padding: "15px 15px 50px",
     borderRadius: 4,
-    boxShadow: "0 8px 30px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)",
-    animation: "polaroidIn 0.6s ease-out forwards",
-    opacity: 0,
+    boxShadow: "0 10px 40px rgba(0,0,0,0.4), 0 3px 10px rgba(0,0,0,0.2)",
+    transform: "rotate(-2deg)",
+    maxWidth: 260,
+  },
+  polaroidTape: {
+    position: "absolute",
+    top: -12,
+    left: "50%",
+    transform: "translateX(-50%) rotate(2deg)",
+    width: 70,
+    height: 24,
+    background: "linear-gradient(180deg, rgba(255,255,220,0.7), rgba(240,230,180,0.6))",
+    borderRadius: 2,
+    boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
   },
   polaroidImage: {
     width: "100%",
-    height: "100%",
+    aspectRatio: "4/3",
     background: "#e0e0e0",
     borderRadius: 2,
     overflow: "hidden",
@@ -990,16 +1201,35 @@ const styles = {
   },
   polaroidCaption: {
     position: "absolute",
-    bottom: 10,
+    bottom: 12,
     left: 0,
     right: 0,
     textAlign: "center",
     fontFamily: '"InterSignature", cursive',
-    fontSize: 14,
+    fontSize: 16,
     color: "#333",
   },
+  photoDots: {
+    display: "flex",
+    gap: 10,
+    justifyContent: "center",
+  },
+  photoDot: {
+    width: 10,
+    height: 10,
+    borderRadius: "50%",
+    border: "none",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  },
+  swipeHint: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.4)",
+    fontStyle: "italic",
+    margin: 0,
+  },
   cardRight: {
-    padding: "24px 30px",
+    padding: "24px 35px",
     display: "flex",
     flexDirection: "column",
     background: "radial-gradient(ellipse at 70% 20%, rgba(158,231,255,0.06), transparent 50%)",
@@ -1008,22 +1238,24 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginBottom: 12,
+    paddingBottom: 10,
     borderBottom: "1px solid rgba(255,255,255,0.1)",
   },
   toName: {
-    fontSize: 20,
-    fontWeight: 700,
+    fontFamily: '"InterSignature", cursive',
+    fontSize: 26,
+    fontWeight: 400,
     color: "white",
+    letterSpacing: 1,
   },
   audioControls: {
     display: "flex",
     gap: 8,
   },
   playBtn: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: "50%",
     border: "1px solid rgba(255,255,255,0.2)",
     background: "rgba(255,255,255,0.1)",
@@ -1036,8 +1268,8 @@ const styles = {
     transition: "all 0.2s",
   },
   replayBtn: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: "50%",
     border: "1px solid rgba(255,255,255,0.2)",
     background: "rgba(255,255,255,0.05)",
@@ -1057,10 +1289,6 @@ const styles = {
     width: "100%",
     height: "100%",
     display: "block",
-  },
-  audioStatus: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.5)",
-    marginTop: 12,
+    minHeight: 680,
   },
 };
