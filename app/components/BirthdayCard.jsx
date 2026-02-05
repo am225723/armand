@@ -1,25 +1,32 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 
 const BOW_ARROW_CONFIG = {
   // Bow settings
-  bowRotation: 90,           // Degrees to rotate the bow (90 = vertical)
-  bowWidth: 100,             // Size of the bow in pixels
-  
+  bowRotation: 180, // Degrees to rotate the bow (90 = vertical)
+  bowWidth: 120, // Size of the bow in pixels
+  bowOffsetY: 30, // Vertical offset for the entire bow/arrow unit
+
   // Arrow settings
-  arrowRotation: 0,          // Degrees to rotate the arrow (0 = horizontal right)
-  arrowWidth: 140,           // Size of the arrow in pixels
-  arrowOffsetX: 50,          // Horizontal offset from bow center
-  arrowOffsetY: 0,           // Vertical offset from bow center
-  pullDistance: 50,          // How far arrow moves when pulled back
-  
+  arrowRotation: 0, // Degrees to rotate the arrow (0 = horizontal right)
+  arrowWidth: 140, // Size of the arrow in pixels
+  arrowOffsetX: 30, // Horizontal offset from bow center
+  arrowOffsetY: 0, // Vertical offset relative to bow
+  pullDistance: 100, // How far arrow moves when pulled back
+
   // Flight settings
-  arrowFlightDistance: 260,  // How far the arrow flies (in pixels)
-  arrowFlightDuration: 0.6,  // Flight animation duration (in seconds)
-  
+  arrowFlightDistance: 500, // How far the arrow flies (in pixels)
+  arrowFlightDuration: 1.5, // Flight animation duration (in seconds)
+
   // Candle extinguish timing (milliseconds after arrow release)
-  candleExtinguishDelays: [300, 400, 500, 600, 700],
+  candleExtinguishDelays: [500, 600, 700, 800, 900],
 };
 
 export default function BirthdayCard({
@@ -29,10 +36,8 @@ export default function BirthdayCard({
   fontUrl = "/fonts/InterSignature-q20q2.ttf",
   audioUrl = "/audio/luke-poem.mp3",
   lineStartTimes = [
-    0.0, 4.2, 7.4, 11.8, 15.4,
-    18.9, 23.1, 27.0, 31.6, 34.6,
-    36.9, 41.9, 45.9, 50.0, 53.1,
-    57.2, 62.1, 65.6, 69.4,
+    0.0, 4.2, 7.4, 11.8, 15.4, 18.9, 23.1, 27.0, 31.6, 34.6, 36.9, 41.9, 45.9,
+    50.0, 53.1, 57.2, 62.1, 65.6, 69.4,
   ],
 }) {
   const POEM_LINES = [
@@ -57,17 +62,33 @@ export default function BirthdayCard({
     "For everyone to see.",
   ];
 
-  const EMPHASIS_WORDS = ["Luke", "star", "thrive", "love", "bright", "dreams", "heart"];
+  const EMPHASIS_WORDS = [
+    "Luke",
+    "star",
+    "thrive",
+    "love",
+    "bright",
+    "dreams",
+    "heart",
+  ];
 
   const [fontReady, setFontReady] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [arrowPull, setArrowPull] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [lineProgress, setLineProgress] = useState(() => POEM_LINES.map(() => 0));
+  const [lineProgress, setLineProgress] = useState(() =>
+    POEM_LINES.map(() => 0),
+  );
   const [candlesLit, setCandlesLit] = useState([true, true, true, true, true]);
   const [arrowFlying, setArrowFlying] = useState(false);
-  const [showSmoke, setShowSmoke] = useState([false, false, false, false, false]);
+  const [showSmoke, setShowSmoke] = useState([
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [photoSwipeOffset, setPhotoSwipeOffset] = useState(0);
   const [isPhotoSwiping, setIsPhotoSwiping] = useState(false);
@@ -90,24 +111,32 @@ export default function BirthdayCard({
       if (!cancelled) setFontReady(true);
     }
     loadFont();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [fontUrl]);
 
-  const handleDragStart = useCallback((e) => {
-    if (cardOpen || arrowFlying) return;
-    setIsDragging(true);
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    dragStartX.current = clientX;
-    e.preventDefault();
-  }, [cardOpen, arrowFlying]);
+  const handleDragStart = useCallback(
+    (e) => {
+      if (cardOpen || arrowFlying) return;
+      setIsDragging(true);
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      dragStartX.current = clientX;
+      e.preventDefault();
+    },
+    [cardOpen, arrowFlying],
+  );
 
-  const handleDragMove = useCallback((e) => {
-    if (!isDragging || cardOpen || arrowFlying) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const delta = dragStartX.current - clientX;
-    const pull = Math.min(1, Math.max(0, delta / 100));
-    setArrowPull(pull);
-  }, [isDragging, cardOpen, arrowFlying]);
+  const handleDragMove = useCallback(
+    (e) => {
+      if (!isDragging || cardOpen || arrowFlying) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const delta = dragStartX.current - clientX;
+      const pull = Math.min(1, Math.max(0, delta / 100));
+      setArrowPull(pull);
+    },
+    [isDragging, cardOpen, arrowFlying],
+  );
 
   const handleDragEnd = useCallback(() => {
     if (!isDragging) return;
@@ -115,22 +144,22 @@ export default function BirthdayCard({
     if (arrowPull > 0.5) {
       setArrowFlying(true);
       setArrowPull(0);
-      
+
       BOW_ARROW_CONFIG.candleExtinguishDelays.forEach((delay, i) => {
         setTimeout(() => {
-          setCandlesLit(prev => {
+          setCandlesLit((prev) => {
             const newState = [...prev];
             newState[i] = false;
             return newState;
           });
-          setShowSmoke(prev => {
+          setShowSmoke((prev) => {
             const newState = [...prev];
             newState[i] = true;
             return newState;
           });
         }, delay);
       });
-      
+
       setTimeout(() => {
         setShowSmoke([false, false, false, false, false]);
       }, 1800);
@@ -164,12 +193,12 @@ export default function BirthdayCard({
       setArrowFlying(true);
       [300, 400, 500, 600, 700].forEach((delay, i) => {
         setTimeout(() => {
-          setCandlesLit(prev => {
+          setCandlesLit((prev) => {
             const newState = [...prev];
             newState[i] = false;
             return newState;
           });
-          setShowSmoke(prev => {
+          setShowSmoke((prev) => {
             const newState = [...prev];
             newState[i] = true;
             return newState;
@@ -200,12 +229,12 @@ export default function BirthdayCard({
   const handlePhotoSwipeEnd = () => {
     if (!isPhotoSwiping) return;
     setIsPhotoSwiping(false);
-    
+
     if (Math.abs(photoSwipeOffset) > 50) {
       if (photoSwipeOffset < 0 && currentPhotoIndex < photos.length - 1) {
-        setCurrentPhotoIndex(prev => prev + 1);
+        setCurrentPhotoIndex((prev) => prev + 1);
       } else if (photoSwipeOffset > 0 && currentPhotoIndex > 0) {
-        setCurrentPhotoIndex(prev => prev - 1);
+        setCurrentPhotoIndex((prev) => prev - 1);
       }
     }
     setPhotoSwipeOffset(0);
@@ -214,8 +243,8 @@ export default function BirthdayCard({
   const computeLineEnds = useCallback(() => {
     const audio = audioRef.current;
     const duration = audio?.duration || 72;
-    return lineStartTimes.map((t, i) => 
-      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : duration
+    return lineStartTimes.map((t, i) =>
+      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : duration,
     );
   }, [lineStartTimes]);
 
@@ -248,15 +277,16 @@ export default function BirthdayCard({
   const startSilentAnimation = useCallback(() => {
     const totalDuration = 40;
     const startTime = Date.now();
-    const ends = lineStartTimes.map((t, i) => 
-      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : totalDuration
+    const ends = lineStartTimes.map((t, i) =>
+      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : totalDuration,
     );
-    const scale = totalDuration / (lineStartTimes[lineStartTimes.length - 1] + 3);
+    const scale =
+      totalDuration / (lineStartTimes[lineStartTimes.length - 1] + 3);
 
     const tick = () => {
       const elapsed = (Date.now() - startTime) / 1000;
       const t = elapsed * scale;
-      
+
       const newProgress = POEM_LINES.map((line, i) => {
         if (!line.trim()) return t >= lineStartTimes[i] ? 1 : 0;
         const t0 = lineStartTimes[i];
@@ -319,16 +349,19 @@ export default function BirthdayCard({
     }
   }, [cardOpen, isPlaying, startSilentAnimation]);
 
-  const inkSplatters = React.useMemo(() => [
-    { x: 45, y: 120, size: 3 },
-    { x: 380, y: 200, size: 4 },
-    { x: 120, y: 340, size: 2 },
-    { x: 420, y: 420, size: 3 },
-    { x: 70, y: 500, size: 2 },
-    { x: 350, y: 560, size: 4 },
-    { x: 200, y: 150, size: 2 },
-    { x: 450, y: 300, size: 3 },
-  ], []);
+  const inkSplatters = React.useMemo(
+    () => [
+      { x: 45, y: 120, size: 3 },
+      { x: 380, y: 200, size: 4 },
+      { x: 120, y: 340, size: 2 },
+      { x: 420, y: 420, size: 3 },
+      { x: 70, y: 500, size: 2 },
+      { x: 350, y: 560, size: 4 },
+      { x: 200, y: 150, size: 2 },
+      { x: 450, y: 300, size: 3 },
+    ],
+    [],
+  );
 
   const inkDotsStatic = React.useMemo(() => {
     const seed = 12345;
@@ -338,7 +371,7 @@ export default function BirthdayCard({
       const x = 20 + (pseudoRandom % 460);
       const y = 30 + ((pseudoRandom * 7) % 620);
       const size = 1 + (pseudoRandom % 3);
-      const opacity = 0.1 + ((pseudoRandom % 30) / 100);
+      const opacity = 0.1 + (pseudoRandom % 30) / 100;
       dots.push({ x, y, size, opacity });
     }
     return dots;
@@ -346,15 +379,15 @@ export default function BirthdayCard({
 
   const renderLineWithEmphasis = (line, i, progress) => {
     if (!line.trim()) return null;
-    
+
     const y = 50 + i * 38;
     const clipWidth = 520 * progress;
     const wobble = Math.sin(i * 1.5) * 2;
-    const rotation = (Math.sin(i * 0.7) * 0.8);
-    
-    const words = line.split(' ');
+    const rotation = Math.sin(i * 0.7) * 0.8;
+
+    const words = line.split(" ");
     let xOffset = 25;
-    
+
     return (
       <g key={i}>
         <defs>
@@ -362,15 +395,15 @@ export default function BirthdayCard({
             <rect x="0" y={y - 35} width={clipWidth} height="50" />
           </clipPath>
         </defs>
-        <g 
+        <g
           clipPath={`url(#clip-${i})`}
           transform={`rotate(${rotation} 250 ${y})`}
         >
           {words.map((word, wordIdx) => {
-            const isEmphasis = EMPHASIS_WORDS.some(ew => word.includes(ew));
+            const isEmphasis = EMPHASIS_WORDS.some((ew) => word.includes(ew));
             const wordX = xOffset;
             xOffset += word.length * 14 + 12;
-            
+
             return (
               <text
                 key={wordIdx}
@@ -381,7 +414,7 @@ export default function BirthdayCard({
                   fontSize: isEmphasis ? 34 : 30,
                   fontWeight: isEmphasis ? 600 : 400,
                   fill: isEmphasis ? "#fff" : "rgba(255,255,255,0.92)",
-                  filter: isEmphasis 
+                  filter: isEmphasis
                     ? "drop-shadow(0 0 8px rgba(255,220,150,0.5)) drop-shadow(0 0 15px rgba(255,180,100,0.3))"
                     : "drop-shadow(0 0 4px rgba(255,210,120,0.2))",
                   letterSpacing: isEmphasis ? 1.5 : 0.5,
@@ -396,7 +429,6 @@ export default function BirthdayCard({
     );
   };
 
-  
   if (!fontReady) {
     return (
       <div style={styles.loading}>
@@ -414,17 +446,17 @@ export default function BirthdayCard({
           <div style={styles.cardPaper}>
             <div style={styles.cardEdgeLeft} />
             <div style={styles.cardEdgeRight} />
-            
+
             <div style={styles.embossedBorder} />
-            
+
             <div style={styles.cornerTL}>❧</div>
             <div style={styles.cornerTR}>❧</div>
             <div style={styles.cornerBL}>❧</div>
             <div style={styles.cornerBR}>❧</div>
-            
+
             <div style={styles.decorTop} />
             <div style={styles.decorBottom} />
-            
+
             <div style={styles.frontContent}>
               <div style={styles.titleSection}>
                 <div style={styles.starDecor}>✦ ✦ ✦</div>
@@ -435,38 +467,35 @@ export default function BirthdayCard({
 
               <div style={styles.interactionArea}>
                 <div style={styles.bowSection}>
-                  <div 
+                  <div
                     style={{
                       ...styles.bowContainer,
                       transform: `scaleX(${1 + arrowPull * 0.1})`,
                     }}
                   >
-                    <img 
-                      src="/bow.png" 
-                      alt="Bow" 
-                      style={styles.bowImage}
-                    />
+                    <img src="/bow.png" alt="Bow" style={styles.bowImage} />
                   </div>
-                  
-                  <div 
+
+                  <div
                     style={{
                       ...styles.arrowWrapper,
                       transform: `translateY(-50%) translateX(${-arrowPull * BOW_ARROW_CONFIG.pullDistance}px)`,
                       opacity: arrowFlying ? 0 : 1,
-                      transition: arrowFlying ? 'opacity 0.15s' : 'transform 0.05s',
+                      transition: arrowFlying
+                        ? "opacity 0.15s"
+                        : "transform 0.05s",
                     }}
                     onMouseDown={handleDragStart}
                     onTouchStart={handleDragStart}
                     onClick={handleArrowClick}
                   >
-                    <img 
-                      src="/arrow.png" 
-                      alt="Arrow" 
+                    <img
+                      src="/arrow.png"
+                      alt="Arrow"
                       style={styles.arrowImage}
                     />
                   </div>
-
-                                  </div>
+                </div>
 
                 <div style={styles.targetSection}>
                   <div style={styles.candlesCluster}>
@@ -480,23 +509,25 @@ export default function BirthdayCard({
                       ];
                       const pos = positions[i];
                       return (
-                        <div 
-                          key={i} 
+                        <div
+                          key={i}
                           style={{
                             ...styles.candleContainer,
                             transform: `translateX(${pos.x}px) translateY(${pos.y}px) scale(${pos.scale})`,
                             zIndex: pos.z,
                           }}
                         >
-                          <img 
-                            src="/candle.png" 
-                            alt="Candle" 
+                          <img
+                            src="/candle.png"
+                            alt="Candle"
                             style={{
                               ...styles.candleImage,
-                              filter: candlesLit[i] ? 'brightness(1)' : 'brightness(0.65) saturate(0.7)',
+                              filter: candlesLit[i]
+                                ? "brightness(1)"
+                                : "brightness(0.65) saturate(0.7)",
                             }}
                           />
-                          
+
                           {candlesLit[i] && (
                             <div style={styles.flameContainer}>
                               <div style={styles.flameOuter} />
@@ -504,7 +535,7 @@ export default function BirthdayCard({
                               <div style={styles.flameGlow} />
                             </div>
                           )}
-                          
+
                           {showSmoke[i] && (
                             <div style={styles.smokeContainer}>
                               <div style={styles.smoke1} />
@@ -515,12 +546,11 @@ export default function BirthdayCard({
                         </div>
                       );
                     })}
-                    
                   </div>
                   {arrowFlying && (
-                    <img 
-                      src="/arrow.png" 
-                      alt="Flying Arrow" 
+                    <img
+                      src="/arrow.png"
+                      alt="Flying Arrow"
                       style={styles.flyingArrow}
                     />
                   )}
@@ -529,14 +559,23 @@ export default function BirthdayCard({
 
               <div style={styles.instructionBox}>
                 <p style={styles.instruction}>
-                  {arrowPull > 0.5 ? "Release to shoot!" : arrowPull > 0 ? "Pull back more..." : "Pull the arrow back to extinguish the candles"}
+                  {arrowPull > 0.5
+                    ? "Release to shoot!"
+                    : arrowPull > 0
+                      ? "Pull back more..."
+                      : "Pull the arrow back to extinguish the candles"}
                 </p>
                 <div style={styles.pullMeter}>
-                  <div style={{
-                    ...styles.pullFill,
-                    width: `${arrowPull * 100}%`,
-                    background: arrowPull > 0.5 ? 'linear-gradient(90deg, #4ade80, #22c55e)' : 'linear-gradient(90deg, #fbbf24, #f59e0b)',
-                  }} />
+                  <div
+                    style={{
+                      ...styles.pullFill,
+                      width: `${arrowPull * 100}%`,
+                      background:
+                        arrowPull > 0.5
+                          ? "linear-gradient(90deg, #4ade80, #22c55e)"
+                          : "linear-gradient(90deg, #fbbf24, #f59e0b)",
+                    }}
+                  />
                 </div>
               </div>
 
@@ -553,13 +592,10 @@ export default function BirthdayCard({
       )}
 
       {cardOpen && (
-        <div 
-          className="card-inner-responsive"
-          style={styles.cardInner}
-        >
+        <div className="card-inner-responsive" style={styles.cardInner}>
           <div className="card-left-responsive" style={styles.cardLeft}>
             <div style={styles.photoGallery}>
-              <div 
+              <div
                 style={{
                   ...styles.photoCarousel,
                   transform: `translateX(${-currentPhotoIndex * 100 + photoSwipeOffset * 0.3}%)`,
@@ -584,7 +620,7 @@ export default function BirthdayCard({
                   </div>
                 ))}
               </div>
-              
+
               <div style={styles.photoDots}>
                 {photos.map((_, i) => (
                   <button
@@ -592,13 +628,17 @@ export default function BirthdayCard({
                     onClick={() => setCurrentPhotoIndex(i)}
                     style={{
                       ...styles.photoDot,
-                      background: i === currentPhotoIndex ? '#fff' : 'rgba(255,255,255,0.3)',
-                      transform: i === currentPhotoIndex ? 'scale(1.3)' : 'scale(1)',
+                      background:
+                        i === currentPhotoIndex
+                          ? "#fff"
+                          : "rgba(255,255,255,0.3)",
+                      transform:
+                        i === currentPhotoIndex ? "scale(1.3)" : "scale(1)",
                     }}
                   />
                 ))}
               </div>
-              
+
               <p style={styles.swipeHint}>← Swipe to see more →</p>
             </div>
           </div>
@@ -610,19 +650,41 @@ export default function BirthdayCard({
                 <button onClick={handlePlayAudio} style={styles.playBtn}>
                   {isPlaying ? "⏸" : "▶"}
                 </button>
-                <button onClick={handleReplay} style={styles.replayBtn}>↺</button>
+                <button onClick={handleReplay} style={styles.replayBtn}>
+                  ↺
+                </button>
               </div>
             </div>
 
             <div style={styles.poemContainer}>
-              <svg viewBox="0 0 520 720" className="poem-svg-responsive" style={styles.poemSvg}>
+              <svg
+                viewBox="0 0 520 720"
+                className="poem-svg-responsive"
+                style={styles.poemSvg}
+              >
                 <defs>
-                  <filter id="inkBleed" x="-20%" y="-20%" width="140%" height="140%">
+                  <filter
+                    id="inkBleed"
+                    x="-20%"
+                    y="-20%"
+                    width="140%"
+                    height="140%"
+                  >
                     <feMorphology operator="dilate" radius="0.4" />
                     <feGaussianBlur stdDeviation="0.6" />
                   </filter>
-                  <filter id="wetInk" x="-10%" y="-10%" width="120%" height="120%">
-                    <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
+                  <filter
+                    id="wetInk"
+                    x="-10%"
+                    y="-10%"
+                    width="120%"
+                    height="120%"
+                  >
+                    <feGaussianBlur
+                      in="SourceAlpha"
+                      stdDeviation="1"
+                      result="blur"
+                    />
                     <feOffset in="blur" dx="0.5" dy="0.5" result="offsetBlur" />
                     <feMerge>
                       <feMergeNode in="offsetBlur" />
@@ -630,7 +692,7 @@ export default function BirthdayCard({
                     </feMerge>
                   </filter>
                 </defs>
-                
+
                 {inkDotsStatic.map((dot, i) => (
                   <circle
                     key={`dot-${i}`}
@@ -640,7 +702,7 @@ export default function BirthdayCard({
                     fill={`rgba(255,255,255,${dot.opacity})`}
                   />
                 ))}
-                
+
                 {inkSplatters.map((spot, i) => (
                   <g key={`splat-${i}`}>
                     <circle
@@ -658,8 +720,10 @@ export default function BirthdayCard({
                     />
                   </g>
                 ))}
-                
-                {POEM_LINES.map((line, i) => renderLineWithEmphasis(line, i, lineProgress[i] || 0))}
+
+                {POEM_LINES.map((line, i) =>
+                  renderLineWithEmphasis(line, i, lineProgress[i] || 0),
+                )}
 
                 <path
                   d="M 25 680 Q 80 675, 150 680 T 280 678"
@@ -784,7 +848,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
-    background: "radial-gradient(ellipse at 30% 20%, #2d1f3d 0%, #1a1225 40%, #0d0a12 100%)",
+    background:
+      "radial-gradient(ellipse at 30% 20%, #2d1f3d 0%, #1a1225 40%, #0d0a12 100%)",
     boxSizing: "border-box",
   },
   loading: {
@@ -862,7 +927,8 @@ const styles = {
     bottom: 20,
     border: "2px solid rgba(180,150,120,0.2)",
     borderRadius: 8,
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.05)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.05)",
     pointerEvents: "none",
   },
   cornerTL: {
@@ -903,7 +969,8 @@ const styles = {
     left: 50,
     right: 50,
     height: 1,
-    background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
+    background:
+      "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
   },
   decorBottom: {
     position: "absolute",
@@ -911,7 +978,8 @@ const styles = {
     left: 50,
     right: 50,
     height: 1,
-    background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
+    background:
+      "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
   },
   frontContent: {
     position: "relative",
@@ -959,6 +1027,7 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    marginTop: BOW_ARROW_CONFIG.bowOffsetY,
   },
   bowContainer: {
     transition: "transform 0.1s ease-out",
@@ -1034,7 +1103,8 @@ const styles = {
     transform: "translateX(-50%)",
     width: 30,
     height: 50,
-    background: "radial-gradient(ellipse at 50% 85%, #ff4500 0%, #ff6b35 20%, #ff9500 45%, #ffcc00 70%, transparent 100%)",
+    background:
+      "radial-gradient(ellipse at 50% 85%, #ff4500 0%, #ff6b35 20%, #ff9500 45%, #ffcc00 70%, transparent 100%)",
     borderRadius: "50% 50% 50% 50% / 65% 65% 35% 35%",
     animation: "naturalFlicker 0.5s ease-in-out infinite",
   },
@@ -1045,7 +1115,8 @@ const styles = {
     transform: "translateX(-50%)",
     width: 12,
     height: 25,
-    background: "radial-gradient(ellipse at 50% 80%, #fff 0%, #fffbe6 45%, #ffd54f 75%, transparent 100%)",
+    background:
+      "radial-gradient(ellipse at 50% 80%, #fff 0%, #fffbe6 45%, #ffd54f 75%, transparent 100%)",
     borderRadius: "50% 50% 50% 50% / 70% 70% 30% 30%",
     animation: "naturalFlicker 0.3s ease-in-out infinite",
   },
@@ -1056,7 +1127,8 @@ const styles = {
     transform: "translateX(-50%)",
     width: 60,
     height: 60,
-    background: "radial-gradient(circle, rgba(255,150,50,0.35) 0%, rgba(255,100,30,0.15) 45%, transparent 70%)",
+    background:
+      "radial-gradient(circle, rgba(255,150,50,0.35) 0%, rgba(255,100,30,0.15) 45%, transparent 70%)",
     animation: "glowPulse 0.9s ease-in-out infinite",
     pointerEvents: "none",
   },
@@ -1147,7 +1219,8 @@ const styles = {
   decorLine: {
     width: 50,
     height: 1,
-    background: "linear-gradient(90deg, transparent, rgba(180,140,100,0.4), transparent)",
+    background:
+      "linear-gradient(90deg, transparent, rgba(180,140,100,0.4), transparent)",
   },
   decorStar: {
     fontSize: 13,
@@ -1160,7 +1233,8 @@ const styles = {
     maxWidth: 1100,
     background: "linear-gradient(145deg, #1e2243 0%, #0f1225 100%)",
     borderRadius: 24,
-    boxShadow: "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+    boxShadow:
+      "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
     overflow: "hidden",
     border: "1px solid rgba(255,255,255,0.1)",
     animation: "fadeIn 0.8s ease-out",
@@ -1170,7 +1244,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "radial-gradient(circle at 30% 30%, rgba(255,210,120,0.08), transparent 60%)",
+    background:
+      "radial-gradient(circle at 30% 30%, rgba(255,210,120,0.08), transparent 60%)",
     borderRight: "1px solid rgba(255,255,255,0.08)",
     maxWidth: 320,
   },
@@ -1214,7 +1289,8 @@ const styles = {
     transform: "translateX(-50%) rotate(2deg)",
     width: 70,
     height: 24,
-    background: "linear-gradient(180deg, rgba(255,255,220,0.7), rgba(240,230,180,0.6))",
+    background:
+      "linear-gradient(180deg, rgba(255,255,220,0.7), rgba(240,230,180,0.6))",
     borderRadius: 2,
     boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
   },
@@ -1264,7 +1340,8 @@ const styles = {
     padding: "24px 35px",
     display: "flex",
     flexDirection: "column",
-    background: "radial-gradient(ellipse at 70% 20%, rgba(158,231,255,0.06), transparent 50%)",
+    background:
+      "radial-gradient(ellipse at 70% 20%, rgba(158,231,255,0.06), transparent 50%)",
   },
   poemHeader: {
     display: "flex",
