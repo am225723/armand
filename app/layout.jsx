@@ -9,7 +9,7 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Imperial+Script&family=Pinyon+Script&family=Great+Vibes&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&family=Bilbo+Swash+Caps&family=UnifrakturMaguntia&family=Pinyon+Script&family=Great+Vibes&display=swap" rel="stylesheet" />
       </head>
       <body style={{ margin: 0 }}>{children}</body>
     </html>

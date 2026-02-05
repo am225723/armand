@@ -38,7 +38,7 @@ export default function BirthdayCard({
   audioUrl = "/audio/luke-poem.mp3",
   lineStartTimes = [
     0.0, 4.2, 7.4, 11.8, 15.4, 18.9, 23.1, 27.0, 31.6, 34.6, 36.9, 41.9, 45.9,
-    50.0, 53.1, 57.2, 62.1, 65.6, 69.4,
+    50.0, 53.1, 57.2, 62.1, 65.6, 69.4, 73.0, 77.0,
   ],
 }) {
   const POEM_LINES = [
@@ -60,6 +60,7 @@ export default function BirthdayCard({
     "So here's to Luke, for all he is,",
     "And the light he's always shown,",
     "",
+    "The greatest gift of all Dear Luke,",
     "Is To Be Known",
   ];
 
@@ -338,13 +339,14 @@ export default function BirthdayCard({
   };
 
   useEffect(() => {
-    if (cardOpen && !isPlaying && !silentAnimationRan.current) {
+    if (cardOpen && !isPlaying) {
+      silentAnimationRan.current = false;
       const timer = setTimeout(() => {
-        if (!isPlaying) {
+        if (!isPlaying && !silentAnimationRan.current) {
           silentAnimationRan.current = true;
           startSilentAnimation();
         }
-      }, 1500);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [cardOpen, isPlaying, startSilentAnimation]);
@@ -807,7 +809,7 @@ export default function BirthdayCard({
               </button>
             </div>
             <div style={styles.ornateContainer}>
-              <CardInsideOrnate name={toName} />
+              <CardInsideOrnate name={toName} lineProgress={lineProgress} />
             </div>
           </div>
         </div>
