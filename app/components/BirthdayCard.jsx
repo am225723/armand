@@ -12,7 +12,7 @@ const BOW_ARROW_CONFIG = {
   // Bow settings
   bowRotation: 180, // Degrees to rotate the bow (90 = vertical)
   bowWidth: 120, // Size of the bow in pixels
-  bowOffsetY: 30, // Vertical offset for the entire bow/arrow unit
+  bowOffsetY: 40, // Vertical offset for the entire bow/arrow unit
 
   // Arrow settings
   arrowRotation: 0, // Degrees to rotate the arrow (0 = horizontal right)
@@ -447,6 +447,49 @@ export default function BirthdayCard({
             <div style={styles.cardEdgeLeft} />
             <div style={styles.cardEdgeRight} />
 
+            {/* Festive party background animations */}
+            <div style={styles.partyBackground}>
+              {/* Floating confetti */}
+              {[...Array(20)].map((_, i) => (
+                <div
+                  key={`confetti-${i}`}
+                  style={{
+                    ...styles.confetti,
+                    left: `${5 + (i * 4.5) % 90}%`,
+                    backgroundColor: ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff9ff3', '#ffc048'][i % 6],
+                    animationDelay: `${i * 0.3}s`,
+                    animationDuration: `${3 + (i % 3)}s`,
+                  }}
+                />
+              ))}
+              {/* Floating stars */}
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={`star-${i}`}
+                  style={{
+                    ...styles.floatingStar,
+                    left: `${10 + (i * 12) % 80}%`,
+                    animationDelay: `${i * 0.5}s`,
+                    fontSize: `${14 + (i % 3) * 4}px`,
+                  }}
+                >
+                  ✦
+                </div>
+              ))}
+              {/* Sparkles */}
+              {[...Array(12)].map((_, i) => (
+                <div
+                  key={`sparkle-${i}`}
+                  style={{
+                    ...styles.sparkle,
+                    left: `${8 + (i * 8) % 84}%`,
+                    top: `${10 + (i * 7) % 80}%`,
+                    animationDelay: `${i * 0.4}s`,
+                  }}
+                />
+              ))}
+            </div>
+
             <div style={styles.embossedBorder} />
 
             <div style={styles.cornerTL}>❧</div>
@@ -778,6 +821,46 @@ export default function BirthdayCard({
           100% { opacity: 0; transform: translateY(-80px) scale(2.5) rotate(-5deg); }
         }
 
+        @keyframes confettiFall {
+          0% { 
+            transform: translateY(-20px) rotate(0deg); 
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          100% { 
+            transform: translateY(650px) rotate(720deg); 
+            opacity: 0.3;
+          }
+        }
+
+        @keyframes floatStar {
+          0% { 
+            transform: translateY(0) scale(1); 
+            opacity: 0.4;
+          }
+          50% { 
+            transform: translateY(-15px) scale(1.2); 
+            opacity: 1;
+          }
+          100% { 
+            transform: translateY(0) scale(1); 
+            opacity: 0.4;
+          }
+        }
+
+        @keyframes sparkleGlow {
+          0%, 100% { 
+            transform: scale(0); 
+            opacity: 0;
+          }
+          50% { 
+            transform: scale(1); 
+            opacity: 1;
+          }
+        }
+
         @keyframes flyArrow {
           0% { 
             transform: translateY(-50%) translateX(0px) rotate(0deg); 
@@ -930,6 +1013,41 @@ const styles = {
     boxShadow:
       "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.05)",
     pointerEvents: "none",
+    zIndex: 1,
+  },
+  partyBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: "hidden",
+    pointerEvents: "none",
+    zIndex: 0,
+  },
+  confetti: {
+    position: "absolute",
+    top: -20,
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    animation: "confettiFall 4s linear infinite",
+  },
+  floatingStar: {
+    position: "absolute",
+    top: "15%",
+    color: "#d4a574",
+    animation: "floatStar 2.5s ease-in-out infinite",
+    opacity: 0.6,
+  },
+  sparkle: {
+    position: "absolute",
+    width: 6,
+    height: 6,
+    backgroundColor: "#ffd93d",
+    borderRadius: "50%",
+    boxShadow: "0 0 8px #ffd93d, 0 0 12px #ff9ff3",
+    animation: "sparkleGlow 2s ease-in-out infinite",
   },
   cornerTL: {
     position: "absolute",
