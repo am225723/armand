@@ -278,11 +278,11 @@ export default function BirthdayCard({
   const startSilentAnimation = useCallback(() => {
     const totalDuration = 40;
     const startTime = Date.now();
+    const originalDuration = lineStartTimes[lineStartTimes.length - 1] + 3;
     const ends = lineStartTimes.map((t, i) =>
-      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : totalDuration,
+      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : originalDuration,
     );
-    const scale =
-      totalDuration / (lineStartTimes[lineStartTimes.length - 1] + 3);
+    const scale = originalDuration / totalDuration;
 
     const tick = () => {
       const elapsed = (Date.now() - startTime) / 1000;
@@ -296,7 +296,7 @@ export default function BirthdayCard({
       });
       setLineProgress(newProgress);
 
-      if (elapsed < totalDuration / scale) {
+      if (elapsed < totalDuration) {
         rafRef.current = requestAnimationFrame(tick);
       }
     };

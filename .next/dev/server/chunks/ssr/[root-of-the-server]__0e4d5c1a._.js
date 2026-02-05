@@ -1628,8 +1628,9 @@ function BirthdayCard({ toName = "Luke", photos = [
     const startSilentAnimation = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(()=>{
         const totalDuration = 40;
         const startTime = Date.now();
-        const ends = lineStartTimes.map((t, i)=>i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : totalDuration);
-        const scale = totalDuration / (lineStartTimes[lineStartTimes.length - 1] + 3);
+        const originalDuration = lineStartTimes[lineStartTimes.length - 1] + 3;
+        const ends = lineStartTimes.map((t, i)=>i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : originalDuration);
+        const scale = originalDuration / totalDuration;
         const tick = ()=>{
             const elapsed = (Date.now() - startTime) / 1000;
             const t = elapsed * scale;
@@ -1640,7 +1641,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                 return Math.min(1, Math.max(0, (t - t0) / Math.max(0.2, t1 - t0)));
             });
             setLineProgress(newProgress);
-            if (elapsed < totalDuration / scale) {
+            if (elapsed < totalDuration) {
                 rafRef.current = requestAnimationFrame(tick);
             }
         };
