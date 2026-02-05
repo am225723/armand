@@ -21,11 +21,11 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
     const [fontsLoaded, setFontsLoaded] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         const loadFonts = async ()=>{
-            const hawaiiLover = new FontFace("HawaiiLover", "url(/fonts/HawaiiLover.ttf)");
+            const adelia = new FontFace("Adelia", "url(/fonts/Adelia.ttf)");
             const mayonice = new FontFace("Mayonice", "url(/fonts/Mayonice.ttf)");
             try {
                 const [f1, f2] = await Promise.all([
-                    hawaiiLover.load(),
+                    adelia.load(),
                     mayonice.load()
                 ]);
                 document.fonts.add(f1);
@@ -560,7 +560,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
                 x: "50%",
                 y: "710",
                 textAnchor: "middle",
-                fontFamily: "'HawaiiLover', cursive",
+                fontFamily: "'Adelia', cursive",
                 fontSize: "340",
                 fill: "#000000",
                 opacity: "0.035",
@@ -582,7 +582,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
                     x: "50%",
                     y: pos.y,
                     textAnchor: "middle",
-                    fontFamily: "'HawaiiLover', cursive",
+                    fontFamily: "'Adelia', cursive",
                     fontSize: 32,
                     fill: "#1d1714",
                     style: {
@@ -666,7 +666,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
                     x: "50%",
                     y: secondToLastLineY,
                     textAnchor: "middle",
-                    fontFamily: "'HawaiiLover', cursive",
+                    fontFamily: "'Adelia', cursive",
                     fontSize: "38",
                     fill: "#1d1714",
                     style: {
