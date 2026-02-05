@@ -1,7 +1,25 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadFonts = async () => {
+      const hawaiiLover = new FontFace("HawaiiLover", "url(/fonts/HawaiiLover.ttf)");
+      const mayonice = new FontFace("Mayonice", "url(/fonts/Mayonice.ttf)");
+      try {
+        const [f1, f2] = await Promise.all([hawaiiLover.load(), mayonice.load()]);
+        document.fonts.add(f1);
+        document.fonts.add(f2);
+        setFontsLoaded(true);
+      } catch (e) {
+        console.error("Font load error:", e);
+        setFontsLoaded(true);
+      }
+    };
+    loadFonts();
+  }, []);
   const VB_W = 820;
   const VB_H = 1320;
 
@@ -171,13 +189,10 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         x="120"
         y="165"
         textAnchor="start"
-        fontFamily="'Herr Von Muellerhoff', cursive"
-        fontSize="90"
+        fontFamily="'Mayonice', cursive"
+        fontSize="72"
         fill="#1a1410"
         style={{
-          fontKerning: "normal",
-          fontVariantLigatures: "common-ligatures",
-          fontFeatureSettings: '"kern" 1, "liga" 1',
           textRendering: "geometricPrecision",
         }}
       >
@@ -193,8 +208,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         x="50%"
         y="710"
         textAnchor="middle"
-        fontFamily="'Herr Von Muellerhoff', cursive"
-        fontSize="380"
+        fontFamily="'HawaiiLover', cursive"
+        fontSize="340"
         fill="#000000"
         opacity="0.035"
         style={{ userSelect: "none" }}
@@ -211,14 +226,11 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
             x="50%"
             y={pos.y}
             textAnchor="middle"
-            fontFamily="'Herr Von Muellerhoff', cursive"
-            fontSize={38}
+            fontFamily="'HawaiiLover', cursive"
+            fontSize={32}
             fill="#1d1714"
             opacity={progress}
             style={{
-              fontKerning: "normal",
-              fontVariantLigatures: "common-ligatures",
-              fontFeatureSettings: '"kern" 1, "liga" 1',
               textRendering: "geometricPrecision",
               transition: "opacity 0.3s ease-out",
             }}
@@ -251,12 +263,11 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         x="50%"
         y={secondToLastLineY}
         textAnchor="middle"
-        fontFamily="'Herr Von Muellerhoff', cursive"
-        fontSize="48"
+        fontFamily="'HawaiiLover', cursive"
+        fontSize="38"
         fill="#1d1714"
         opacity={lineProgress[secondToLastIndex] ?? 0}
         style={{
-          fontKerning: "normal",
           fontVariantLigatures: "common-ligatures",
           fontFeatureSettings: '"kern" 1, "liga" 1',
           textRendering: "geometricPrecision",
@@ -276,12 +287,10 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
           x="50%"
           y={finalLineY}
           textAnchor="middle"
-          fontFamily="'Herr Von Muellerhoff', cursive"
-          fontSize="100"
+          fontFamily="'Mayonice', cursive"
+          fontSize="80"
           fill="#14100e"
           style={{
-            fontKerning: "normal",
-            fontVariantLigatures: "common-ligatures",
             fontFeatureSettings: '"kern" 1, "liga" 1',
             textRendering: "geometricPrecision",
           }}
