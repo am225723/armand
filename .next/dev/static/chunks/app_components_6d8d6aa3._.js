@@ -60,7 +60,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
         `And the light he's always shown,`,
         ``,
         `The greatest gift of all Dear ${name},`,
-        `Is To Be Known`
+        `Is To Be - Known`
     ];
     const topPad = 270;
     const poemFontSize = 40;
@@ -80,8 +80,8 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
             isBlank
         });
     });
-    const secondToLastLineY = 1150;
-    const finalLineY = 1250;
+    const secondToLastLineY = 1190;
+    const finalLineY = 1280;
     const secondToLastIndex = poemLines.length - 2;
     const finalLineIndex = poemLines.length - 1;
     const finalProgress = lineProgress[finalLineIndex] ?? 0;
