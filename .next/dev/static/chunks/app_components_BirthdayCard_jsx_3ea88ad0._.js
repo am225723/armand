@@ -2200,7 +2200,7 @@ const styles = {
         position: "absolute",
         width: BOW_ARROW_CONFIG.arrowWidth,
         height: "auto",
-        top: "50%",
+        top: `calc(50% + ${BOW_ARROW_CONFIG.bowOffsetY + 10}px)`,
         left: -200,
         transform: `translateY(-50%) rotate(${BOW_ARROW_CONFIG.arrowRotation}deg)`,
         animation: `flyArrow ${BOW_ARROW_CONFIG.arrowFlightDuration}s ease-out forwards`,
