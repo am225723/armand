@@ -220,6 +220,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
       {linePositions.slice(0, -1).map((pos, i) => {
         if (pos.isBlank) return null;
         const progress = lineProgress[i] ?? 0;
+        const chars = pos.line.split("");
+        const visibleChars = Math.floor(progress * chars.length);
+        
         return (
           <text
             key={i}
@@ -229,13 +232,25 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
             fontFamily="'HawaiiLover', cursive"
             fontSize={32}
             fill="#1d1714"
-            opacity={progress}
             style={{
               textRendering: "geometricPrecision",
-              transition: "opacity 0.3s ease-out",
             }}
           >
-            {pos.line}
+            {chars.map((char, ci) => {
+              const charProgress = ci < visibleChars ? 1 : 
+                ci === visibleChars ? (progress * chars.length) % 1 : 0;
+              return (
+                <tspan
+                  key={ci}
+                  style={{
+                    opacity: charProgress,
+                    transition: "opacity 0.08s ease-out",
+                  }}
+                >
+                  {char}
+                </tspan>
+              );
+            })}
           </text>
         );
       })}
@@ -259,23 +274,33 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         );
       })}
 
-      <text
-        x="50%"
-        y={secondToLastLineY}
-        textAnchor="middle"
-        fontFamily="'HawaiiLover', cursive"
-        fontSize="38"
-        fill="#1d1714"
-        opacity={lineProgress[secondToLastIndex] ?? 0}
-        style={{
-          fontVariantLigatures: "common-ligatures",
-          fontFeatureSettings: '"kern" 1, "liga" 1',
-          textRendering: "geometricPrecision",
-          transition: "opacity 0.3s ease-out",
-        }}
-      >
-        {`The greatest gift of all Dear ${name},`}
-      </text>
+      {(() => {
+        const secondLine = `The greatest gift of all Dear ${name},`;
+        const secondChars = secondLine.split("");
+        const secondProgress = lineProgress[secondToLastIndex] ?? 0;
+        const secondVisible = Math.floor(secondProgress * secondChars.length);
+        return (
+          <text
+            x="50%"
+            y={secondToLastLineY}
+            textAnchor="middle"
+            fontFamily="'HawaiiLover', cursive"
+            fontSize="38"
+            fill="#1d1714"
+            style={{ textRendering: "geometricPrecision" }}
+          >
+            {secondChars.map((char, ci) => {
+              const cp = ci < secondVisible ? 1 : 
+                ci === secondVisible ? (secondProgress * secondChars.length) % 1 : 0;
+              return (
+                <tspan key={ci} style={{ opacity: cp, transition: "opacity 0.08s ease-out" }}>
+                  {char}
+                </tspan>
+              );
+            })}
+          </text>
+        );
+      })()}
 
       <g opacity={finalProgress > 0 ? finalProgress : 0} style={{ transition: "opacity 0.5s ease" }}>
         <g opacity={finalProgress > 0.3 ? 0.75 : 0} stroke="url(#goldFoil)" strokeWidth="2" fill="none" style={{ transition: "opacity 0.3s ease" }}>
@@ -283,20 +308,32 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
           <path d={`M${VB_W / 2 - 170} ${finalLineY - 60} C${VB_W / 2 - 90} ${finalLineY - 80}, ${VB_W / 2 + 90} ${finalLineY - 80}, ${VB_W / 2 + 170} ${finalLineY - 60}`} opacity="0.55" />
         </g>
 
-        <text
-          x="50%"
-          y={finalLineY}
-          textAnchor="middle"
-          fontFamily="'Mayonice', cursive"
-          fontSize="80"
-          fill="#14100e"
-          style={{
-            fontFeatureSettings: '"kern" 1, "liga" 1',
-            textRendering: "geometricPrecision",
-          }}
-        >
-          Is To Be Known
-        </text>
+        {(() => {
+          const finalLine = "Is To Be Known";
+          const finalChars = finalLine.split("");
+          const fVisible = Math.floor(finalProgress * finalChars.length);
+          return (
+            <text
+              x="50%"
+              y={finalLineY}
+              textAnchor="middle"
+              fontFamily="'Mayonice', cursive"
+              fontSize="80"
+              fill="#14100e"
+              style={{ textRendering: "geometricPrecision" }}
+            >
+              {finalChars.map((char, ci) => {
+                const cp = ci < fVisible ? 1 : 
+                  ci === fVisible ? (finalProgress * finalChars.length) % 1 : 0;
+                return (
+                  <tspan key={ci} style={{ opacity: cp, transition: "opacity 0.1s ease-out" }}>
+                    {char}
+                  </tspan>
+                );
+              })}
+            </text>
+          );
+        })()}
 
         <g opacity={finalProgress > 0.8 ? 0.75 : 0} stroke="url(#goldFoil)" strokeWidth="2" fill="none" style={{ transition: "opacity 0.3s ease" }}>
           <path d={`M${VB_W / 2 - 280} ${finalLineY + 45} C${VB_W / 2 - 150} ${finalLineY + 95}, ${VB_W / 2 + 150} ${finalLineY + 95}, ${VB_W / 2 + 280} ${finalLineY + 45}`} />
