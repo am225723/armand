@@ -449,42 +449,77 @@ export default function BirthdayCard({
 
             {/* Festive party background animations */}
             <div style={styles.partyBackground}>
-              {/* Floating confetti */}
-              {[...Array(20)].map((_, i) => (
+              {/* Floating confetti - varied shapes */}
+              {[...Array(25)].map((_, i) => (
                 <div
                   key={`confetti-${i}`}
                   style={{
                     ...styles.confetti,
-                    left: `${5 + (i * 4.5) % 90}%`,
-                    backgroundColor: ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff9ff3', '#ffc048'][i % 6],
-                    animationDelay: `${i * 0.3}s`,
-                    animationDuration: `${3 + (i % 3)}s`,
+                    left: `${3 + (i * 3.8) % 94}%`,
+                    backgroundColor: ['#8b1a4a', '#1a3a5c', '#4a2c7a', '#2d5a4a', '#8b4513', '#6b2d5b'][i % 6],
+                    animationDelay: `${i * 0.25}s`,
+                    animationDuration: `${4 + (i % 4)}s`,
+                    width: i % 3 === 0 ? 12 : i % 3 === 1 ? 8 : 6,
+                    height: i % 3 === 0 ? 12 : i % 3 === 1 ? 14 : 8,
+                    borderRadius: i % 4 === 0 ? '50%' : i % 4 === 1 ? '2px' : '0',
+                    transform: `rotate(${i * 15}deg)`,
+                  }}
+                />
+              ))}
+              {/* Floating ribbons */}
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={`ribbon-${i}`}
+                  style={{
+                    ...styles.ribbon,
+                    left: `${8 + (i * 16) % 84}%`,
+                    backgroundColor: ['#6b2d5b', '#1a3a5c', '#4a2c7a'][i % 3],
+                    animationDelay: `${i * 0.8}s`,
+                    height: 30 + (i % 3) * 10,
                   }}
                 />
               ))}
               {/* Floating stars */}
-              {[...Array(8)].map((_, i) => (
+              {[...Array(10)].map((_, i) => (
                 <div
                   key={`star-${i}`}
                   style={{
                     ...styles.floatingStar,
-                    left: `${10 + (i * 12) % 80}%`,
-                    animationDelay: `${i * 0.5}s`,
-                    fontSize: `${14 + (i % 3) * 4}px`,
+                    left: `${8 + (i * 10) % 84}%`,
+                    top: `${10 + (i * 8) % 75}%`,
+                    animationDelay: `${i * 0.4}s`,
+                    fontSize: `${12 + (i % 4) * 5}px`,
+                    color: ['#8b6914', '#5c4a1a', '#6b4423'][i % 3],
                   }}
                 >
                   ✦
                 </div>
               ))}
-              {/* Sparkles */}
-              {[...Array(12)].map((_, i) => (
+              {/* Sparkles with glow */}
+              {[...Array(15)].map((_, i) => (
                 <div
                   key={`sparkle-${i}`}
                   style={{
                     ...styles.sparkle,
-                    left: `${8 + (i * 8) % 84}%`,
-                    top: `${10 + (i * 7) % 80}%`,
-                    animationDelay: `${i * 0.4}s`,
+                    left: `${5 + (i * 6.5) % 90}%`,
+                    top: `${8 + (i * 6) % 84}%`,
+                    animationDelay: `${i * 0.35}s`,
+                    backgroundColor: ['#c9a227', '#8b6914', '#a67c00'][i % 3],
+                    boxShadow: `0 0 ${8 + (i % 3) * 4}px ${['#c9a227', '#8b6914', '#a67c00'][i % 3]}`,
+                  }}
+                />
+              ))}
+              {/* Floating orbs */}
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={`orb-${i}`}
+                  style={{
+                    ...styles.floatingOrb,
+                    left: `${10 + (i * 12) % 80}%`,
+                    animationDelay: `${i * 0.6}s`,
+                    background: `radial-gradient(circle at 30% 30%, ${['rgba(139, 26, 74, 0.4)', 'rgba(26, 58, 92, 0.4)', 'rgba(74, 44, 122, 0.4)'][i % 3]}, transparent)`,
+                    width: 20 + (i % 3) * 15,
+                    height: 20 + (i % 3) * 15,
                   }}
                 />
               ))}
@@ -823,41 +858,106 @@ export default function BirthdayCard({
 
         @keyframes confettiFall {
           0% { 
-            transform: translateY(-20px) rotate(0deg); 
+            transform: translateY(-30px) rotate(0deg) translateX(0); 
             opacity: 0;
           }
-          10% {
-            opacity: 1;
+          5% {
+            opacity: 0.9;
+          }
+          50% {
+            transform: translateY(300px) rotate(360deg) translateX(20px);
           }
           100% { 
-            transform: translateY(650px) rotate(720deg); 
-            opacity: 0.3;
+            transform: translateY(700px) rotate(720deg) translateX(-10px); 
+            opacity: 0.2;
           }
         }
 
         @keyframes floatStar {
           0% { 
-            transform: translateY(0) scale(1); 
-            opacity: 0.4;
+            transform: translateY(0) scale(1) rotate(0deg); 
+            opacity: 0.5;
+          }
+          25% {
+            transform: translateY(-10px) scale(1.1) rotate(10deg);
+            opacity: 0.8;
           }
           50% { 
-            transform: translateY(-15px) scale(1.2); 
+            transform: translateY(-20px) scale(1.3) rotate(0deg); 
             opacity: 1;
           }
+          75% {
+            transform: translateY(-10px) scale(1.1) rotate(-10deg);
+            opacity: 0.8;
+          }
           100% { 
-            transform: translateY(0) scale(1); 
-            opacity: 0.4;
+            transform: translateY(0) scale(1) rotate(0deg); 
+            opacity: 0.5;
           }
         }
 
         @keyframes sparkleGlow {
           0%, 100% { 
-            transform: scale(0); 
+            transform: scale(0) rotate(0deg); 
             opacity: 0;
           }
+          25% {
+            transform: scale(0.5) rotate(45deg);
+            opacity: 0.5;
+          }
           50% { 
-            transform: scale(1); 
+            transform: scale(1.2) rotate(90deg); 
             opacity: 1;
+          }
+          75% {
+            transform: scale(0.8) rotate(135deg);
+            opacity: 0.7;
+          }
+        }
+
+        @keyframes ribbonFall {
+          0% {
+            transform: translateY(-50px) rotate(0deg) scaleY(1);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.8;
+          }
+          25% {
+            transform: translateY(150px) rotate(15deg) scaleY(1.2);
+          }
+          50% {
+            transform: translateY(350px) rotate(-10deg) scaleY(0.9);
+          }
+          75% {
+            transform: translateY(500px) rotate(20deg) scaleY(1.1);
+          }
+          100% {
+            transform: translateY(700px) rotate(-5deg) scaleY(1);
+            opacity: 0.1;
+          }
+        }
+
+        @keyframes orbFloat {
+          0% {
+            transform: translateY(0) translateX(0) scale(1);
+            opacity: 0.3;
+          }
+          25% {
+            transform: translateY(-30px) translateX(15px) scale(1.1);
+            opacity: 0.5;
+          }
+          50% {
+            transform: translateY(-50px) translateX(0) scale(1.2);
+            opacity: 0.6;
+          }
+          75% {
+            transform: translateY(-30px) translateX(-15px) scale(1.1);
+            opacity: 0.5;
+          }
+          100% {
+            transform: translateY(0) translateX(0) scale(1);
+            opacity: 0.3;
           }
         }
 
@@ -1042,12 +1142,25 @@ const styles = {
   },
   sparkle: {
     position: "absolute",
-    width: 6,
-    height: 6,
-    backgroundColor: "#ffd93d",
+    width: 5,
+    height: 5,
+    backgroundColor: "#c9a227",
     borderRadius: "50%",
-    boxShadow: "0 0 8px #ffd93d, 0 0 12px #ff9ff3",
-    animation: "sparkleGlow 2s ease-in-out infinite",
+    boxShadow: "0 0 8px #c9a227",
+    animation: "sparkleGlow 2.5s ease-in-out infinite",
+  },
+  ribbon: {
+    position: "absolute",
+    top: -40,
+    width: 4,
+    borderRadius: 2,
+    animation: "ribbonFall 6s ease-in-out infinite",
+  },
+  floatingOrb: {
+    position: "absolute",
+    top: "20%",
+    borderRadius: "50%",
+    animation: "orbFloat 5s ease-in-out infinite",
   },
   cornerTL: {
     position: "absolute",

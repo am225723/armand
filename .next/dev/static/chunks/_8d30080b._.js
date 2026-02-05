@@ -632,21 +632,25 @@ function BirthdayCard({ toName = "Luke", photos = [
                             style: styles.partyBackground,
                             children: [
                                 [
-                                    ...Array(20)
+                                    ...Array(25)
                                 ].map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         style: {
                                             ...styles.confetti,
-                                            left: `${5 + i * 4.5 % 90}%`,
+                                            left: `${3 + i * 3.8 % 94}%`,
                                             backgroundColor: [
-                                                '#ff6b6b',
-                                                '#ffd93d',
-                                                '#6bcb77',
-                                                '#4d96ff',
-                                                '#ff9ff3',
-                                                '#ffc048'
+                                                '#8b1a4a',
+                                                '#1a3a5c',
+                                                '#4a2c7a',
+                                                '#2d5a4a',
+                                                '#8b4513',
+                                                '#6b2d5b'
                                             ][i % 6],
-                                            animationDelay: `${i * 0.3}s`,
-                                            animationDuration: `${3 + i % 3}s`
+                                            animationDelay: `${i * 0.25}s`,
+                                            animationDuration: `${4 + i % 4}s`,
+                                            width: i % 3 === 0 ? 12 : i % 3 === 1 ? 8 : 6,
+                                            height: i % 3 === 0 ? 12 : i % 3 === 1 ? 14 : 8,
+                                            borderRadius: i % 4 === 0 ? '50%' : i % 4 === 1 ? '2px' : '0',
+                                            transform: `rotate(${i * 15}deg)`
                                         }
                                     }, `confetti-${i}`, false, {
                                         fileName: "[project]/app/components/BirthdayCard.jsx",
@@ -654,32 +658,87 @@ function BirthdayCard({ toName = "Luke", photos = [
                                         columnNumber: 17
                                     }, this)),
                                 [
-                                    ...Array(8)
+                                    ...Array(6)
+                                ].map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        style: {
+                                            ...styles.ribbon,
+                                            left: `${8 + i * 16 % 84}%`,
+                                            backgroundColor: [
+                                                '#6b2d5b',
+                                                '#1a3a5c',
+                                                '#4a2c7a'
+                                            ][i % 3],
+                                            animationDelay: `${i * 0.8}s`,
+                                            height: 30 + i % 3 * 10
+                                        }
+                                    }, `ribbon-${i}`, false, {
+                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                        lineNumber: 471,
+                                        columnNumber: 17
+                                    }, this)),
+                                [
+                                    ...Array(10)
                                 ].map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         style: {
                                             ...styles.floatingStar,
-                                            left: `${10 + i * 12 % 80}%`,
-                                            animationDelay: `${i * 0.5}s`,
-                                            fontSize: `${14 + i % 3 * 4}px`
+                                            left: `${8 + i * 10 % 84}%`,
+                                            top: `${10 + i * 8 % 75}%`,
+                                            animationDelay: `${i * 0.4}s`,
+                                            fontSize: `${12 + i % 4 * 5}px`,
+                                            color: [
+                                                '#8b6914',
+                                                '#5c4a1a',
+                                                '#6b4423'
+                                            ][i % 3]
                                         },
                                         children: "✦"
                                     }, `star-${i}`, false, {
                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 467,
+                                        lineNumber: 484,
                                         columnNumber: 17
                                     }, this)),
                                 [
-                                    ...Array(12)
+                                    ...Array(15)
                                 ].map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         style: {
                                             ...styles.sparkle,
-                                            left: `${8 + i * 8 % 84}%`,
-                                            top: `${10 + i * 7 % 80}%`,
-                                            animationDelay: `${i * 0.4}s`
+                                            left: `${5 + i * 6.5 % 90}%`,
+                                            top: `${8 + i * 6 % 84}%`,
+                                            animationDelay: `${i * 0.35}s`,
+                                            backgroundColor: [
+                                                '#c9a227',
+                                                '#8b6914',
+                                                '#a67c00'
+                                            ][i % 3],
+                                            boxShadow: `0 0 ${8 + i % 3 * 4}px ${[
+                                                '#c9a227',
+                                                '#8b6914',
+                                                '#a67c00'
+                                            ][i % 3]}`
                                         }
                                     }, `sparkle-${i}`, false, {
                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 481,
+                                        lineNumber: 500,
+                                        columnNumber: 17
+                                    }, this)),
+                                [
+                                    ...Array(8)
+                                ].map((_, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        style: {
+                                            ...styles.floatingOrb,
+                                            left: `${10 + i * 12 % 80}%`,
+                                            animationDelay: `${i * 0.6}s`,
+                                            background: `radial-gradient(circle at 30% 30%, ${[
+                                                'rgba(139, 26, 74, 0.4)',
+                                                'rgba(26, 58, 92, 0.4)',
+                                                'rgba(74, 44, 122, 0.4)'
+                                            ][i % 3]}, transparent)`,
+                                            width: 20 + i % 3 * 15,
+                                            height: 20 + i % 3 * 15
+                                        }
+                                    }, `orb-${i}`, false, {
+                                        fileName: "[project]/app/components/BirthdayCard.jsx",
+                                        lineNumber: 514,
                                         columnNumber: 17
                                     }, this))
                             ]
@@ -692,7 +751,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                             style: styles.embossedBorder
                         }, void 0, false, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 493,
+                            lineNumber: 528,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -700,7 +759,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                             children: "❧"
                         }, void 0, false, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 495,
+                            lineNumber: 530,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -708,7 +767,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                             children: "❧"
                         }, void 0, false, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 496,
+                            lineNumber: 531,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -716,7 +775,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                             children: "❧"
                         }, void 0, false, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 497,
+                            lineNumber: 532,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -724,21 +783,21 @@ function BirthdayCard({ toName = "Luke", photos = [
                             children: "❧"
                         }, void 0, false, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 498,
+                            lineNumber: 533,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             style: styles.decorTop
                         }, void 0, false, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 500,
+                            lineNumber: 535,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             style: styles.decorBottom
                         }, void 0, false, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 501,
+                            lineNumber: 536,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -752,7 +811,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: "✦ ✦ ✦"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 505,
+                                            lineNumber: 540,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
@@ -760,7 +819,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: "Happy Birthday"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 506,
+                                            lineNumber: 541,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
@@ -768,7 +827,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: toName
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 507,
+                                            lineNumber: 542,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -776,13 +835,13 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: "✦ ✦ ✦"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 508,
+                                            lineNumber: 543,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 504,
+                                    lineNumber: 539,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -802,12 +861,12 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                         style: styles.bowImage
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 519,
+                                                        lineNumber: 554,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 513,
+                                                    lineNumber: 548,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -826,18 +885,18 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                         style: styles.arrowImage
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 535,
+                                                        lineNumber: 570,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 522,
+                                                    lineNumber: 557,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 512,
+                                            lineNumber: 547,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -901,7 +960,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                                     }
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 563,
+                                                                    lineNumber: 598,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 candlesLit[i] && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -911,27 +970,27 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                                             style: styles.flameOuter
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 576,
+                                                                            lineNumber: 611,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                             style: styles.flameInner
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 577,
+                                                                            lineNumber: 612,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                             style: styles.flameGlow
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 578,
+                                                                            lineNumber: 613,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 575,
+                                                                    lineNumber: 610,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 showSmoke[i] && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -941,39 +1000,39 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                                             style: styles.smoke1
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 584,
+                                                                            lineNumber: 619,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                             style: styles.smoke2
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 585,
+                                                                            lineNumber: 620,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                             style: styles.smoke3
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                            lineNumber: 586,
+                                                                            lineNumber: 621,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 583,
+                                                                    lineNumber: 618,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             ]
                                                         }, i, true, {
                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 555,
+                                                            lineNumber: 590,
                                                             columnNumber: 25
                                                         }, this);
                                                     })
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 544,
+                                                    lineNumber: 579,
                                                     columnNumber: 19
                                                 }, this),
                                                 arrowFlying && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("img", {
@@ -982,19 +1041,19 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                     style: styles.flyingArrow
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 594,
+                                                    lineNumber: 629,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 543,
+                                            lineNumber: 578,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 511,
+                                    lineNumber: 546,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1005,7 +1064,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: arrowPull > 0.5 ? "Release to shoot!" : arrowPull > 0 ? "Pull back more..." : "Pull the arrow back to extinguish the candles"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 604,
+                                            lineNumber: 639,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1018,18 +1077,18 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                 }
                                             }, void 0, false, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 612,
+                                                lineNumber: 647,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 611,
+                                            lineNumber: 646,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 603,
+                                    lineNumber: 638,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1040,14 +1099,14 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: "◆"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 626,
+                                            lineNumber: 661,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                             style: styles.decorLine
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 627,
+                                            lineNumber: 662,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1055,14 +1114,14 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: "★"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 628,
+                                            lineNumber: 663,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                             style: styles.decorLine
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 629,
+                                            lineNumber: 664,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1070,19 +1129,19 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             children: "◆"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 630,
+                                            lineNumber: 665,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 625,
+                                    lineNumber: 660,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 503,
+                            lineNumber: 538,
                             columnNumber: 13
                         }, this)
                     ]
@@ -1127,7 +1186,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                         style: styles.polaroidTape
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 657,
+                                                        lineNumber: 692,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1138,12 +1197,12 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                             style: styles.photo
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 659,
+                                                            lineNumber: 694,
                                                             columnNumber: 25
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 658,
+                                                        lineNumber: 693,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1151,23 +1210,23 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                         children: captions[i]
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 661,
+                                                        lineNumber: 696,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 656,
+                                                lineNumber: 691,
                                                 columnNumber: 21
                                             }, this)
                                         }, i, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 655,
+                                            lineNumber: 690,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 641,
+                                    lineNumber: 676,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1181,12 +1240,12 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             }
                                         }, i, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 669,
+                                            lineNumber: 704,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 667,
+                                    lineNumber: 702,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1194,18 +1253,18 @@ function BirthdayCard({ toName = "Luke", photos = [
                                     children: "← Swipe to see more →"
                                 }, void 0, false, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 685,
+                                    lineNumber: 720,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                            lineNumber: 640,
+                            lineNumber: 675,
                             columnNumber: 13
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                        lineNumber: 639,
+                        lineNumber: 674,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1224,7 +1283,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 691,
+                                        lineNumber: 726,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1236,7 +1295,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                 children: isPlaying ? "⏸" : "▶"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 693,
+                                                lineNumber: 728,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1245,19 +1304,19 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                 children: "↺"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 696,
+                                                lineNumber: 731,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                        lineNumber: 692,
+                                        lineNumber: 727,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                lineNumber: 690,
+                                lineNumber: 725,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1281,20 +1340,20 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                             radius: "0.4"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 716,
+                                                            lineNumber: 751,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feGaussianBlur", {
                                                             stdDeviation: "0.6"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 717,
+                                                            lineNumber: 752,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 709,
+                                                    lineNumber: 744,
                                                     columnNumber: 19
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("filter", {
@@ -1310,7 +1369,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                             result: "blur"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 726,
+                                                            lineNumber: 761,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feOffset", {
@@ -1320,7 +1379,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                             result: "offsetBlur"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 731,
+                                                            lineNumber: 766,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMerge", {
@@ -1329,32 +1388,32 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                                     in: "offsetBlur"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 733,
+                                                                    lineNumber: 768,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("feMergeNode", {
                                                                     in: "SourceGraphic"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                                    lineNumber: 734,
+                                                                    lineNumber: 769,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                            lineNumber: 732,
+                                                            lineNumber: 767,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                    lineNumber: 719,
+                                                    lineNumber: 754,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 708,
+                                            lineNumber: 743,
                                             columnNumber: 17
                                         }, this),
                                         inkDotsStatic.map((dot, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1364,7 +1423,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                 fill: `rgba(255,255,255,${dot.opacity})`
                                             }, `dot-${i}`, false, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 740,
+                                                lineNumber: 775,
                                                 columnNumber: 19
                                             }, this)),
                                         inkSplatters.map((spot, i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("g", {
@@ -1377,7 +1436,7 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                         filter: "url(#inkBleed)"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 751,
+                                                        lineNumber: 786,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1387,13 +1446,13 @@ function BirthdayCard({ toName = "Luke", photos = [
                                                         fill: "rgba(255,255,255,0.15)"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                        lineNumber: 758,
+                                                        lineNumber: 793,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, `splat-${i}`, true, {
                                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                                lineNumber: 750,
+                                                lineNumber: 785,
                                                 columnNumber: 19
                                             }, this)),
                                         POEM_LINES.map((line, i)=>renderLineWithEmphasis(line, i, lineProgress[i] || 0)),
@@ -1405,30 +1464,30 @@ function BirthdayCard({ toName = "Luke", photos = [
                                             strokeLinecap: "round"
                                         }, void 0, false, {
                                             fileName: "[project]/app/components/BirthdayCard.jsx",
-                                            lineNumber: 771,
+                                            lineNumber: 806,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/components/BirthdayCard.jsx",
-                                    lineNumber: 703,
+                                    lineNumber: 738,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                                lineNumber: 702,
+                                lineNumber: 737,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/components/BirthdayCard.jsx",
-                        lineNumber: 689,
+                        lineNumber: 724,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                lineNumber: 638,
+                lineNumber: 673,
                 columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("style", {
@@ -1474,41 +1533,106 @@ function BirthdayCard({ toName = "Luke", photos = [
 
         @keyframes confettiFall {
           0% { 
-            transform: translateY(-20px) rotate(0deg); 
+            transform: translateY(-30px) rotate(0deg) translateX(0); 
             opacity: 0;
           }
-          10% {
-            opacity: 1;
+          5% {
+            opacity: 0.9;
+          }
+          50% {
+            transform: translateY(300px) rotate(360deg) translateX(20px);
           }
           100% { 
-            transform: translateY(650px) rotate(720deg); 
-            opacity: 0.3;
+            transform: translateY(700px) rotate(720deg) translateX(-10px); 
+            opacity: 0.2;
           }
         }
 
         @keyframes floatStar {
           0% { 
-            transform: translateY(0) scale(1); 
-            opacity: 0.4;
+            transform: translateY(0) scale(1) rotate(0deg); 
+            opacity: 0.5;
+          }
+          25% {
+            transform: translateY(-10px) scale(1.1) rotate(10deg);
+            opacity: 0.8;
           }
           50% { 
-            transform: translateY(-15px) scale(1.2); 
+            transform: translateY(-20px) scale(1.3) rotate(0deg); 
             opacity: 1;
           }
+          75% {
+            transform: translateY(-10px) scale(1.1) rotate(-10deg);
+            opacity: 0.8;
+          }
           100% { 
-            transform: translateY(0) scale(1); 
-            opacity: 0.4;
+            transform: translateY(0) scale(1) rotate(0deg); 
+            opacity: 0.5;
           }
         }
 
         @keyframes sparkleGlow {
           0%, 100% { 
-            transform: scale(0); 
+            transform: scale(0) rotate(0deg); 
             opacity: 0;
           }
+          25% {
+            transform: scale(0.5) rotate(45deg);
+            opacity: 0.5;
+          }
           50% { 
-            transform: scale(1); 
+            transform: scale(1.2) rotate(90deg); 
             opacity: 1;
+          }
+          75% {
+            transform: scale(0.8) rotate(135deg);
+            opacity: 0.7;
+          }
+        }
+
+        @keyframes ribbonFall {
+          0% {
+            transform: translateY(-50px) rotate(0deg) scaleY(1);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.8;
+          }
+          25% {
+            transform: translateY(150px) rotate(15deg) scaleY(1.2);
+          }
+          50% {
+            transform: translateY(350px) rotate(-10deg) scaleY(0.9);
+          }
+          75% {
+            transform: translateY(500px) rotate(20deg) scaleY(1.1);
+          }
+          100% {
+            transform: translateY(700px) rotate(-5deg) scaleY(1);
+            opacity: 0.1;
+          }
+        }
+
+        @keyframes orbFloat {
+          0% {
+            transform: translateY(0) translateX(0) scale(1);
+            opacity: 0.3;
+          }
+          25% {
+            transform: translateY(-30px) translateX(15px) scale(1.1);
+            opacity: 0.5;
+          }
+          50% {
+            transform: translateY(-50px) translateX(0) scale(1.2);
+            opacity: 0.6;
+          }
+          75% {
+            transform: translateY(-30px) translateX(-15px) scale(1.1);
+            opacity: 0.5;
+          }
+          100% {
+            transform: translateY(0) translateX(0) scale(1);
+            opacity: 0.3;
           }
         }
 
@@ -1572,7 +1696,7 @@ function BirthdayCard({ toName = "Luke", photos = [
       `
             }, void 0, false, {
                 fileName: "[project]/app/components/BirthdayCard.jsx",
-                lineNumber: 784,
+                lineNumber: 819,
                 columnNumber: 7
             }, this)
         ]
@@ -1701,12 +1825,25 @@ const styles = {
     },
     sparkle: {
         position: "absolute",
-        width: 6,
-        height: 6,
-        backgroundColor: "#ffd93d",
+        width: 5,
+        height: 5,
+        backgroundColor: "#c9a227",
         borderRadius: "50%",
-        boxShadow: "0 0 8px #ffd93d, 0 0 12px #ff9ff3",
-        animation: "sparkleGlow 2s ease-in-out infinite"
+        boxShadow: "0 0 8px #c9a227",
+        animation: "sparkleGlow 2.5s ease-in-out infinite"
+    },
+    ribbon: {
+        position: "absolute",
+        top: -40,
+        width: 4,
+        borderRadius: 2,
+        animation: "ribbonFall 6s ease-in-out infinite"
+    },
+    floatingOrb: {
+        position: "absolute",
+        top: "20%",
+        borderRadius: "50%",
+        animation: "orbFloat 5s ease-in-out infinite"
     },
     cornerTL: {
         position: "absolute",
