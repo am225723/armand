@@ -63,8 +63,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
     linePositions.push({ y: currentY, line, isBlank });
   });
 
-  const secondToLastLineY = 1080;
-  const finalLineY = 1180;
+  const secondToLastLineY = 1150;
+  const finalLineY = 1250;
   const secondToLastIndex = poemLines.length - 2;
   const finalLineIndex = poemLines.length - 1;
   const finalProgress = lineProgress[finalLineIndex] ?? 0;
