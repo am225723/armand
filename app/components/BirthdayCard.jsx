@@ -379,50 +379,68 @@ export default function BirthdayCard({
   const renderLineWithEmphasis = (line, i, progress) => {
     if (!line.trim()) return null;
 
+    const isFinalLine = line === "Is To Be Known";
     const y = 50 + i * 38;
     const clipWidth = 520 * progress;
-    const wobble = Math.sin(i * 1.5) * 2;
-    const rotation = Math.sin(i * 0.7) * 0.8;
+    const wobble = isFinalLine ? 0 : Math.sin(i * 1.5) * 2;
+    const rotation = isFinalLine ? 0 : Math.sin(i * 0.7) * 0.8;
 
     const words = line.split(" ");
-    let xOffset = 25;
+    let xOffset = isFinalLine ? 100 : 25;
 
     return (
       <g key={i}>
         <defs>
           <clipPath id={`clip-${i}`}>
-            <rect x="0" y={y - 35} width={clipWidth} height="50" />
+            <rect x="0" y={y - 45} width={clipWidth} height="70" />
           </clipPath>
         </defs>
         <g
           clipPath={`url(#clip-${i})`}
           transform={`rotate(${rotation} 250 ${y})`}
         >
-          {words.map((word, wordIdx) => {
-            const isEmphasis = EMPHASIS_WORDS.some((ew) => word.includes(ew));
-            const wordX = xOffset;
-            xOffset += word.length * 14 + 12;
+          {isFinalLine ? (
+            <text
+              x={xOffset}
+              y={y + 15}
+              style={{
+                fontFamily: '"Pinyon Script", cursive',
+                fontSize: 52,
+                fontWeight: 400,
+                fill: "#2d1810",
+                filter: "drop-shadow(0 2px 4px rgba(139,90,43,0.3)) drop-shadow(0 0 8px rgba(201,165,90,0.2))",
+                letterSpacing: 4,
+              }}
+            >
+              {line}
+            </text>
+          ) : (
+            words.map((word, wordIdx) => {
+              const isEmphasis = EMPHASIS_WORDS.some((ew) => word.includes(ew));
+              const wordX = xOffset;
+              xOffset += word.length * 14 + 12;
 
-            return (
-              <text
-                key={wordIdx}
-                x={wordX}
-                y={y + wobble}
-                style={{
-                  fontFamily: '"Pinyon Script", cursive',
-                  fontSize: isEmphasis ? 38 : 32,
-                  fontWeight: 400,
-                  fill: isEmphasis ? "#1a1a1a" : "#2a2a2a",
-                  filter: isEmphasis
-                    ? "drop-shadow(0 1px 1px rgba(0,0,0,0.2))"
-                    : "drop-shadow(0 1px 1px rgba(0,0,0,0.1))",
-                  letterSpacing: isEmphasis ? 2 : 1,
-                }}
-              >
-                {word}
-              </text>
-            );
-          })}
+              return (
+                <text
+                  key={wordIdx}
+                  x={wordX}
+                  y={y + wobble}
+                  style={{
+                    fontFamily: '"Pinyon Script", cursive',
+                    fontSize: isEmphasis ? 38 : 32,
+                    fontWeight: 400,
+                    fill: isEmphasis ? "#2d1810" : "#3d2b1f",
+                    filter: isEmphasis
+                      ? "drop-shadow(0 1px 2px rgba(139,90,43,0.25))"
+                      : "drop-shadow(0 1px 1px rgba(0,0,0,0.1))",
+                    letterSpacing: isEmphasis ? 2 : 1,
+                  }}
+                >
+                  {word}
+                </text>
+              );
+            })
+          )}
         </g>
       </g>
     );
@@ -807,7 +825,7 @@ export default function BirthdayCard({
                     cx={dot.x}
                     cy={dot.y}
                     r={dot.size}
-                    fill={`rgba(255,255,255,${dot.opacity})`}
+                    fill={`rgba(61,43,31,${dot.opacity * 0.4})`}
                   />
                 ))}
 
@@ -817,14 +835,14 @@ export default function BirthdayCard({
                       cx={spot.x}
                       cy={spot.y}
                       r={spot.size}
-                      fill="rgba(255,255,255,0.25)"
+                      fill="rgba(139,90,43,0.15)"
                       filter="url(#inkBleed)"
                     />
                     <circle
                       cx={spot.x + 2}
                       cy={spot.y - 1}
                       r={spot.size * 0.5}
-                      fill="rgba(255,255,255,0.15)"
+                      fill="rgba(139,90,43,0.1)"
                     />
                   </g>
                 ))}
@@ -833,13 +851,26 @@ export default function BirthdayCard({
                   renderLineWithEmphasis(line, i, lineProgress[i] || 0),
                 )}
 
+                {/* Decorative flourishes */}
                 <path
                   d="M 25 680 Q 80 675, 150 680 T 280 678"
                   fill="none"
-                  stroke="rgba(255,255,255,0.3)"
+                  stroke="rgba(201,165,90,0.4)"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                 />
+                {/* Top decorative divider */}
+                <path
+                  d="M 180 25 Q 220 20, 260 25 Q 300 30, 340 25"
+                  fill="none"
+                  stroke="rgba(201,165,90,0.3)"
+                  strokeWidth="1"
+                  strokeLinecap="round"
+                />
+                {/* Corner flourish top-right */}
+                <text x="480" y="40" fill="rgba(201,165,90,0.5)" fontSize="24" fontFamily="Georgia, serif">❧</text>
+                {/* Corner flourish bottom-left */}
+                <text x="25" y="700" fill="rgba(201,165,90,0.5)" fontSize="24" fontFamily="Georgia, serif" transform="rotate(180, 37, 694)">❧</text>
               </svg>
             </div>
           </div>
@@ -1548,13 +1579,14 @@ const styles = {
     minHeight: 650,
     width: "100%",
     maxWidth: 1100,
-    background: "linear-gradient(145deg, #1e2243 0%, #0f1225 100%)",
+    background: "linear-gradient(145deg, #f8f4e8 0%, #f0e8d8 50%, #e8dcc8 100%)",
     borderRadius: 24,
     boxShadow:
-      "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+      "0 25px 80px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(139,90,43,0.1)",
     overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.1)",
+    border: "2px solid rgba(180,140,100,0.3)",
     animation: "fadeIn 0.8s ease-out",
+    position: "relative",
   },
   cardLeft: {
     padding: 20,
@@ -1562,9 +1594,10 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     background:
-      "radial-gradient(circle at 30% 30%, rgba(255,210,120,0.08), transparent 60%)",
-    borderRight: "1px solid rgba(255,255,255,0.08)",
+      "linear-gradient(135deg, rgba(139,90,43,0.08) 0%, transparent 50%), radial-gradient(circle at 30% 30%, rgba(201,165,90,0.15), transparent 60%)",
+    borderRight: "1px solid rgba(180,140,100,0.2)",
     maxWidth: 320,
+    position: "relative",
   },
   photoGallery: {
     width: "100%",
@@ -1649,7 +1682,7 @@ const styles = {
   },
   swipeHint: {
     fontSize: 12,
-    color: "rgba(255,255,255,0.4)",
+    color: "rgba(139,90,43,0.5)",
     fontStyle: "italic",
     margin: 0,
   },
@@ -1658,22 +1691,24 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     background:
-      "radial-gradient(ellipse at 70% 20%, rgba(158,231,255,0.06), transparent 50%)",
+      "linear-gradient(180deg, rgba(248,244,232,0.9) 0%, rgba(240,232,216,0.95) 100%), radial-gradient(ellipse at 70% 20%, rgba(201,165,90,0.1), transparent 50%)",
+    position: "relative",
   },
   poemHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
-    paddingBottom: 10,
-    borderBottom: "1px solid rgba(255,255,255,0.1)",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottom: "1px solid rgba(139,90,43,0.2)",
   },
   toName: {
     fontFamily: '"Pinyon Script", cursive',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 400,
-    color: "white",
+    color: "#3d2b1f",
     letterSpacing: 1,
+    textShadow: "1px 1px 2px rgba(201,165,90,0.3)",
   },
   audioControls: {
     display: "flex",
@@ -1683,23 +1718,24 @@ const styles = {
     width: 42,
     height: 42,
     borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.2)",
-    background: "rgba(255,255,255,0.1)",
-    color: "white",
+    border: "1px solid rgba(139,90,43,0.3)",
+    background: "linear-gradient(145deg, #c9a55a, #8b6914)",
+    color: "#fff",
     fontSize: 16,
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     transition: "all 0.2s",
+    boxShadow: "0 2px 8px rgba(139,90,43,0.3)",
   },
   replayBtn: {
     width: 42,
     height: 42,
     borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.2)",
-    background: "rgba(255,255,255,0.05)",
-    color: "white",
+    border: "1px solid rgba(139,90,43,0.3)",
+    background: "rgba(201,165,90,0.2)",
+    color: "#5a4030",
     fontSize: 18,
     cursor: "pointer",
     display: "flex",

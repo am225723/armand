@@ -1,0 +1,93 @@
+Below is a ready-to-paste Repl/Replicate-style prompt you can use to regenerate or redesign the inside of the card with a more festive, elegant look, matching the calligraphy font and parchment style shown in your images.
+
+You can tweak wording, but this is structured to clearly guide the model.
+
+
+---
+
+Prompt
+
+Design a greeting card interior layout featuring the provided poem text.
+
+Typography & Font Style
+
+Use an elegant hand-lettered calligraphy font, similar to classic copperplate / Spencerian / modern script calligraphy
+
+High contrast strokes (thin upstrokes, thick downstrokes)
+
+Flourished capitals, especially at the beginning of stanzas
+
+Decorative swashes for the final line: “Is To Be Known”
+
+Text color: rich black or deep charcoal
+
+
+Background
+
+Primary option: clean white background with subtle paper texture
+
+Alternate option: warm parchment paper background, lightly aged
+
+Soft tan/ivory tone
+
+Gentle ink splatters or watercolor stains around edges
+
+No heavy distressing—keep it refined and readable
+
+
+
+Layout & Composition
+
+Centered poem layout with generous margins
+
+Line spacing balanced for elegance and readability
+
+Final line (“Is To Be Known”) larger, more ornate, and visually emphasized
+
+Optional thin decorative flourishes or dividers between poem sections
+
+
+Festive Enhancements (Subtle & Classy)
+
+Delicate gold or champagne accents (very light)
+
+Minimal floral or filigree corner elements
+
+Soft glow or vignette around edges
+
+Avoid clutter—keep the poem as the focal point
+
+
+Overall Mood
+
+Warm, celebratory, heartfelt
+
+Feels like a keepsake card
+
+Timeless, elegant, and emotionally uplifting
+
+
+Output Style
+
+High-resolution printable card interior
+
+Portrait orientation
+
+Clean, professional design suitable for printing
+
+
+
+---
+
+If you want, I can also:
+
+Rewrite this prompt specifically for Stable Diffusion / Replicate
+
+Suggest exact font names that match the photo
+
+Help redesign the front cover to match the inside
+
+Break this into multiple prompt variants (minimal / ornate / modern)
+
+
+Just tell me 👍
