@@ -254,7 +254,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
         {name.slice(0, 1).toUpperCase()}
       </text>
 
-      {linePositions.slice(0, -1).map((pos, i) => {
+      {linePositions.slice(0, -2).map((pos, i) => {
         if (pos.isBlank) return null;
         const progress = lineProgress[i] ?? 0;
         const chars = pos.line.split("");

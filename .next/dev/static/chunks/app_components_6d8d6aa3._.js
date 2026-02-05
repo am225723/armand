@@ -662,7 +662,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                 lineNumber: 244,
                 columnNumber: 7
             }, this),
-            linePositions.slice(0, -1).map((pos, i)=>{
+            linePositions.slice(0, -2).map((pos, i)=>{
                 if (pos.isBlank) return null;
                 const progress = lineProgress[i] ?? 0;
                 const chars = pos.line.split("");
