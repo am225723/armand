@@ -809,7 +809,7 @@ export default function BirthdayCard({
               </button>
             </div>
             <div style={styles.ornateContainer}>
-              <CardInsideOrnate name={toName} lineProgress={lineProgress} />
+              <CardInsideOrnate name={toName} lineProgress={lineProgress} emphasisWords={EMPHASIS_WORDS} />
             </div>
           </div>
         </div>

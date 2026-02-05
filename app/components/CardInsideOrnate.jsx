@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 
-export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
+export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = [] }) {
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
@@ -80,14 +80,21 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
     >
       <defs>
         <linearGradient id="paperGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fbf4e6" />
-          <stop offset="55%" stopColor="#f6ecd8" />
-          <stop offset="100%" stopColor="#f2e1c4" />
+          <stop offset="0%" stopColor="#f5e6c8" />
+          <stop offset="30%" stopColor="#ecdbb4" />
+          <stop offset="70%" stopColor="#e4cea0" />
+          <stop offset="100%" stopColor="#d8bf8a" />
         </linearGradient>
 
         <radialGradient id="vignette" cx="50%" cy="40%" r="75%">
-          <stop offset="55%" stopColor="rgba(0,0,0,0)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.12)" />
+          <stop offset="40%" stopColor="rgba(0,0,0,0)" />
+          <stop offset="100%" stopColor="rgba(60,40,20,0.25)" />
+        </radialGradient>
+        
+        <radialGradient id="edgeWear" cx="50%" cy="50%" r="70%">
+          <stop offset="60%" stopColor="rgba(0,0,0,0)" />
+          <stop offset="90%" stopColor="rgba(80,50,20,0.08)" />
+          <stop offset="100%" stopColor="rgba(60,30,10,0.15)" />
         </radialGradient>
 
         <filter id="paperNoise" x="-20%" y="-20%" width="140%" height="140%">
@@ -139,6 +146,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
           filter="url(#paperNoise)"
         />
         <rect x="26" y="26" width={VB_W - 52} height={VB_H - 52} rx="30" fill="url(#vignette)" opacity="0.55" />
+        <rect x="26" y="26" width={VB_W - 52} height={VB_H - 52} rx="30" fill="url(#edgeWear)" opacity="0.7" />
         <rect
           x="26"
           y="26"
@@ -220,8 +228,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
       {linePositions.slice(0, -1).map((pos, i) => {
         if (pos.isBlank) return null;
         const progress = lineProgress[i] ?? 0;
-        const chars = pos.line.split("");
-        const visibleChars = Math.floor(progress * chars.length);
+        
+        // Parse line into words with emphasis detection
+        const tokens = pos.line.split(/(\s+)/);
         
         return (
           <text
@@ -232,22 +241,24 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
             fontFamily="'Adelia', cursive"
             fontSize={32}
             fill="#1d1714"
-            style={{
+            opacity={progress}
+            style={{ 
               textRendering: "geometricPrecision",
+              transition: "opacity 0.15s ease-out",
             }}
           >
-            {chars.map((char, ci) => {
-              const charProgress = ci < visibleChars ? 1 : 
-                ci === visibleChars ? (progress * chars.length) % 1 : 0;
+            {tokens.map((token, ti) => {
+              const cleanToken = token.replace(/[^a-zA-Z]/g, "");
+              const isEmphasis = emphasisWords.some(ew => cleanToken.toLowerCase() === ew.toLowerCase());
               return (
                 <tspan
-                  key={ci}
+                  key={ti}
                   style={{
-                    opacity: charProgress,
-                    transition: "opacity 0.08s ease-out",
+                    fontWeight: isEmphasis ? "bold" : "normal",
+                    fill: isEmphasis ? "#0a0604" : "#1d1714",
                   }}
                 >
-                  {char}
+                  {token}
                 </tspan>
               );
             })}
@@ -276,9 +287,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
 
       {(() => {
         const secondLine = `The greatest gift of all Dear ${name},`;
-        const secondChars = secondLine.split("");
+        const tokens = secondLine.split(/(\s+)/);
         const secondProgress = lineProgress[secondToLastIndex] ?? 0;
-        const secondVisible = Math.floor(secondProgress * secondChars.length);
         return (
           <text
             x="50%"
@@ -287,14 +297,15 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
             fontFamily="'Adelia', cursive"
             fontSize="38"
             fill="#1d1714"
-            style={{ textRendering: "geometricPrecision" }}
+            opacity={secondProgress}
+            style={{ textRendering: "geometricPrecision", transition: "opacity 0.15s ease-out" }}
           >
-            {secondChars.map((char, ci) => {
-              const cp = ci < secondVisible ? 1 : 
-                ci === secondVisible ? (secondProgress * secondChars.length) % 1 : 0;
+            {tokens.map((token, ti) => {
+              const cleanToken = token.replace(/[^a-zA-Z]/g, "");
+              const isEmphasis = emphasisWords.some(ew => cleanToken.toLowerCase() === ew.toLowerCase());
               return (
-                <tspan key={ci} style={{ opacity: cp, transition: "opacity 0.08s ease-out" }}>
-                  {char}
+                <tspan key={ti} style={{ fontWeight: isEmphasis ? "bold" : "normal", fill: isEmphasis ? "#0a0604" : "#1d1714" }}>
+                  {token}
                 </tspan>
               );
             })}
@@ -308,32 +319,18 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
           <path d={`M${VB_W / 2 - 170} ${finalLineY - 60} C${VB_W / 2 - 90} ${finalLineY - 80}, ${VB_W / 2 + 90} ${finalLineY - 80}, ${VB_W / 2 + 170} ${finalLineY - 60}`} opacity="0.55" />
         </g>
 
-        {(() => {
-          const finalLine = "Is To Be Known";
-          const finalChars = finalLine.split("");
-          const fVisible = Math.floor(finalProgress * finalChars.length);
-          return (
-            <text
-              x="50%"
-              y={finalLineY}
-              textAnchor="middle"
-              fontFamily="'Mayonice', cursive"
-              fontSize="80"
-              fill="#14100e"
-              style={{ textRendering: "geometricPrecision" }}
-            >
-              {finalChars.map((char, ci) => {
-                const cp = ci < fVisible ? 1 : 
-                  ci === fVisible ? (finalProgress * finalChars.length) % 1 : 0;
-                return (
-                  <tspan key={ci} style={{ opacity: cp, transition: "opacity 0.1s ease-out" }}>
-                    {char}
-                  </tspan>
-                );
-              })}
-            </text>
-          );
-        })()}
+        <text
+          x="50%"
+          y={finalLineY}
+          textAnchor="middle"
+          fontFamily="'Mayonice', cursive"
+          fontSize="80"
+          fill="#14100e"
+          opacity={finalProgress}
+          style={{ textRendering: "geometricPrecision", transition: "opacity 0.2s ease-out" }}
+        >
+          Is To Be Known
+        </text>
 
         <g opacity={finalProgress > 0.8 ? 0.75 : 0} stroke="url(#goldFoil)" strokeWidth="2" fill="none" style={{ transition: "opacity 0.3s ease" }}>
           <path d={`M${VB_W / 2 - 280} ${finalLineY + 45} C${VB_W / 2 - 150} ${finalLineY + 95}, ${VB_W / 2 + 150} ${finalLineY + 95}, ${VB_W / 2 + 280} ${finalLineY + 45}`} />
@@ -342,6 +339,41 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         </g>
       </g>
 
+      {/* Ink drops and stains for aged paper look */}
+      <g opacity="0.35">
+        {/* Large ink blots */}
+        <ellipse cx="95" cy="180" rx="8" ry="6" fill="#2a1810" opacity="0.15" />
+        <ellipse cx={VB_W - 85} cy="280" rx="10" ry="7" fill="#1a1008" opacity="0.12" />
+        <ellipse cx="140" cy="1150" rx="12" ry="8" fill="#2a1810" opacity="0.1" />
+        <ellipse cx={VB_W - 130} cy="1050" rx="9" ry="6" fill="#1a1008" opacity="0.12" />
+        
+        {/* Small ink specks */}
+        <circle cx="88" cy="320" r="2.5" fill="#1a1008" opacity="0.25" />
+        <circle cx="105" cy="380" r="1.5" fill="#2a1810" opacity="0.3" />
+        <circle cx="72" cy="450" r="2" fill="#1a1008" opacity="0.2" />
+        <circle cx="118" cy="580" r="1.8" fill="#2a1810" opacity="0.28" />
+        <circle cx="85" cy="720" r="2.2" fill="#1a1008" opacity="0.22" />
+        <circle cx="95" cy="850" r="1.5" fill="#2a1810" opacity="0.25" />
+        <circle cx="110" cy="950" r="2" fill="#1a1008" opacity="0.2" />
+        
+        <circle cx={VB_W - 92} r="2" cy="350" fill="#2a1810" opacity="0.25" />
+        <circle cx={VB_W - 78} r="1.8" cy="480" fill="#1a1008" opacity="0.22" />
+        <circle cx={VB_W - 115} r="2.2" cy="620" fill="#2a1810" opacity="0.28" />
+        <circle cx={VB_W - 88} r="1.5" cy="780" fill="#1a1008" opacity="0.25" />
+        <circle cx={VB_W - 105} r="2" cy="900" fill="#2a1810" opacity="0.2" />
+        <circle cx={VB_W - 95} r="1.8" cy="1000" fill="#1a1008" opacity="0.22" />
+        
+        {/* Scattered tiny dots */}
+        <circle cx="200" cy="240" r="1" fill="#2a1810" opacity="0.18" />
+        <circle cx="350" cy="160" r="0.8" fill="#1a1008" opacity="0.15" />
+        <circle cx="520" cy="200" r="1.2" fill="#2a1810" opacity="0.12" />
+        <circle cx="650" cy="180" r="0.8" fill="#1a1008" opacity="0.15" />
+        <circle cx="280" cy="1200" r="1" fill="#2a1810" opacity="0.15" />
+        <circle cx="450" cy="1240" r="1.2" fill="#1a1008" opacity="0.12" />
+        <circle cx="580" cy="1180" r="0.8" fill="#2a1810" opacity="0.18" />
+      </g>
+      
+      {/* Gold diamond accents */}
       <g opacity="0.18" fill="#caa24b">
         <path d="M90 340 l6 6 -6 6 -6 -6 z" />
         <path d="M110 520 l4 4 -4 4 -4 -4 z" />
