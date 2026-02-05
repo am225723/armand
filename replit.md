@@ -44,7 +44,7 @@ Built with Next.js 16 and React 18.
 ## Recent Changes
 - 2026-02-05: Ultra-luxury card interior with animated handwriting
   - Created CardInsideOrnate.jsx with heirloom-quality design
-  - Upgraded to Tangerine font (more ornate, intricate calligraphy)
+  - Upgraded to Herr Von Muellerhoff font (authentic handwritten calligraphy)
   - Added animated progressive text reveal synced with audio
   - Added missing final lines: "The greatest gift of all Dear Luke," + "Is To Be Known"
   - Premium paper gradients with soft vignette and noise texture

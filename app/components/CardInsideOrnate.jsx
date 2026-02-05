@@ -171,9 +171,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         x="120"
         y="165"
         textAnchor="start"
-        fontFamily="'Tangerine', cursive"
-        fontSize="96"
-        fontWeight="700"
+        fontFamily="'Herr Von Muellerhoff', cursive"
+        fontSize="90"
         fill="#1a1410"
         style={{
           fontKerning: "normal",
@@ -194,9 +193,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         x="50%"
         y="710"
         textAnchor="middle"
-        fontFamily="'Tangerine', cursive"
-        fontSize="400"
-        fontWeight="700"
+        fontFamily="'Herr Von Muellerhoff', cursive"
+        fontSize="380"
         fill="#000000"
         opacity="0.035"
         style={{ userSelect: "none" }}
@@ -213,9 +211,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
             x="50%"
             y={pos.y}
             textAnchor="middle"
-            fontFamily="'Tangerine', cursive"
-            fontSize={46}
-            fontWeight="400"
+            fontFamily="'Herr Von Muellerhoff', cursive"
+            fontSize={38}
             fill="#1d1714"
             opacity={progress}
             style={{
@@ -254,9 +251,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
         x="50%"
         y={secondToLastLineY}
         textAnchor="middle"
-        fontFamily="'Tangerine', cursive"
-        fontSize="58"
-        fontWeight="400"
+        fontFamily="'Herr Von Muellerhoff', cursive"
+        fontSize="48"
         fill="#1d1714"
         opacity={lineProgress[secondToLastIndex] ?? 0}
         style={{
@@ -280,9 +276,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [] }) {
           x="50%"
           y={finalLineY}
           textAnchor="middle"
-          fontFamily="'Tangerine', cursive"
-          fontSize="120"
-          fontWeight="700"
+          fontFamily="'Herr Von Muellerhoff', cursive"
+          fontSize="100"
           fill="#14100e"
           style={{
             fontKerning: "normal",
