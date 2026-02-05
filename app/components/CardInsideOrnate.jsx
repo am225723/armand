@@ -25,7 +25,7 @@ export default function CardInsideOrnate({ name = "Luke" }) {
     `And the light he's always shown,`,
   ];
 
-  const topPad = 170;
+  const topPad = 270;
   const poemFontSize = 40;
   const lineGap = 50;
   const stanzaGapExtra = 18;

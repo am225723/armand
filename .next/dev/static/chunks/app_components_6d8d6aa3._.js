@@ -33,7 +33,7 @@ function CardInsideOrnate({ name = "Luke" }) {
         `So here's to ${name}, for all he is,`,
         `And the light he's always shown,`
     ];
-    const topPad = 170;
+    const topPad = 270;
     const poemFontSize = 40;
     const lineGap = 50;
     const stanzaGapExtra = 18;
