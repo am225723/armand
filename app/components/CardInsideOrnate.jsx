@@ -210,6 +210,11 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             {chars.map((char, ci) => {
               const charProgress = ci < charsRevealed ? 1 : 
                 ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+              
+              if (charProgress === 0) {
+                return <tspan key={ci} fill="transparent" stroke="transparent">{char}</tspan>;
+              }
+              
               const strokeLen = 120;
               const strokeOffset = strokeLen * (1 - charProgress);
               const fillOpacity = charProgress > 0.6 ? (charProgress - 0.6) / 0.4 : 0;
@@ -277,6 +282,11 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
                 
                 const charProgress = ci < charsRevealed ? 1 : 
                   ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+                
+                // Hide characters that haven't started yet
+                if (charProgress === 0) {
+                  return <tspan key={ci} fill="transparent" stroke="transparent">{char}</tspan>;
+                }
                 
                 const strokeLen = 80;
                 const strokeOffset = strokeLen * (1 - charProgress);
@@ -346,6 +356,11 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
                 
                 const charProgress = ci < charsRevealed ? 1 : 
                   ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+                
+                if (charProgress === 0) {
+                  return <tspan key={ci} fill="transparent" stroke="transparent">{char}</tspan>;
+                }
+                
                 const strokeLen = 100;
                 const strokeOffset = strokeLen * (1 - charProgress);
                 const fillOpacity = charProgress > 0.7 ? (charProgress - 0.7) / 0.3 : 0;
@@ -392,6 +407,11 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
               {chars.map((char, ci) => {
                 const charProgress = ci < charsRevealed ? 1 : 
                   ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+                
+                if (charProgress === 0) {
+                  return <tspan key={ci} fill="transparent" stroke="transparent">{char}</tspan>;
+                }
+                
                 const strokeLen = 150;
                 const strokeOffset = strokeLen * (1 - charProgress);
                 const fillOpacity = charProgress > 0.6 ? (charProgress - 0.6) / 0.4 : 0;
