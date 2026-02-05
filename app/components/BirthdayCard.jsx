@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import CardInsideOrnate from "./CardInsideOrnate";
 
 const BOW_ARROW_CONFIG = {
   // Bow settings
@@ -797,141 +798,16 @@ export default function BirthdayCard({
           </div>
 
           <div className="card-right-responsive" style={styles.cardRight}>
-            <div style={styles.poemHeader}>
-              <span style={styles.toName}>To {toName},</span>
-              <div style={styles.audioControls}>
-                <button onClick={handlePlayAudio} style={styles.playBtn}>
-                  {isPlaying ? "⏸" : "▶"}
-                </button>
-                <button onClick={handleReplay} style={styles.replayBtn}>
-                  ↺
-                </button>
-              </div>
+            <div style={styles.audioControlsFloating}>
+              <button onClick={handlePlayAudio} style={styles.playBtn}>
+                {isPlaying ? "⏸" : "▶"}
+              </button>
+              <button onClick={handleReplay} style={styles.replayBtn}>
+                ↺
+              </button>
             </div>
-
-            <div style={styles.poemContainer}>
-              <svg
-                viewBox="0 0 520 720"
-                className="poem-svg-responsive"
-                style={styles.poemSvg}
-              >
-                <defs>
-                  <filter
-                    id="inkBleed"
-                    x="-20%"
-                    y="-20%"
-                    width="140%"
-                    height="140%"
-                  >
-                    <feMorphology operator="dilate" radius="0.4" />
-                    <feGaussianBlur stdDeviation="0.6" />
-                  </filter>
-                  <filter
-                    id="wetInk"
-                    x="-10%"
-                    y="-10%"
-                    width="120%"
-                    height="120%"
-                  >
-                    <feGaussianBlur
-                      in="SourceAlpha"
-                      stdDeviation="1"
-                      result="blur"
-                    />
-                    <feOffset in="blur" dx="0.5" dy="0.5" result="offsetBlur" />
-                    <feMerge>
-                      <feMergeNode in="offsetBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-
-                {inkDotsStatic.map((dot, i) => (
-                  <circle
-                    key={`dot-${i}`}
-                    cx={dot.x}
-                    cy={dot.y}
-                    r={dot.size}
-                    fill={`rgba(61,43,31,${dot.opacity * 0.4})`}
-                  />
-                ))}
-
-                {inkSplatters.map((spot, i) => (
-                  <g key={`splat-${i}`}>
-                    <circle
-                      cx={spot.x}
-                      cy={spot.y}
-                      r={spot.size}
-                      fill="rgba(139,90,43,0.15)"
-                      filter="url(#inkBleed)"
-                    />
-                    <circle
-                      cx={spot.x + 2}
-                      cy={spot.y - 1}
-                      r={spot.size * 0.5}
-                      fill="rgba(139,90,43,0.1)"
-                    />
-                  </g>
-                ))}
-
-                {POEM_LINES.map((line, i) =>
-                  renderLineWithEmphasis(line, i, lineProgress[i] || 0),
-                )}
-
-                {/* Baroque-style flourish dividers between stanzas */}
-                <g opacity="0.5">
-                  {/* Divider after first stanza (line 4) */}
-                  <path
-                    d="M 160 200 Q 200 195, 260 200 Q 320 205, 360 200"
-                    fill="none"
-                    stroke="rgba(201,165,90,0.5)"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                  />
-                  <text x="252" y="206" fill="rgba(201,165,90,0.6)" fontSize="10" textAnchor="middle">✦</text>
-                  
-                  {/* Divider after second stanza (line 9) */}
-                  <path
-                    d="M 160 388 Q 200 383, 260 388 Q 320 393, 360 388"
-                    fill="none"
-                    stroke="rgba(201,165,90,0.5)"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                  />
-                  <text x="252" y="394" fill="rgba(201,165,90,0.6)" fontSize="10" textAnchor="middle">✦</text>
-                  
-                  {/* Divider after third stanza (line 14) */}
-                  <path
-                    d="M 160 574 Q 200 569, 260 574 Q 320 579, 360 574"
-                    fill="none"
-                    stroke="rgba(201,165,90,0.5)"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                  />
-                  <text x="252" y="580" fill="rgba(201,165,90,0.6)" fontSize="10" textAnchor="middle">✦</text>
-                </g>
-
-                {/* Decorative flourishes */}
-                <path
-                  d="M 25 680 Q 80 675, 150 680 T 280 678"
-                  fill="none"
-                  stroke="rgba(201,165,90,0.4)"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-                {/* Top decorative divider */}
-                <path
-                  d="M 180 25 Q 220 20, 260 25 Q 300 30, 340 25"
-                  fill="none"
-                  stroke="rgba(201,165,90,0.3)"
-                  strokeWidth="1"
-                  strokeLinecap="round"
-                />
-                {/* Corner flourish top-right */}
-                <text x="480" y="40" fill="rgba(201,165,90,0.5)" fontSize="24" fontFamily="Georgia, serif">❧</text>
-                {/* Corner flourish bottom-left */}
-                <text x="25" y="700" fill="rgba(201,165,90,0.5)" fontSize="24" fontFamily="Georgia, serif" transform="rotate(180, 37, 694)">❧</text>
-              </svg>
+            <div style={styles.ornateContainer}>
+              <CardInsideOrnate name={toName} />
             </div>
           </div>
         </div>
@@ -1635,16 +1511,16 @@ const styles = {
   },
   cardInner: {
     display: "grid",
-    gridTemplateColumns: "1fr 1.4fr",
-    minHeight: 650,
+    gridTemplateColumns: "280px 1fr",
+    minHeight: 700,
     width: "100%",
-    maxWidth: 1100,
-    background: "linear-gradient(145deg, #f8f4e8 0%, #f0e8d8 50%, #e8dcc8 100%)",
+    maxWidth: 1200,
+    background: "linear-gradient(145deg, #1a1520 0%, #0f0a15 100%)",
     borderRadius: 24,
     boxShadow:
-      "0 25px 80px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.8), inset 0 -2px 4px rgba(139,90,43,0.1)",
+      "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
     overflow: "hidden",
-    border: "2px solid rgba(180,140,100,0.3)",
+    border: "1px solid rgba(255,255,255,0.1)",
     animation: "fadeIn 0.8s ease-out",
     position: "relative",
   },
@@ -1654,9 +1530,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     background:
-      "linear-gradient(135deg, rgba(139,90,43,0.08) 0%, transparent 50%), radial-gradient(circle at 30% 30%, rgba(201,165,90,0.15), transparent 60%)",
-    borderRight: "1px solid rgba(180,140,100,0.2)",
-    maxWidth: 320,
+      "linear-gradient(135deg, rgba(30,20,40,0.9) 0%, rgba(15,10,25,0.95) 100%)",
+    borderRight: "1px solid rgba(255,255,255,0.1)",
     position: "relative",
   },
   photoGallery: {
@@ -1742,17 +1617,32 @@ const styles = {
   },
   swipeHint: {
     fontSize: 12,
-    color: "rgba(139,90,43,0.5)",
+    color: "rgba(255,255,255,0.4)",
     fontStyle: "italic",
     margin: 0,
   },
   cardRight: {
-    padding: "24px 35px",
+    padding: "10px",
     display: "flex",
     flexDirection: "column",
-    background:
-      "linear-gradient(180deg, rgba(248,244,232,0.9) 0%, rgba(240,232,216,0.95) 100%), radial-gradient(ellipse at 70% 20%, rgba(201,165,90,0.1), transparent 50%)",
+    background: "transparent",
     position: "relative",
+    flex: 1.5,
+  },
+  ornateContainer: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  audioControlsFloating: {
+    position: "absolute",
+    top: 15,
+    right: 15,
+    display: "flex",
+    gap: 8,
+    zIndex: 10,
   },
   poemHeader: {
     display: "flex",

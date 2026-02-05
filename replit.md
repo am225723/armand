@@ -42,6 +42,16 @@ Built with Next.js 16 and React 18.
 - **Silent Fallback**: Animation plays at natural pace without audio
 
 ## Recent Changes
+- 2026-02-05: Ultra-luxury card interior redesign
+  - Created CardInsideOrnate.jsx with heirloom-quality design
+  - Two-font hierarchy: Imperial Script (headlines), Pinyon Script (body)
+  - Premium paper gradients with soft vignette and noise texture
+  - Gold foil accents and filigree pattern watermark
+  - Ornate corner flourishes and double gold border
+  - Baroque-style curved stanza dividers with gold accents
+  - Large ornate "Is To Be Known" final line with crest flourishes
+  - Subtle monogram watermark behind poem
+  - Festive diamond confetti at edges
 - 2026-01-31: Enhanced card design
   - Flipped bow to vertical orientation with pullback animation
   - Increased candle size 3x with larger flames and glow
