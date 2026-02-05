@@ -196,27 +196,37 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
       {(() => {
         const headerText = `To ${name},`;
         const headerProgress = lineProgress[0] ?? 0;
-        const strokeLen = headerText.length * 50;
-        const strokeOffset = strokeLen * (1 - headerProgress);
-        const fillOpacity = headerProgress > 0.5 ? (headerProgress - 0.5) / 0.5 : 0;
+        const chars = headerText.split("");
+        const charsRevealed = headerProgress * chars.length;
+        
         return (
           <text
             x="120"
             y="165"
-            textAnchor="start"
             fontFamily="'Mayonice', cursive"
             fontSize="72"
-            fill={`rgba(26, 20, 16, ${fillOpacity})`}
-            stroke="#1a1410"
-            strokeWidth="1"
-            strokeDasharray={strokeLen}
-            strokeDashoffset={strokeOffset}
-            style={{
-              textRendering: "geometricPrecision",
-              transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out",
-            }}
+            style={{ textRendering: "geometricPrecision" }}
           >
-            {headerText}
+            {chars.map((char, ci) => {
+              const charProgress = ci < charsRevealed ? 1 : 
+                ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+              const strokeLen = 120;
+              const strokeOffset = strokeLen * (1 - charProgress);
+              const fillOpacity = charProgress > 0.6 ? (charProgress - 0.6) / 0.4 : 0;
+              
+              return (
+                <tspan
+                  key={ci}
+                  fill={`rgba(26, 20, 16, ${fillOpacity})`}
+                  stroke="#1a1410"
+                  strokeWidth="1"
+                  strokeDasharray={strokeLen}
+                  strokeDashoffset={strokeOffset}
+                >
+                  {char}
+                </tspan>
+              );
+            })}
           </text>
         );
       })()}
@@ -242,12 +252,10 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
       {linePositions.slice(0, -1).map((pos, i) => {
         if (pos.isBlank) return null;
         const progress = lineProgress[i] ?? 0;
-        const tokens = pos.line.split(/(\s+)/);
-        
-        // Stroke drawing animation - estimate stroke length based on text
-        const strokeLen = pos.line.length * 25;
-        const strokeOffset = strokeLen * (1 - progress);
-        const fillOpacity = progress > 0.6 ? (progress - 0.6) / 0.4 : 0;
+        const chars = pos.line.split("");
+        const totalChars = chars.length;
+        const charsRevealed = progress * totalChars;
+        const words = pos.line.split(/\s+/);
         
         return (
           <text
@@ -257,32 +265,38 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             textAnchor="middle"
             fontFamily="'Adelia', cursive"
             fontSize={32}
-            fill={`rgba(29, 23, 20, ${fillOpacity})`}
-            stroke="#1d1714"
-            strokeWidth="0.8"
-            strokeDasharray={strokeLen}
-            strokeDashoffset={strokeOffset}
-            style={{ 
-              textRendering: "geometricPrecision",
-              transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out",
-            }}
+            style={{ textRendering: "geometricPrecision" }}
           >
-            {tokens.map((token, ti) => {
-              const cleanToken = token.replace(/[^a-zA-Z]/g, "");
-              const isEmphasis = emphasisWords.some(ew => cleanToken.toLowerCase() === ew.toLowerCase());
-              return (
-                <tspan
-                  key={ti}
-                  style={{
-                    fontWeight: isEmphasis ? "bold" : "normal",
-                  }}
-                  stroke={isEmphasis ? "#0a0604" : "#1d1714"}
-                  fill={isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`}
-                >
-                  {token}
-                </tspan>
-              );
-            })}
+            {(() => {
+              let wordIdx = 0;
+              return chars.map((char, ci) => {
+                if (char === " ") wordIdx++;
+                const currentWord = words[wordIdx] || "";
+                const cleanWord = currentWord.replace(/[^a-zA-Z]/g, "");
+                const isEmphasis = emphasisWords.some(ew => cleanWord.toLowerCase() === ew.toLowerCase());
+                
+                const charProgress = ci < charsRevealed ? 1 : 
+                  ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+                
+                const strokeLen = 80;
+                const strokeOffset = strokeLen * (1 - charProgress);
+                const fillOpacity = charProgress > 0.7 ? (charProgress - 0.7) / 0.3 : 0;
+                
+                return (
+                  <tspan
+                    key={ci}
+                    fill={isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`}
+                    stroke={isEmphasis ? "#0a0604" : "#1d1714"}
+                    strokeWidth={isEmphasis ? "1" : "0.7"}
+                    strokeDasharray={strokeLen}
+                    strokeDashoffset={strokeOffset}
+                    style={{ fontWeight: isEmphasis ? "bold" : "normal" }}
+                  >
+                    {char}
+                  </tspan>
+                );
+              });
+            })()}
           </text>
         );
       })}
@@ -308,11 +322,11 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
 
       {(() => {
         const secondLine = `The greatest gift of all Dear ${name},`;
-        const tokens = secondLine.split(/(\s+)/);
+        const chars = secondLine.split("");
         const secondProgress = lineProgress[secondToLastIndex] ?? 0;
-        const strokeLen = secondLine.length * 30;
-        const strokeOffset = strokeLen * (1 - secondProgress);
-        const fillOpacity = secondProgress > 0.6 ? (secondProgress - 0.6) / 0.4 : 0;
+        const charsRevealed = secondProgress * chars.length;
+        const words = secondLine.split(/\s+/);
+        
         return (
           <text
             x="50%"
@@ -320,27 +334,37 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             textAnchor="middle"
             fontFamily="'Adelia', cursive"
             fontSize="38"
-            fill={`rgba(29, 23, 20, ${fillOpacity})`}
-            stroke="#1d1714"
-            strokeWidth="0.9"
-            strokeDasharray={strokeLen}
-            strokeDashoffset={strokeOffset}
-            style={{ textRendering: "geometricPrecision", transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out" }}
+            style={{ textRendering: "geometricPrecision" }}
           >
-            {tokens.map((token, ti) => {
-              const cleanToken = token.replace(/[^a-zA-Z]/g, "");
-              const isEmphasis = emphasisWords.some(ew => cleanToken.toLowerCase() === ew.toLowerCase());
-              return (
-                <tspan 
-                  key={ti} 
-                  style={{ fontWeight: isEmphasis ? "bold" : "normal" }}
-                  stroke={isEmphasis ? "#0a0604" : "#1d1714"}
-                  fill={isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`}
-                >
-                  {token}
-                </tspan>
-              );
-            })}
+            {(() => {
+              let wordIdx = 0;
+              return chars.map((char, ci) => {
+                if (char === " ") wordIdx++;
+                const currentWord = words[wordIdx] || "";
+                const cleanWord = currentWord.replace(/[^a-zA-Z]/g, "");
+                const isEmphasis = emphasisWords.some(ew => cleanWord.toLowerCase() === ew.toLowerCase());
+                
+                const charProgress = ci < charsRevealed ? 1 : 
+                  ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+                const strokeLen = 100;
+                const strokeOffset = strokeLen * (1 - charProgress);
+                const fillOpacity = charProgress > 0.7 ? (charProgress - 0.7) / 0.3 : 0;
+                
+                return (
+                  <tspan
+                    key={ci}
+                    fill={isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`}
+                    stroke={isEmphasis ? "#0a0604" : "#1d1714"}
+                    strokeWidth={isEmphasis ? "1" : "0.8"}
+                    strokeDasharray={strokeLen}
+                    strokeDashoffset={strokeOffset}
+                    style={{ fontWeight: isEmphasis ? "bold" : "normal" }}
+                  >
+                    {char}
+                  </tspan>
+                );
+              });
+            })()}
           </text>
         );
       })()}
@@ -353,9 +377,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
 
         {(() => {
           const finalText = "Is To Be Known";
-          const strokeLen = finalText.length * 60;
-          const strokeOffset = strokeLen * (1 - finalProgress);
-          const fillOpacity = finalProgress > 0.5 ? (finalProgress - 0.5) / 0.5 : 0;
+          const chars = finalText.split("");
+          const charsRevealed = finalProgress * chars.length;
+          
           return (
             <text
               x="50%"
@@ -363,14 +387,28 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
               textAnchor="middle"
               fontFamily="'Mayonice', cursive"
               fontSize="80"
-              fill={`rgba(20, 16, 14, ${fillOpacity})`}
-              stroke="#14100e"
-              strokeWidth="1.2"
-              strokeDasharray={strokeLen}
-              strokeDashoffset={strokeOffset}
-              style={{ textRendering: "geometricPrecision", transition: "stroke-dashoffset 0.12s linear, fill 0.2s ease-out" }}
+              style={{ textRendering: "geometricPrecision" }}
             >
-              {finalText}
+              {chars.map((char, ci) => {
+                const charProgress = ci < charsRevealed ? 1 : 
+                  ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+                const strokeLen = 150;
+                const strokeOffset = strokeLen * (1 - charProgress);
+                const fillOpacity = charProgress > 0.6 ? (charProgress - 0.6) / 0.4 : 0;
+                
+                return (
+                  <tspan
+                    key={ci}
+                    fill={`rgba(20, 16, 14, ${fillOpacity})`}
+                    stroke="#14100e"
+                    strokeWidth="1.2"
+                    strokeDasharray={strokeLen}
+                    strokeDashoffset={strokeOffset}
+                  >
+                    {char}
+                  </tspan>
+                );
+              })}
             </text>
           );
         })()}

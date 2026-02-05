@@ -42,10 +42,11 @@ Built with Next.js 16 and React 18.
 - **Silent Fallback**: Animation plays at natural pace without audio
 
 ## Recent Changes
-- 2026-02-05: Stroke-drawing animation for handwriting effect
-  - Implemented SVG stroke-dasharray animation that draws letters as if being written
-  - Strokes progressively reveal, then fill fades in for authentic pen effect
-  - All text (header, poem lines, final lines) uses drawing animation
+- 2026-02-05: Character-by-character handwriting animation
+  - Each letter draws individually using SVG stroke-dasharray animation
+  - Strokes reveal progressively per character, then fill fades in
+  - Creates authentic "pen writing each letter" effect synced to audio
+  - All text (header, poem lines, final lines) uses per-character drawing
   - Aged paper aesthetic with warmer tan/brown tones and edge wear vignette
   - Ink drops and stains scattered across paper for vintage look
   - Bold emphasis words (Luke, thrive, loved, bright, Known, heart) stand out
