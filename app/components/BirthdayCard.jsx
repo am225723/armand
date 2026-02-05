@@ -41,34 +41,33 @@ export default function BirthdayCard({
   ],
 }) {
   const POEM_LINES = [
-    "The world became a brighter place",
+    "The world became a brighter place...",
     "The moment Luke arrived,",
-    "With kindness written on your face",
-    "And a spirit meant to thrive",
+    "With kindness written on his face",
+    "And a spirit meant to thrive.",
     "",
     "Through every year and every mile,",
-    "You've grown in heart and mind,",
+    "A soul grows in heart and mind,",
     "With a steady hand and a ready smile,",
-    "The rarest soul to find.",
+    "The rarest sort to find.",
     "",
-    "May your day be filled with all you love,",
+    "May this day be filled with all that's loved,",
     "With laughter, warmth, and light,",
-    "And may the year ahead hold dreams",
-    "That shine forever bright.",
+    "And may the year ahead unfold...",
+    "To be exceptionally bright..",
     "",
-    "So here's to you, for all you are,",
-    "And all you're yet to be—",
-    "Luke, you truly are a star",
-    "For everyone to see.",
+    "So here's to Luke, for all he is,",
+    "And the light he's always shown,",
+    "",
+    "Is To Be Known",
   ];
 
   const EMPHASIS_WORDS = [
     "Luke",
-    "star",
     "thrive",
-    "love",
+    "loved",
     "bright",
-    "dreams",
+    "Known",
     "heart",
   ];
 
@@ -410,14 +409,14 @@ export default function BirthdayCard({
                 x={wordX}
                 y={y + wobble}
                 style={{
-                  fontFamily: '"InterSignature", cursive',
-                  fontSize: isEmphasis ? 34 : 30,
-                  fontWeight: isEmphasis ? 600 : 400,
-                  fill: isEmphasis ? "#fff" : "rgba(255,255,255,0.92)",
+                  fontFamily: '"Pinyon Script", cursive',
+                  fontSize: isEmphasis ? 38 : 32,
+                  fontWeight: 400,
+                  fill: isEmphasis ? "#1a1a1a" : "#2a2a2a",
                   filter: isEmphasis
-                    ? "drop-shadow(0 0 8px rgba(255,220,150,0.5)) drop-shadow(0 0 15px rgba(255,180,100,0.3))"
-                    : "drop-shadow(0 0 4px rgba(255,210,120,0.2))",
-                  letterSpacing: isEmphasis ? 1.5 : 0.5,
+                    ? "drop-shadow(0 1px 1px rgba(0,0,0,0.2))"
+                    : "drop-shadow(0 1px 1px rgba(0,0,0,0.1))",
+                  letterSpacing: isEmphasis ? 2 : 1,
                 }}
               >
                 {word}
@@ -1631,8 +1630,8 @@ const styles = {
     left: 0,
     right: 0,
     textAlign: "center",
-    fontFamily: '"InterSignature", cursive',
-    fontSize: 16,
+    fontFamily: '"Pinyon Script", cursive',
+    fontSize: 18,
     color: "#333",
   },
   photoDots: {
@@ -1670,8 +1669,8 @@ const styles = {
     borderBottom: "1px solid rgba(255,255,255,0.1)",
   },
   toName: {
-    fontFamily: '"InterSignature", cursive',
-    fontSize: 26,
+    fontFamily: '"Pinyon Script", cursive',
+    fontSize: 28,
     fontWeight: 400,
     color: "white",
     letterSpacing: 1,
