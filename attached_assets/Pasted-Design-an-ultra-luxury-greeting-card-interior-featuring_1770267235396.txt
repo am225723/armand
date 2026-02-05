@@ -1,0 +1,20 @@
+Design an ultra-luxury greeting card interior featuring the provided poem text.
+Use an extremely refined, formal calligraphy font, inspired by master copperplate and Spencerian penmanship, with dramatic thick-and-thin stroke contrast, smooth flowing curves, elegant flourished capital letters, and graceful ascenders and descenders. The calligraphy should look hand-lettered by a professional calligrapher, not digitally typed.
+The final line “Is To Be Known” should be larger, more ornate, and visually emphasized with elegant swashes and decorative flourishes.
+Place the poem on premium handmade paper with a soft ivory or warm white tone. The paper should have a subtle natural texture, very light parchment aging, and gentle ink absorption for realism. Keep the background clean and uncluttered.
+Center the poem with generous margins and balanced line spacing. Use refined ornamental divider lines or subtle baroque-style flourishes between poem sections. Optional delicate gold or champagne accents may appear only in decorative flourishes, not in the text.
+The overall design should feel timeless, celebratory, romantic, and heirloom-quality, suitable for a keepsake greeting card. Typography must be highly legible, elegant, and professional.
+Output a high-resolution, portrait-oriented, print-ready greeting card interior.
+NEGATIVE PROMPT (Replit)
+ugly font, bad typography, cheap looking text, amateur lettering, childish handwriting, sloppy calligraphy, uneven strokes, inconsistent letter size, poor kerning, bad spacing, distorted letters, warped text, broken characters
+sans serif font, modern font, geometric font, helvetica, arial, futura, roboto, comic sans, playful font, casual script, brush lettering, marker lettering, graffiti, cartoon style text
+fake calligraphy, monoline script, uniform stroke width, digital handwriting, crayon or chalk texture, rough brush strokes
+bold block letters, stencil font, typewriter font, grunge font, distressed text, cracked letters
+blurry text, pixelated lettering, low resolution text, washed out ink, low contrast lettering
+crowded layout, overlapping letters, misaligned text, poor line spacing
+busy background, distracting decorations, modern graphic design elements, neon colors
+Replit Tip (Important)
+If Replit allows multiple generations, regenerate until:
+Letterforms are consistent
+Capitals are ornate but controlled
+Text remains perfectly readable

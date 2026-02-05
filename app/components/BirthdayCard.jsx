@@ -382,17 +382,17 @@ export default function BirthdayCard({
     const isFinalLine = line === "Is To Be Known";
     const y = 50 + i * 38;
     const clipWidth = 520 * progress;
-    const wobble = isFinalLine ? 0 : Math.sin(i * 1.5) * 2;
-    const rotation = isFinalLine ? 0 : Math.sin(i * 0.7) * 0.8;
+    const wobble = isFinalLine ? 0 : Math.sin(i * 1.5) * 1.5;
+    const rotation = isFinalLine ? 0 : Math.sin(i * 0.7) * 0.5;
 
     const words = line.split(" ");
-    let xOffset = isFinalLine ? 100 : 25;
+    let xOffset = isFinalLine ? 85 : 25;
 
     return (
       <g key={i}>
         <defs>
           <clipPath id={`clip-${i}`}>
-            <rect x="0" y={y - 45} width={clipWidth} height="70" />
+            <rect x="0" y={y - 45} width={clipWidth} height="80" />
           </clipPath>
         </defs>
         <g
@@ -400,25 +400,52 @@ export default function BirthdayCard({
           transform={`rotate(${rotation} 250 ${y})`}
         >
           {isFinalLine ? (
-            <text
-              x={xOffset}
-              y={y + 15}
-              style={{
-                fontFamily: '"Pinyon Script", cursive',
-                fontSize: 52,
-                fontWeight: 400,
-                fill: "#2d1810",
-                filter: "drop-shadow(0 2px 4px rgba(139,90,43,0.3)) drop-shadow(0 0 8px rgba(201,165,90,0.2))",
-                letterSpacing: 4,
-              }}
-            >
-              {line}
-            </text>
+            <>
+              {/* Decorative swash before */}
+              <text
+                x={xOffset - 45}
+                y={y + 20}
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  fontSize: 28,
+                  fill: 'rgba(201,165,90,0.6)',
+                }}
+              >
+                ❧
+              </text>
+              <text
+                x={xOffset}
+                y={y + 20}
+                style={{
+                  fontFamily: '"Great Vibes", cursive',
+                  fontSize: 56,
+                  fontWeight: 400,
+                  fill: "#1a0f08",
+                  filter: "drop-shadow(0 2px 4px rgba(139,90,43,0.35)) drop-shadow(0 0 12px rgba(201,165,90,0.25))",
+                  letterSpacing: 5,
+                }}
+              >
+                {line}
+              </text>
+              {/* Decorative swash after */}
+              <text
+                x={xOffset + 295}
+                y={y + 20}
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  fontSize: 28,
+                  fill: 'rgba(201,165,90,0.6)',
+                  transform: 'scaleX(-1)',
+                }}
+              >
+                ❧
+              </text>
+            </>
           ) : (
             words.map((word, wordIdx) => {
               const isEmphasis = EMPHASIS_WORDS.some((ew) => word.includes(ew));
               const wordX = xOffset;
-              xOffset += word.length * 14 + 12;
+              xOffset += word.length * 15 + 10;
 
               return (
                 <text
@@ -426,14 +453,14 @@ export default function BirthdayCard({
                   x={wordX}
                   y={y + wobble}
                   style={{
-                    fontFamily: '"Pinyon Script", cursive',
-                    fontSize: isEmphasis ? 38 : 32,
+                    fontFamily: '"Great Vibes", cursive',
+                    fontSize: isEmphasis ? 36 : 30,
                     fontWeight: 400,
-                    fill: isEmphasis ? "#2d1810" : "#3d2b1f",
+                    fill: isEmphasis ? "#1a0f08" : "#2d1810",
                     filter: isEmphasis
-                      ? "drop-shadow(0 1px 2px rgba(139,90,43,0.25))"
-                      : "drop-shadow(0 1px 1px rgba(0,0,0,0.1))",
-                    letterSpacing: isEmphasis ? 2 : 1,
+                      ? "drop-shadow(0 1px 2px rgba(139,90,43,0.3))"
+                      : "drop-shadow(0 0.5px 1px rgba(0,0,0,0.08))",
+                    letterSpacing: isEmphasis ? 1.5 : 0.5,
                   }}
                 >
                   {word}
@@ -850,6 +877,39 @@ export default function BirthdayCard({
                 {POEM_LINES.map((line, i) =>
                   renderLineWithEmphasis(line, i, lineProgress[i] || 0),
                 )}
+
+                {/* Baroque-style flourish dividers between stanzas */}
+                <g opacity="0.5">
+                  {/* Divider after first stanza (line 4) */}
+                  <path
+                    d="M 160 200 Q 200 195, 260 200 Q 320 205, 360 200"
+                    fill="none"
+                    stroke="rgba(201,165,90,0.5)"
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                  />
+                  <text x="252" y="206" fill="rgba(201,165,90,0.6)" fontSize="10" textAnchor="middle">✦</text>
+                  
+                  {/* Divider after second stanza (line 9) */}
+                  <path
+                    d="M 160 388 Q 200 383, 260 388 Q 320 393, 360 388"
+                    fill="none"
+                    stroke="rgba(201,165,90,0.5)"
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                  />
+                  <text x="252" y="394" fill="rgba(201,165,90,0.6)" fontSize="10" textAnchor="middle">✦</text>
+                  
+                  {/* Divider after third stanza (line 14) */}
+                  <path
+                    d="M 160 574 Q 200 569, 260 574 Q 320 579, 360 574"
+                    fill="none"
+                    stroke="rgba(201,165,90,0.5)"
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                  />
+                  <text x="252" y="580" fill="rgba(201,165,90,0.6)" fontSize="10" textAnchor="middle">✦</text>
+                </g>
 
                 {/* Decorative flourishes */}
                 <path
@@ -1663,9 +1723,9 @@ const styles = {
     left: 0,
     right: 0,
     textAlign: "center",
-    fontFamily: '"Pinyon Script", cursive',
-    fontSize: 18,
-    color: "#333",
+    fontFamily: '"Great Vibes", cursive',
+    fontSize: 20,
+    color: "#3d2b1f",
   },
   photoDots: {
     display: "flex",
@@ -1703,12 +1763,12 @@ const styles = {
     borderBottom: "1px solid rgba(139,90,43,0.2)",
   },
   toName: {
-    fontFamily: '"Pinyon Script", cursive',
-    fontSize: 32,
+    fontFamily: '"Great Vibes", cursive',
+    fontSize: 34,
     fontWeight: 400,
-    color: "#3d2b1f",
-    letterSpacing: 1,
-    textShadow: "1px 1px 2px rgba(201,165,90,0.3)",
+    color: "#2d1810",
+    letterSpacing: 1.5,
+    textShadow: "1px 1px 2px rgba(201,165,90,0.35)",
   },
   audioControls: {
     display: "flex",
