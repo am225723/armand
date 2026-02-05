@@ -567,22 +567,34 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                 lineNumber: 183,
                 columnNumber: 7
             }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
-                x: "120",
-                y: "165",
-                textAnchor: "start",
-                fontFamily: "'Mayonice', cursive",
-                fontSize: "72",
-                fill: "#1a1410",
-                style: {
-                    textRendering: "geometricPrecision"
-                },
-                children: `To ${name},`
-            }, void 0, false, {
-                fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                lineNumber: 196,
-                columnNumber: 7
-            }, this),
+            (()=>{
+                const headerText = `To ${name},`;
+                const headerProgress = lineProgress[0] ?? 0;
+                const strokeLen = headerText.length * 50;
+                const strokeOffset = strokeLen * (1 - headerProgress);
+                const fillOpacity = headerProgress > 0.5 ? (headerProgress - 0.5) / 0.5 : 0;
+                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
+                    x: "120",
+                    y: "165",
+                    textAnchor: "start",
+                    fontFamily: "'Mayonice', cursive",
+                    fontSize: "72",
+                    fill: `rgba(26, 20, 16, ${fillOpacity})`,
+                    stroke: "#1a1410",
+                    strokeWidth: "1",
+                    strokeDasharray: strokeLen,
+                    strokeDashoffset: strokeOffset,
+                    style: {
+                        textRendering: "geometricPrecision",
+                        transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out"
+                    },
+                    children: headerText
+                }, void 0, false, {
+                    fileName: "[project]/app/components/CardInsideOrnate.jsx",
+                    lineNumber: 203,
+                    columnNumber: 11
+                }, this);
+            })(),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("g", {
                 opacity: "0.65",
                 stroke: "url(#goldFoil)",
@@ -593,7 +605,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         d: `M110 215 C240 205, 580 205, 710 215`
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 211,
+                        lineNumber: 225,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -604,13 +616,13 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.45"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 212,
+                        lineNumber: 226,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                lineNumber: 210,
+                lineNumber: 224,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
@@ -627,44 +639,51 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                 children: name.slice(0, 1).toUpperCase()
             }, void 0, false, {
                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                lineNumber: 215,
+                lineNumber: 229,
                 columnNumber: 7
             }, this),
             linePositions.slice(0, -1).map((pos, i)=>{
                 if (pos.isBlank) return null;
                 const progress = lineProgress[i] ?? 0;
-                // Parse line into words with emphasis detection
                 const tokens = pos.line.split(/(\s+)/);
+                // Stroke drawing animation - estimate stroke length based on text
+                const strokeLen = pos.line.length * 25;
+                const strokeOffset = strokeLen * (1 - progress);
+                const fillOpacity = progress > 0.6 ? (progress - 0.6) / 0.4 : 0;
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
                     x: "50%",
                     y: pos.y,
                     textAnchor: "middle",
                     fontFamily: "'Adelia', cursive",
                     fontSize: 32,
-                    fill: "#1d1714",
-                    opacity: progress,
+                    fill: `rgba(29, 23, 20, ${fillOpacity})`,
+                    stroke: "#1d1714",
+                    strokeWidth: "0.8",
+                    strokeDasharray: strokeLen,
+                    strokeDashoffset: strokeOffset,
                     style: {
                         textRendering: "geometricPrecision",
-                        transition: "opacity 0.15s ease-out"
+                        transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out"
                     },
                     children: tokens.map((token, ti)=>{
                         const cleanToken = token.replace(/[^a-zA-Z]/g, "");
                         const isEmphasis = emphasisWords.some((ew)=>cleanToken.toLowerCase() === ew.toLowerCase());
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tspan", {
                             style: {
-                                fontWeight: isEmphasis ? "bold" : "normal",
-                                fill: isEmphasis ? "#0a0604" : "#1d1714"
+                                fontWeight: isEmphasis ? "bold" : "normal"
                             },
+                            stroke: isEmphasis ? "#0a0604" : "#1d1714",
+                            fill: isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`,
                             children: token
                         }, ti, false, {
                             fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                            lineNumber: 254,
+                            lineNumber: 274,
                             columnNumber: 17
                         }, this);
                     })
                 }, i, false, {
                     fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                    lineNumber: 236,
+                    lineNumber: 253,
                     columnNumber: 11
                 }, this);
             }),
@@ -688,7 +707,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                             d: `M${VB_W / 2 - 220} ${yy} C${VB_W / 2 - 120} ${yy - 22}, ${VB_W / 2 + 120} ${yy - 22}, ${VB_W / 2 + 220} ${yy}`
                         }, void 0, false, {
                             fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                            lineNumber: 281,
+                            lineNumber: 302,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -696,7 +715,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                             opacity: "0.45"
                         }, void 0, false, {
                             fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                            lineNumber: 282,
+                            lineNumber: 303,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -707,13 +726,13 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                             opacity: "0.35"
                         }, void 0, false, {
                             fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                            lineNumber: 283,
+                            lineNumber: 304,
                             columnNumber: 13
                         }, this)
                     ]
                 }, idx, true, {
                     fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                    lineNumber: 273,
+                    lineNumber: 294,
                     columnNumber: 11
                 }, this);
             }),
@@ -721,36 +740,43 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                 const secondLine = `The greatest gift of all Dear ${name},`;
                 const tokens = secondLine.split(/(\s+)/);
                 const secondProgress = lineProgress[secondToLastIndex] ?? 0;
+                const strokeLen = secondLine.length * 30;
+                const strokeOffset = strokeLen * (1 - secondProgress);
+                const fillOpacity = secondProgress > 0.6 ? (secondProgress - 0.6) / 0.4 : 0;
                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
                     x: "50%",
                     y: secondToLastLineY,
                     textAnchor: "middle",
                     fontFamily: "'Adelia', cursive",
                     fontSize: "38",
-                    fill: "#1d1714",
-                    opacity: secondProgress,
+                    fill: `rgba(29, 23, 20, ${fillOpacity})`,
+                    stroke: "#1d1714",
+                    strokeWidth: "0.9",
+                    strokeDasharray: strokeLen,
+                    strokeDashoffset: strokeOffset,
                     style: {
                         textRendering: "geometricPrecision",
-                        transition: "opacity 0.15s ease-out"
+                        transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out"
                     },
                     children: tokens.map((token, ti)=>{
                         const cleanToken = token.replace(/[^a-zA-Z]/g, "");
                         const isEmphasis = emphasisWords.some((ew)=>cleanToken.toLowerCase() === ew.toLowerCase());
                         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("tspan", {
                             style: {
-                                fontWeight: isEmphasis ? "bold" : "normal",
-                                fill: isEmphasis ? "#0a0604" : "#1d1714"
+                                fontWeight: isEmphasis ? "bold" : "normal"
                             },
+                            stroke: isEmphasis ? "#0a0604" : "#1d1714",
+                            fill: isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`,
                             children: token
                         }, ti, false, {
                             fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                            lineNumber: 307,
+                            lineNumber: 334,
                             columnNumber: 17
                         }, this);
                     })
                 }, void 0, false, {
                     fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                    lineNumber: 293,
+                    lineNumber: 317,
                     columnNumber: 11
                 }, this);
             })(),
@@ -773,7 +799,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                                 d: `M${VB_W / 2 - 260} ${finalLineY - 55} C${VB_W / 2 - 140} ${finalLineY - 90}, ${VB_W / 2 + 140} ${finalLineY - 90}, ${VB_W / 2 + 260} ${finalLineY - 55}`
                             }, void 0, false, {
                                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                                lineNumber: 318,
+                                lineNumber: 350,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -781,33 +807,42 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                                 opacity: "0.55"
                             }, void 0, false, {
                                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                                lineNumber: 319,
+                                lineNumber: 351,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 317,
+                        lineNumber: 349,
                         columnNumber: 9
                     }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
-                        x: "50%",
-                        y: finalLineY,
-                        textAnchor: "middle",
-                        fontFamily: "'Mayonice', cursive",
-                        fontSize: "80",
-                        fill: "#14100e",
-                        opacity: finalProgress,
-                        style: {
-                            textRendering: "geometricPrecision",
-                            transition: "opacity 0.2s ease-out"
-                        },
-                        children: "Is To Be Known"
-                    }, void 0, false, {
-                        fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 322,
-                        columnNumber: 9
-                    }, this),
+                    (()=>{
+                        const finalText = "Is To Be Known";
+                        const strokeLen = finalText.length * 60;
+                        const strokeOffset = strokeLen * (1 - finalProgress);
+                        const fillOpacity = finalProgress > 0.5 ? (finalProgress - 0.5) / 0.5 : 0;
+                        return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("text", {
+                            x: "50%",
+                            y: finalLineY,
+                            textAnchor: "middle",
+                            fontFamily: "'Mayonice', cursive",
+                            fontSize: "80",
+                            fill: `rgba(20, 16, 14, ${fillOpacity})`,
+                            stroke: "#14100e",
+                            strokeWidth: "1.2",
+                            strokeDasharray: strokeLen,
+                            strokeDashoffset: strokeOffset,
+                            style: {
+                                textRendering: "geometricPrecision",
+                                transition: "stroke-dashoffset 0.12s linear, fill 0.2s ease-out"
+                            },
+                            children: finalText
+                        }, void 0, false, {
+                            fileName: "[project]/app/components/CardInsideOrnate.jsx",
+                            lineNumber: 360,
+                            columnNumber: 13
+                        }, this);
+                    })(),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("g", {
                         opacity: finalProgress > 0.8 ? 0.75 : 0,
                         stroke: "url(#goldFoil)",
@@ -821,7 +856,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                                 d: `M${VB_W / 2 - 280} ${finalLineY + 45} C${VB_W / 2 - 150} ${finalLineY + 95}, ${VB_W / 2 + 150} ${finalLineY + 95}, ${VB_W / 2 + 280} ${finalLineY + 45}`
                             }, void 0, false, {
                                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                                lineNumber: 336,
+                                lineNumber: 379,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -830,7 +865,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                                 r: "4"
                             }, void 0, false, {
                                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                                lineNumber: 337,
+                                lineNumber: 380,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -839,19 +874,19 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                                 r: "4"
                             }, void 0, false, {
                                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                                lineNumber: 338,
+                                lineNumber: 381,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 335,
+                        lineNumber: 378,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                lineNumber: 316,
+                lineNumber: 348,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("g", {
@@ -866,7 +901,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.15"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 345,
+                        lineNumber: 388,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ellipse", {
@@ -878,7 +913,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.12"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 346,
+                        lineNumber: 389,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ellipse", {
@@ -890,7 +925,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.1"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 347,
+                        lineNumber: 390,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("ellipse", {
@@ -902,7 +937,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.12"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 348,
+                        lineNumber: 391,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -913,7 +948,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.25"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 351,
+                        lineNumber: 394,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -924,7 +959,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.3"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 352,
+                        lineNumber: 395,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -935,7 +970,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.2"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 353,
+                        lineNumber: 396,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -946,7 +981,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.28"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 354,
+                        lineNumber: 397,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -957,7 +992,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.22"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 355,
+                        lineNumber: 398,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -968,7 +1003,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.25"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 356,
+                        lineNumber: 399,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -979,7 +1014,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.2"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 357,
+                        lineNumber: 400,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -990,7 +1025,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.25"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 359,
+                        lineNumber: 402,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1001,7 +1036,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.22"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 360,
+                        lineNumber: 403,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1012,7 +1047,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.28"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 361,
+                        lineNumber: 404,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1023,7 +1058,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.25"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 362,
+                        lineNumber: 405,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1034,7 +1069,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.2"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 363,
+                        lineNumber: 406,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1045,7 +1080,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.22"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 364,
+                        lineNumber: 407,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1056,7 +1091,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.18"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 367,
+                        lineNumber: 410,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1067,7 +1102,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.15"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 368,
+                        lineNumber: 411,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1078,7 +1113,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.12"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 369,
+                        lineNumber: 412,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1089,7 +1124,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.15"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 370,
+                        lineNumber: 413,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1100,7 +1135,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.15"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 371,
+                        lineNumber: 414,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1111,7 +1146,7 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.12"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 372,
+                        lineNumber: 415,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1122,13 +1157,13 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         opacity: "0.18"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 373,
+                        lineNumber: 416,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                lineNumber: 343,
+                lineNumber: 386,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("g", {
@@ -1139,48 +1174,48 @@ function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = []
                         d: "M90 340 l6 6 -6 6 -6 -6 z"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 378,
+                        lineNumber: 421,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                         d: "M110 520 l4 4 -4 4 -4 -4 z"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 379,
+                        lineNumber: 422,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                         d: "M95 920 l5 5 -5 5 -5 -5 z"
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 380,
+                        lineNumber: 423,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                         d: `M${VB_W - 90} 410 l6 6 -6 6 -6 -6 z`
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 381,
+                        lineNumber: 424,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                         d: `M${VB_W - 110} 650 l4 4 -4 4 -4 -4 z`
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 382,
+                        lineNumber: 425,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                         d: `M${VB_W - 95} 980 l5 5 -5 5 -5 -5 z`
                     }, void 0, false, {
                         fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                        lineNumber: 383,
+                        lineNumber: 426,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/components/CardInsideOrnate.jsx",
-                lineNumber: 377,
+                lineNumber: 420,
                 columnNumber: 7
             }, this)
         ]

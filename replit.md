@@ -42,10 +42,16 @@ Built with Next.js 16 and React 18.
 - **Silent Fallback**: Animation plays at natural pace without audio
 
 ## Recent Changes
+- 2026-02-05: Stroke-drawing animation for handwriting effect
+  - Implemented SVG stroke-dasharray animation that draws letters as if being written
+  - Strokes progressively reveal, then fill fades in for authentic pen effect
+  - All text (header, poem lines, final lines) uses drawing animation
+  - Aged paper aesthetic with warmer tan/brown tones and edge wear vignette
+  - Ink drops and stains scattered across paper for vintage look
+  - Bold emphasis words (Luke, thrive, loved, bright, Known, heart) stand out
 - 2026-02-05: Ultra-luxury card interior with animated handwriting
   - Created CardInsideOrnate.jsx with heirloom-quality design
   - Added custom uploaded fonts: Adelia (poem body), Mayonice (headlines)
-  - Added animated progressive text reveal synced with audio
   - Added missing final lines: "The greatest gift of all Dear Luke," + "Is To Be Known"
   - Premium paper gradients with soft vignette and noise texture
   - Gold foil accents and filigree pattern watermark
@@ -73,7 +79,7 @@ Built with Next.js 16 and React 18.
 ## Technical Notes
 - Uses Next.js App Router with client components
 - Font loaded via FontFace API
-- SVG-based handwriting animation with clip-path reveal
+- SVG stroke-dasharray animation for handwriting drawing effect
 - Ink dots use useMemo for stable positioning across renders
 - Audio sync using requestAnimationFrame loop
 - No database or external API dependencies

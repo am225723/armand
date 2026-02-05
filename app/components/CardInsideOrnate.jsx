@@ -193,19 +193,33 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
         <path d={`M${VB_W - 92} ${VB_H - 132} C${VB_W - 130} ${VB_H - 150}, ${VB_W - 160} ${VB_H - 175}, ${VB_W - 175} ${VB_H - 205}`} opacity="0.55" />
       </g>
 
-      <text
-        x="120"
-        y="165"
-        textAnchor="start"
-        fontFamily="'Mayonice', cursive"
-        fontSize="72"
-        fill="#1a1410"
-        style={{
-          textRendering: "geometricPrecision",
-        }}
-      >
-        {`To ${name},`}
-      </text>
+      {(() => {
+        const headerText = `To ${name},`;
+        const headerProgress = lineProgress[0] ?? 0;
+        const strokeLen = headerText.length * 50;
+        const strokeOffset = strokeLen * (1 - headerProgress);
+        const fillOpacity = headerProgress > 0.5 ? (headerProgress - 0.5) / 0.5 : 0;
+        return (
+          <text
+            x="120"
+            y="165"
+            textAnchor="start"
+            fontFamily="'Mayonice', cursive"
+            fontSize="72"
+            fill={`rgba(26, 20, 16, ${fillOpacity})`}
+            stroke="#1a1410"
+            strokeWidth="1"
+            strokeDasharray={strokeLen}
+            strokeDashoffset={strokeOffset}
+            style={{
+              textRendering: "geometricPrecision",
+              transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out",
+            }}
+          >
+            {headerText}
+          </text>
+        );
+      })()}
 
       <g opacity="0.65" stroke="url(#goldFoil)" strokeWidth="2" fill="none">
         <path d={`M110 215 C240 205, 580 205, 710 215`} />
@@ -228,9 +242,12 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
       {linePositions.slice(0, -1).map((pos, i) => {
         if (pos.isBlank) return null;
         const progress = lineProgress[i] ?? 0;
-        
-        // Parse line into words with emphasis detection
         const tokens = pos.line.split(/(\s+)/);
+        
+        // Stroke drawing animation - estimate stroke length based on text
+        const strokeLen = pos.line.length * 25;
+        const strokeOffset = strokeLen * (1 - progress);
+        const fillOpacity = progress > 0.6 ? (progress - 0.6) / 0.4 : 0;
         
         return (
           <text
@@ -240,11 +257,14 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             textAnchor="middle"
             fontFamily="'Adelia', cursive"
             fontSize={32}
-            fill="#1d1714"
-            opacity={progress}
+            fill={`rgba(29, 23, 20, ${fillOpacity})`}
+            stroke="#1d1714"
+            strokeWidth="0.8"
+            strokeDasharray={strokeLen}
+            strokeDashoffset={strokeOffset}
             style={{ 
               textRendering: "geometricPrecision",
-              transition: "opacity 0.15s ease-out",
+              transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out",
             }}
           >
             {tokens.map((token, ti) => {
@@ -255,8 +275,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
                   key={ti}
                   style={{
                     fontWeight: isEmphasis ? "bold" : "normal",
-                    fill: isEmphasis ? "#0a0604" : "#1d1714",
                   }}
+                  stroke={isEmphasis ? "#0a0604" : "#1d1714"}
+                  fill={isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`}
                 >
                   {token}
                 </tspan>
@@ -289,6 +310,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
         const secondLine = `The greatest gift of all Dear ${name},`;
         const tokens = secondLine.split(/(\s+)/);
         const secondProgress = lineProgress[secondToLastIndex] ?? 0;
+        const strokeLen = secondLine.length * 30;
+        const strokeOffset = strokeLen * (1 - secondProgress);
+        const fillOpacity = secondProgress > 0.6 ? (secondProgress - 0.6) / 0.4 : 0;
         return (
           <text
             x="50%"
@@ -296,15 +320,23 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             textAnchor="middle"
             fontFamily="'Adelia', cursive"
             fontSize="38"
-            fill="#1d1714"
-            opacity={secondProgress}
-            style={{ textRendering: "geometricPrecision", transition: "opacity 0.15s ease-out" }}
+            fill={`rgba(29, 23, 20, ${fillOpacity})`}
+            stroke="#1d1714"
+            strokeWidth="0.9"
+            strokeDasharray={strokeLen}
+            strokeDashoffset={strokeOffset}
+            style={{ textRendering: "geometricPrecision", transition: "stroke-dashoffset 0.1s linear, fill 0.15s ease-out" }}
           >
             {tokens.map((token, ti) => {
               const cleanToken = token.replace(/[^a-zA-Z]/g, "");
               const isEmphasis = emphasisWords.some(ew => cleanToken.toLowerCase() === ew.toLowerCase());
               return (
-                <tspan key={ti} style={{ fontWeight: isEmphasis ? "bold" : "normal", fill: isEmphasis ? "#0a0604" : "#1d1714" }}>
+                <tspan 
+                  key={ti} 
+                  style={{ fontWeight: isEmphasis ? "bold" : "normal" }}
+                  stroke={isEmphasis ? "#0a0604" : "#1d1714"}
+                  fill={isEmphasis ? `rgba(10, 6, 4, ${fillOpacity})` : `rgba(29, 23, 20, ${fillOpacity})`}
+                >
                   {token}
                 </tspan>
               );
@@ -319,18 +351,29 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
           <path d={`M${VB_W / 2 - 170} ${finalLineY - 60} C${VB_W / 2 - 90} ${finalLineY - 80}, ${VB_W / 2 + 90} ${finalLineY - 80}, ${VB_W / 2 + 170} ${finalLineY - 60}`} opacity="0.55" />
         </g>
 
-        <text
-          x="50%"
-          y={finalLineY}
-          textAnchor="middle"
-          fontFamily="'Mayonice', cursive"
-          fontSize="80"
-          fill="#14100e"
-          opacity={finalProgress}
-          style={{ textRendering: "geometricPrecision", transition: "opacity 0.2s ease-out" }}
-        >
-          Is To Be Known
-        </text>
+        {(() => {
+          const finalText = "Is To Be Known";
+          const strokeLen = finalText.length * 60;
+          const strokeOffset = strokeLen * (1 - finalProgress);
+          const fillOpacity = finalProgress > 0.5 ? (finalProgress - 0.5) / 0.5 : 0;
+          return (
+            <text
+              x="50%"
+              y={finalLineY}
+              textAnchor="middle"
+              fontFamily="'Mayonice', cursive"
+              fontSize="80"
+              fill={`rgba(20, 16, 14, ${fillOpacity})`}
+              stroke="#14100e"
+              strokeWidth="1.2"
+              strokeDasharray={strokeLen}
+              strokeDashoffset={strokeOffset}
+              style={{ textRendering: "geometricPrecision", transition: "stroke-dashoffset 0.12s linear, fill 0.2s ease-out" }}
+            >
+              {finalText}
+            </text>
+          );
+        })()}
 
         <g opacity={finalProgress > 0.8 ? 0.75 : 0} stroke="url(#goldFoil)" strokeWidth="2" fill="none" style={{ transition: "opacity 0.3s ease" }}>
           <path d={`M${VB_W / 2 - 280} ${finalLineY + 45} C${VB_W / 2 - 150} ${finalLineY + 95}, ${VB_W / 2 + 150} ${finalLineY + 95}, ${VB_W / 2 + 280} ${finalLineY + 45}`} />
