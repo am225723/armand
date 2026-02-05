@@ -523,6 +523,37 @@ export default function BirthdayCard({
                   }}
                 />
               ))}
+              {/* Floating balloons */}
+              {[...Array(7)].map((_, i) => (
+                <div
+                  key={`balloon-${i}`}
+                  style={{
+                    ...styles.balloon,
+                    left: `${5 + (i * 14) % 90}%`,
+                    animationDelay: `${i * 0.7}s`,
+                    animationDuration: `${5 + (i % 3)}s`,
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.balloonBody,
+                      background: `radial-gradient(circle at 30% 25%, ${
+                        ['#a82255', '#1e4d7a', '#5c3d8a', '#2a6b50', '#8a4520', '#6b3d6b', '#4a6b8a'][i]
+                      } 0%, ${
+                        ['#7a1940', '#153a5c', '#3d2860', '#1a4a35', '#5c3015', '#4a2850', '#2a4a6a'][i]
+                      } 100%)`,
+                    }}
+                  >
+                    <div style={styles.balloonShine} />
+                  </div>
+                  <div
+                    style={{
+                      ...styles.balloonString,
+                      backgroundColor: ['#7a1940', '#153a5c', '#3d2860', '#1a4a35', '#5c3015', '#4a2850', '#2a4a6a'][i],
+                    }}
+                  />
+                </div>
+              ))}
             </div>
 
             <div style={styles.embossedBorder} />
@@ -961,6 +992,32 @@ export default function BirthdayCard({
           }
         }
 
+        @keyframes balloonFloat {
+          0% {
+            transform: translateY(0) translateX(0) rotate(0deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.9;
+          }
+          25% {
+            transform: translateY(-180px) translateX(10px) rotate(3deg);
+          }
+          50% {
+            transform: translateY(-380px) translateX(-8px) rotate(-2deg);
+          }
+          75% {
+            transform: translateY(-550px) translateX(12px) rotate(4deg);
+          }
+          90% {
+            opacity: 0.7;
+          }
+          100% {
+            transform: translateY(-720px) translateX(0) rotate(0deg);
+            opacity: 0;
+          }
+        }
+
         @keyframes flyArrow {
           0% { 
             transform: translateY(-50%) translateX(0px) rotate(0deg); 
@@ -1162,6 +1219,36 @@ const styles = {
     borderRadius: "50%",
     animation: "orbFloat 5s ease-in-out infinite",
   },
+  balloon: {
+    position: "absolute",
+    bottom: -80,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    animation: "balloonFloat 6s ease-in-out infinite",
+  },
+  balloonBody: {
+    width: 35,
+    height: 42,
+    borderRadius: "50% 50% 50% 50% / 40% 40% 60% 60%",
+    position: "relative",
+    boxShadow: "inset -3px -3px 8px rgba(0,0,0,0.3), 2px 4px 8px rgba(0,0,0,0.2)",
+  },
+  balloonShine: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    width: 10,
+    height: 12,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.4)",
+    filter: "blur(2px)",
+  },
+  balloonString: {
+    width: 1,
+    height: 40,
+    marginTop: -2,
+  },
   cornerTL: {
     position: "absolute",
     top: 30,
@@ -1228,17 +1315,17 @@ const styles = {
   },
   mainTitle: {
     fontFamily: '"InterSignature", Georgia, serif',
-    fontSize: "clamp(30px, 5.5vw, 48px)",
-    fontWeight: 400,
-    color: "#3d2914",
+    fontSize: "clamp(36px, 6.5vw, 58px)",
+    fontWeight: 700,
+    color: "#2a1810",
     margin: "6px 0",
-    letterSpacing: 2,
-    textShadow: "1px 1px 2px rgba(0,0,0,0.1)",
+    letterSpacing: 3,
+    textShadow: "2px 2px 4px rgba(0,0,0,0.2), 0 0 20px rgba(139, 26, 74, 0.15)",
   },
   nameTitle: {
     fontFamily: '"InterSignature", Georgia, serif',
-    fontSize: "clamp(38px, 7.5vw, 62px)",
-    fontWeight: 400,
+    fontSize: "clamp(44px, 8.5vw, 72px)",
+    fontWeight: 700,
     color: "#8b5a2b",
     margin: "0 0 6px",
     letterSpacing: 3,
