@@ -1,7 +1,7 @@
 (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([typeof document === "object" ? document.currentScript : undefined,
 "[project]/app/components/BirthdayCard.jsx [app-client] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-const e = new Error("Could not parse module '[project]/app/components/BirthdayCard.jsx'\n\nUnexpected token `numeric literal`. Expected ... , *,  (, [, :, , ?, = or an identifier");
+const e = new Error("Could not parse module '[project]/app/components/BirthdayCard.jsx'\n\nLegacy octal escape is not permitted in strict mode");
 e.code = 'MODULE_UNPARSABLE';
 throw e;
 }),
