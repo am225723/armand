@@ -1,577 +1,708 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { jsx } from "react/jsx-runtime";
 
 /**
- * Mobile-first Archery mini-game (canvas)
+ * ArcheryGame.jsx (mobile-first)
+ * - Uses real assets from /public/game:
+ *    /game/bow.png
+ *    /game/arrow.png
+ *    /game/candle.png
  * - Drag to aim + power
  * - Gravity arc + dotted trajectory preview
- * - Candle hitboxes + sparks
- * - Optional haptics + synthesized sounds (default OFF)
- * - Calls onComplete({ shots, timeMs }) when all candles are out
+ * - Subtle wind
+ * - Particles on hit
+ * - Haptics + Sound toggles (default OFF)
  *
- * Visuals are tuned to match the BirthdayCard palette:
- * warm amber + cool ink-cyan on a dark, papery gradient.
+ * Props:
+ *  - onComplete?: () => void
+ *  - candleCount?: number (default 7)
+ *  - width?: number|string (default "100%")
+ *  - height?: number (default 420)
  */
+
+function clamp01(x) {
+  return Math.max(0, Math.min(1, x));
+}
+
+function rectsIntersect(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function nowSec() {
+  return performance.now() / 1000;
+}
+
+function prefersReducedMotion() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export default function ArcheryGame({
   onComplete,
   candleCount = 7,
+  width = "100%",
   height = 420,
-  showToggles = true,
-  defaultHaptics = false,
-  defaultSound = false,
 }) {
+  const containerRef = useRef(null);
   const canvasRef = useRef(null);
-  const rafRef = useRef(0);
-  const audioCtxRef = useRef(null);
 
+  const [soundOn, setSoundOn] = useState(false);
+  const [hapticsOn, setHapticsOn] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(false);
   const [shots, setShots] = useState(0);
-  const [done, setDone] = useState(false);
+  const [remaining, setRemaining] = useState(candleCount);
 
-  const [hint, setHint] = useState("Drag to aim. Release to shoot.");
-  const [hapticsOn, setHapticsOn] = useState(defaultHaptics);
-  const [soundOn, setSoundOn] = useState(defaultSound);
+  const reducedMotion = useMemo(() => prefersReducedMotion(), []);
 
-  const hapticsRef = useRef(defaultHaptics);
-  const soundRef = useRef(defaultSound);
-  useEffect(() => { hapticsRef.current = hapticsOn; }, [hapticsOn]);
-  useEffect(() => { soundRef.current = soundOn; }, [soundOn]);
+  // Keep these as refs so toggling doesn't restart the simulation.
+  const soundOnRef = useRef(soundOn);
+  const hapticsOnRef = useRef(hapticsOn);
+  useEffect(() => void (soundOnRef.current = soundOn), [soundOn]);
+  useEffect(() => void (hapticsOnRef.current = hapticsOn), [hapticsOn]);
 
-  const startTimeRef = useRef(0);
-
-  const config = useMemo(
-    () => ({
-      gravity: 1600, // px/s^2
-      maxPower: 1200, // px/s
-      minPower: 420, // px/s
-      windMax: 90, // px/s horizontal accel
-      trailDots: 26,
-
-      candleW: 16,
-      candleH: 54,
-
-      arrowW: 34,
-      arrowH: 6,
-
-      // Palette (matching BirthdayCard-ish)
-      ink: "rgba(190, 240, 255, 0.95)",       // cool ink cyan
-      inkSoft: "rgba(190, 240, 255, 0.35)",
-      amber: "rgba(255, 210, 122, 0.95)",     // warm candle amber
-      amberSoft: "rgba(255, 210, 122, 0.35)",
-      paperLine: "rgba(255,255,255,0.10)",
-      bgTop: "rgba(255,255,255,0.06)",
-      bgBot: "rgba(255,255,255,0.03)",
-    }),
-    []
-  );
-
-  const vibrate = (pattern) => {
-    if (!hapticsRef.current) return;
-    if (typeof navigator === "undefined") return;
-    if (typeof navigator.vibrate !== "function") return;
+  const audioRef = useRef(null); // WebAudio context + nodes
+  const playClick = (freq = 520, durationMs = 60) => {
+    if (!soundOnRef.current) return;
     try {
-      navigator.vibrate(pattern);
+      if (!audioRef.current) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        audioRef.current = { ctx: new Ctx() };
+      }
+      const ctx = audioRef.current.ctx;
+      if (ctx.state === "suspended") ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.value = 0.0001;
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const t0 = ctx.currentTime;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.08, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durationMs / 1000);
+
+      osc.start(t0);
+      osc.stop(t0 + durationMs / 1000 + 0.02);
     } catch {
       // ignore
     }
   };
 
-  const ensureAudioCtx = async () => {
-    if (!soundRef.current) return null;
-    if (typeof window === "undefined") return null;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-
-    if (!audioCtxRef.current) audioCtxRef.current = new AC();
-    // iOS requires resume from a gesture
-    if (audioCtxRef.current.state === "suspended") {
+  const vibrate = (pattern = 10) => {
+    if (!hapticsOnRef.current) return;
+    if (navigator && "vibrate" in navigator) {
       try {
-        await audioCtxRef.current.resume();
+        navigator.vibrate(pattern);
       } catch {
         // ignore
       }
     }
-    return audioCtxRef.current;
   };
 
-  const blip = async ({ freq = 520, dur = 0.06, type = "sine", gain = 0.05 } = {}) => {
-    if (!soundRef.current) return;
-    const ctx = await ensureAudioCtx();
-    if (!ctx) return;
+  // Load assets (real bow/arrow/candle)
+  const imagesRef = useRef({
+    bow: null,
+    arrow: null,
+    candle: null,
+    loaded: false,
+  });
 
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type;
-    o.frequency.value = freq;
+  useEffect(() => {
+    let cancelled = false;
 
-    g.gain.value = 0;
-    g.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    const bow = new Image();
+    const arrow = new Image();
+    const candle = new Image();
 
-    o.connect(g);
-    g.connect(ctx.destination);
+    // IMPORTANT: case-sensitive on Vercel/Linux. Match filenames exactly in /public/game.
+    bow.src = "/game/bow.png";
+    arrow.src = "/game/arrow.png";
+    candle.src = "/game/candle.png";
 
-    o.start();
-    o.stop(ctx.currentTime + dur + 0.02);
-  };
+    let loaded = 0;
+    const onLoad = () => {
+      loaded += 1;
+      if (!cancelled && loaded === 3) {
+        imagesRef.current = { bow, arrow, candle, loaded: true };
+        setAssetsReady(true);
+      }
+    };
+    const onError = () => {
+      // If any fail, we still run with drawn fallbacks.
+      // We only mark ready if all 3 loaded; otherwise keep false.
+    };
+
+    bow.onload = onLoad;
+    arrow.onload = onLoad;
+    candle.onload = onLoad;
+
+    bow.onerror = onError;
+    arrow.onerror = onError;
+    candle.onerror = onError;
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Simulation state lives in refs (no re-render loop)
+  const simRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    const container = containerRef.current;
+    if (!canvas || !container) return;
     const ctx = canvas.getContext("2d", { alpha: true });
 
-    // HiDPI setup
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    let raf = 0;
+    let last = performance.now();
+
+    // HiDPI canvas (fixes "low quality" on mobile)
     const resize = () => {
-      const cssW = canvas.clientWidth;
-      const cssH = canvas.clientHeight;
-      canvas.width = Math.floor(cssW * dpr);
-      canvas.height = Math.floor(cssH * dpr);
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
     };
+
     resize();
     window.addEventListener("resize", resize);
 
-    const state = {
-      aiming: false,
-      origin: { x: 78, y: height - 78 },        // launch: bottom-left-ish
-      aimNow: { x: 120, y: height - 120 },
+    // Create candles arranged in an arc-ish row
+    const init = () => {
+      const rect = canvas.getBoundingClientRect();
+      const W = rect.width;
+      const H = rect.height;
 
-      arrows: [],
-      sparks: [],
+      const candles = Array.from({ length: candleCount }).map((_, i) => {
+        const spread = Math.min(46, Math.max(26, W / (candleCount + 3)));
+        const baseX = W * 0.55;
+        const x = baseX + i * spread;
+        const y = H * 0.46 + Math.sin(i * 0.35) * 4;
 
-      lastTs: performance.now(),
-      wind: (Math.random() * 2 - 1) * config.windMax,
+        // Candle draw size (tuned to feel like your asset scale)
+        const h = Math.max(72, Math.min(110, H * 0.22));
+        const w = h * 0.32;
 
-      candles: [],
-      w: canvas.clientWidth,
-      h: canvas.clientHeight,
-
-      completed: false,
-    };
-
-    const rand = (a, b) => a + Math.random() * (b - a);
-
-    const resetCandles = () => {
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
-
-      // Place candles on a cake-ish baseline
-      const cakeY = Math.max(140, Math.min(h * 0.55, h - 160));
-      const startX = Math.max(w * 0.46, w - (candleCount * 36 + 60));
-      state.candles = Array.from({ length: candleCount }).map((_, i) => ({
-        x: startX + i * 36 + rand(-3, 3),
-        y: cakeY + rand(-6, 6),
-        w: config.candleW,
-        h: config.candleH,
-        lit: true,
-        flicker: rand(0, 20),
-        wiggle: 0,
-      }));
-    };
-    resetCandles();
-
-    // Helpers
-    const clamp01 = (x) => Math.max(0, Math.min(1, x));
-    const rectsIntersect = (a, b) =>
-      a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-
-    const spawnSparks = (x, y) => {
-      for (let i = 0; i < 22; i++) {
-        state.sparks.push({
+        return {
           x,
           y,
-          vx: (Math.random() - 0.5) * 480,
+          w,
+          h,
+          lit: true,
+          flicker: Math.random() * 10,
+        };
+      });
+
+      // Bow anchor (bottom-left)
+      const bowAnchor = { x: 26, y: H - 34 };
+
+      // Wind (small)
+      const wind = (Math.random() * 2 - 1) * (reducedMotion ? 0 : 70);
+
+      simRef.current = {
+        W,
+        H,
+        bowAnchor,
+        wind,
+        aiming: false,
+        aimNow: { x: bowAnchor.x + 80, y: bowAnchor.y - 120 },
+        arrows: [],
+        particles: [],
+        candles,
+        done: false,
+        finishedAt: null,
+      };
+
+      setRemaining(candles.filter((c) => c.lit).length);
+      setShots(0);
+    };
+
+    init();
+
+    // Helpers: background and particles
+    const drawBackground = (W, H) => {
+      // parchment-ish gradient (matches your card world better)
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#161412");
+      g.addColorStop(0.45, "#0f0e0d");
+      g.addColorStop(1, "#0b0a09");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+
+      // subtle vignette
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.rect(0, 0, W, H);
+      ctx.rect(10, 10, W - 20, H - 20);
+      ctx.fill("evenodd");
+      ctx.restore();
+    };
+
+    const spawnSparks = (x, y) => {
+      const s = simRef.current;
+      for (let i = 0; i < 24; i++) {
+        s.particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 420,
           vy: (Math.random() - 0.9) * 520,
-          life: 0.55 + Math.random() * 0.25,
-          size: rand(1, 2.2),
+          life: 0.38 + Math.random() * 0.22,
         });
       }
     };
 
-    const shoot = async () => {
-      const dx = state.origin.x - state.aimNow.x;
-      const dy = state.origin.y - state.aimNow.y;
+    const capsulePath = (x, y, w, h) => ({ x, y, w, h }); // placeholder for hitbox readability
 
-      let dist = Math.hypot(dx, dy) * 7.2;
-      dist = Math.max(config.minPower, Math.min(config.maxPower, dist));
+    // Physics constants (tuned for mobile)
+    const GRAVITY = 1500; // px/s^2
+    const MAX_POWER = 1100;
+    const MIN_POWER = 350;
+
+    const shoot = () => {
+      const s = simRef.current;
+      if (!s || s.done) return;
+
+      const startX = s.bowAnchor.x + 72;
+      const startY = s.bowAnchor.y - 122;
+
+      const dx = startX - s.aimNow.x;
+      const dy = startY - s.aimNow.y;
+
+      const dist = Math.hypot(dx, dy);
+      // drag distance to power (clamped)
+      const power = Math.max(MIN_POWER, Math.min(MAX_POWER, dist * 7));
 
       const angle = Math.atan2(dy, dx);
 
-      state.arrows.push({
-        x: state.origin.x,
-        y: state.origin.y,
-        w: config.arrowW,
-        h: config.arrowH,
-        vx: Math.cos(angle) * dist,
-        vy: Math.sin(angle) * dist,
+      // Arrow sizing (drawn image gets scaled)
+      s.arrows.push({
+        x: startX,
+        y: startY,
+        vx: Math.cos(angle) * power,
+        vy: Math.sin(angle) * power,
         rot: angle,
         alive: true,
+        length: 130,
+        thickness: 10,
       });
 
-      setShots((s) => s + 1);
-      setHint("Again. Steady.");
-
-      vibrate(12);
-      await blip({ freq: 420, dur: 0.05, type: "triangle", gain: 0.04 });
+      setShots((v) => v + 1);
+      playClick(420, 55);
+      vibrate(10);
     };
 
-    const onDown = async (e) => {
-      if (state.completed) return;
-      // ensure audio context can start from gesture
-      await ensureAudioCtx();
-      state.aiming = true;
-      const r = canvas.getBoundingClientRect();
-      state.aimNow = { x: e.clientX - r.left, y: e.clientY - r.top };
-      vibrate(8);
-    };
+    // Pointer events (mobile friendly)
+    const onDown = (e) => {
+      const s = simRef.current;
+      if (!s || s.done) return;
 
+      // Ensure webaudio can start on user gesture
+      if (soundOnRef.current) playClick(220, 1);
+
+      s.aiming = true;
+      const rect = canvas.getBoundingClientRect();
+      s.aimNow = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
     const onMove = (e) => {
-      if (!state.aiming) return;
-      const r = canvas.getBoundingClientRect();
-      state.aimNow = { x: e.clientX - r.left, y: e.clientY - r.top };
+      const s = simRef.current;
+      if (!s || !s.aiming || s.done) return;
+      const rect = canvas.getBoundingClientRect();
+      s.aimNow = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
-
-    const onUp = async () => {
-      if (!state.aiming) return;
-      state.aiming = false;
-      await shoot();
+    const onUp = () => {
+      const s = simRef.current;
+      if (!s || !s.aiming || s.done) return;
+      s.aiming = false;
+      shoot();
     };
 
     canvas.addEventListener("pointerdown", onDown);
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerup", onUp);
     canvas.addEventListener("pointercancel", onUp);
+    canvas.addEventListener("pointerleave", onUp);
 
-    // Update loop
-    const update = async (dt, w, h) => {
-      // arrows
-      for (const a of state.arrows) {
+    const update = (dt) => {
+      const s = simRef.current;
+      if (!s) return;
+
+      // update arrows
+      for (const a of s.arrows) {
         if (!a.alive) continue;
 
-        // wind influences vx slightly
-        a.vx += state.wind * dt;
-        a.vy += config.gravity * dt;
-
+        a.vy += GRAVITY * dt;
+        a.vx += s.wind * dt * 0.2; // wind influence
         a.x += a.vx * dt;
         a.y += a.vy * dt;
         a.rot = Math.atan2(a.vy, a.vx);
 
         // kill if out of bounds
-        if (a.x > w + 120 || a.y > h + 120 || a.y < -180) a.alive = false;
+        if (a.x > s.W + 160 || a.y > s.H + 160 || a.y < -260) a.alive = false;
 
         // collisions
-        const arrowBox = { x: a.x, y: a.y, w: a.w, h: a.h };
-        for (const c of state.candles) {
+        const arrowBox = { x: a.x - 10, y: a.y - 6, w: 44, h: 16 };
+        for (const c of s.candles) {
           if (!c.lit) continue;
-          const candleBox = { x: c.x, y: c.y, w: c.w, h: c.h };
+          const candleBox = capsulePath(c.x - c.w / 2, c.y - c.h, c.w, c.h);
           if (rectsIntersect(arrowBox, candleBox)) {
             c.lit = false;
-            c.wiggle = 1;
             a.alive = false;
-            spawnSparks(c.x + c.w / 2, c.y);
 
-            vibrate([20, 20, 10]);
-            await blip({ freq: 820, dur: 0.06, type: "sine", gain: 0.06 });
+            spawnSparks(c.x, c.y - c.h * 0.75);
+            playClick(760, 70);
+            vibrate([12, 18, 12]);
+
+            const left = s.candles.filter((cc) => cc.lit).length;
+            setRemaining(left);
+
+            if (left === 0 && !s.done) {
+              s.done = true;
+              s.finishedAt = nowSec();
+              if (typeof onComplete === "function") {
+                // small delay so the final hit lands
+                setTimeout(() => onComplete(), 550);
+              }
+            }
           }
         }
       }
 
-      // sparks
-      state.sparks = state.sparks.filter((p) => p.life > 0);
-      for (const p of state.sparks) {
-        p.vy = (p.vy ?? 0) + config.gravity * 0.35 * dt;
+      // update particles
+      s.particles = s.particles.filter((p) => p.life > 0);
+      for (const p of s.particles) {
+        p.vy = (p.vy ?? 0) + GRAVITY * 0.35 * dt;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.life -= dt;
       }
 
-      // candle wiggle decay + flicker
-      for (const c of state.candles) {
-        if (c.wiggle > 0) c.wiggle = Math.max(0, c.wiggle - dt * 3);
-        c.flicker += dt * 18;
+      // candle flicker
+      for (const c of s.candles) {
+        c.flicker += dt * 9;
       }
+    };
 
-      // completion
-      if (!state.completed && state.candles.every((c) => !c.lit)) {
-        state.completed = true;
-        setDone(true);
-        setHint("Perfect. Unlocked.");
+    const drawTrajectoryPreview = (s) => {
+      if (!s.aiming) return;
 
-        vibrate([30, 30, 30]);
-        await blip({ freq: 980, dur: 0.08, type: "triangle", gain: 0.06 });
+      const startX = s.bowAnchor.x + 72;
+      const startY = s.bowAnchor.y - 122;
 
-        if (typeof onComplete === "function") {
-          const timeMs = Math.max(0, performance.now() - startTimeRef.current);
-          onComplete({ shots: shots + 1, timeMs });
+      const dx = startX - s.aimNow.x;
+      const dy = startY - s.aimNow.y;
+      const dist = Math.hypot(dx, dy);
+      const power = Math.max(MIN_POWER, Math.min(MAX_POWER, dist * 7));
+      const angle = Math.atan2(dy, dx);
+
+      let x = startX;
+      let y = startY;
+      let vx = Math.cos(angle) * power;
+      let vy = Math.sin(angle) * power;
+
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = "#f2e7d1";
+      for (let i = 0; i < 22; i++) {
+        // fixed small step for preview
+        const dt = 0.016;
+        vy += GRAVITY * dt;
+        vx += s.wind * dt * 0.2;
+        x += vx * dt;
+        y += vy * dt;
+        ctx.fillRect(x, y, 2, 2);
+      }
+      ctx.restore();
+    };
+
+    const drawCandles = (s) => {
+      const { candle } = imagesRef.current;
+
+      for (const c of s.candles) {
+        if (!c.lit) continue;
+
+        // If asset loaded, draw it; else fallback
+        if (candle) {
+          ctx.save();
+          // warm glow behind candle
+          ctx.globalAlpha = 0.25;
+          ctx.fillStyle = "#ffcc66";
+          ctx.beginPath();
+          ctx.ellipse(c.x, c.y - c.h * 0.9, c.w * 1.0, c.h * 0.35, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.drawImage(candle, c.x - c.w / 2, c.y - c.h, c.w, c.h);
+        } else {
+          // Fallback: simple candle
+          ctx.save();
+          ctx.fillStyle = "#e8dcc8";
+          ctx.fillRect(c.x - c.w / 2, c.y - c.h, c.w, c.h);
+          ctx.fillStyle = "#ffcc66";
+          ctx.beginPath();
+          ctx.ellipse(c.x, c.y - c.h - 10, 6, 11, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
       }
     };
 
-    const drawBackground = (w, h) => {
-      // Dark base
-      ctx.clearRect(0, 0, w, h);
+    const drawArrows = (s) => {
+      const { arrow } = imagesRef.current;
 
-      // Soft paper gradient (matches BirthdayCard feel)
-      const g = ctx.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, "rgba(15,18,22,1)");
-      g.addColorStop(1, "rgba(7,9,12,1)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-
-      // Warm + cool glows (like your poem panel)
-      const glow1 = ctx.createRadialGradient(w * 0.55, h * 0.18, 10, w * 0.55, h * 0.18, w * 0.9);
-      glow1.addColorStop(0, "rgba(255,210,122,0.10)");
-      glow1.addColorStop(1, "rgba(255,210,122,0)");
-      ctx.fillStyle = glow1;
-      ctx.fillRect(0, 0, w, h);
-
-      const glow2 = ctx.createRadialGradient(w * 0.18, h * 0.78, 10, w * 0.18, h * 0.78, w * 0.85);
-      glow2.addColorStop(0, "rgba(190,240,255,0.10)");
-      glow2.addColorStop(1, "rgba(190,240,255,0)");
-      ctx.fillStyle = glow2;
-      ctx.fillRect(0, 0, w, h);
-
-      // Subtle grain (cheap, effective)
-      ctx.globalAlpha = 0.14;
-      for (let i = 0; i < 220; i++) {
-        const x = Math.random() * w;
-        const y = Math.random() * h;
-        const r = Math.random() * 1.6;
-        ctx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.10)";
-        ctx.fillRect(x, y, r, r);
-      }
-      ctx.globalAlpha = 1;
-    };
-
-    const draw = (w, h) => {
-      drawBackground(w, h);
-
-      // “Cake” platform line
-      ctx.strokeStyle = config.paperLine;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      const cakeY = state.candles.length ? state.candles[0].y + state.candles[0].h + 16 : h * 0.62;
-      ctx.moveTo(w * 0.36, cakeY);
-      ctx.lineTo(w - 24, cakeY);
-      ctx.stroke();
-
-      // Wind indicator
-      ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.65)";
-      const windDir = state.wind >= 0 ? "→" : "←";
-      ctx.fillText(`wind ${windDir}`, w - 74, 22);
-
-      // Candles + flames
-      for (const c of state.candles) {
-        const wiggleX = Math.sin((1 - c.wiggle) * 18) * 5 * c.wiggle;
-
-        // candle body (ink outline + warm fill)
-        ctx.fillStyle = "rgba(255,255,255,0.06)";
-        ctx.fillRect(c.x + wiggleX, c.y, c.w, c.h);
-
-        ctx.strokeStyle = "rgba(255,255,255,0.10)";
-        ctx.strokeRect(c.x + wiggleX, c.y, c.w, c.h);
-
-        if (c.lit) {
-          const fx = c.x + c.w / 2 + wiggleX + Math.sin(c.flicker) * 1.8;
-          const fy = c.y - 10 + Math.cos(c.flicker * 0.7) * 1.2;
-
-          // flame glow
-          const fg = ctx.createRadialGradient(fx, fy, 2, fx, fy, 16);
-          fg.addColorStop(0, "rgba(255,210,122,0.55)");
-          fg.addColorStop(1, "rgba(255,210,122,0)");
-          ctx.fillStyle = fg;
-          ctx.beginPath();
-          ctx.arc(fx, fy, 16, 0, Math.PI * 2);
-          ctx.fill();
-
-          // flame core
-          ctx.fillStyle = config.amber;
-          ctx.beginPath();
-          ctx.ellipse(fx, fy, 5.5, 10, 0, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      // Trajectory preview while aiming
-      if (state.aiming && !state.completed) {
-        const dx = state.origin.x - state.aimNow.x;
-        const dy = state.origin.y - state.aimNow.y;
-
-        let dist = Math.hypot(dx, dy) * 7.2;
-        dist = Math.max(config.minPower, Math.min(config.maxPower, dist));
-
-        const angle = Math.atan2(dy, dx);
-        let x = state.origin.x;
-        let y = state.origin.y;
-        let vx = Math.cos(angle) * dist;
-        let vy = Math.sin(angle) * dist;
-
-        ctx.fillStyle = config.inkSoft;
-        for (let i = 0; i < config.trailDots; i++) {
-          const dt = 0.016;
-          vx += state.wind * dt;
-          vy += config.gravity * dt;
-          x += vx * dt;
-          y += vy * dt;
-          ctx.fillRect(x, y, 2, 2);
-        }
-      }
-
-      // Bow (simple ink arc)
-      ctx.strokeStyle = config.inkSoft;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(state.origin.x - 10, state.origin.y + 8, 42, -0.8, 0.8);
-      ctx.stroke();
-
-      // Arrows
-      for (const a of state.arrows) {
+      for (const a of s.arrows) {
         if (!a.alive) continue;
-        ctx.save();
-        ctx.translate(a.x, a.y);
-        ctx.rotate(a.rot);
-        ctx.fillStyle = config.ink;
-        ctx.fillRect(0, 0, a.w, a.h);
 
-        // tiny arrowhead
-        ctx.beginPath();
-        ctx.moveTo(a.w, a.h / 2);
-        ctx.lineTo(a.w + 8, -3);
-        ctx.lineTo(a.w + 8, a.h + 3);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.restore();
+        if (arrow) {
+          ctx.save();
+          ctx.translate(a.x, a.y);
+          ctx.rotate(a.rot);
+          ctx.drawImage(arrow, -a.length * 0.12, -a.thickness / 2, a.length, a.thickness);
+          ctx.restore();
+        } else {
+          // fallback arrow
+          ctx.save();
+          ctx.translate(a.x, a.y);
+          ctx.rotate(a.rot);
+          ctx.fillStyle = "#d7f3ff";
+          ctx.fillRect(0, -2, 40, 4);
+          ctx.restore();
+        }
       }
+    };
 
-      // Sparks
-      for (const p of state.sparks) {
+    const drawParticles = (s) => {
+      ctx.save();
+      ctx.fillStyle = "#ffcc66";
+      for (const p of s.particles) {
         ctx.globalAlpha = Math.max(0, p.life);
-        ctx.fillStyle = config.amber;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-        ctx.globalAlpha = 1;
+        ctx.fillRect(p.x, p.y, 2, 2);
       }
-
-      // HUD (shots + hint)
-      ctx.fillStyle = "rgba(255,255,255,0.70)";
-      ctx.fillText(`shots ${shots}`, 14, 22);
-
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.fillText(hint, 14, h - 14);
+      ctx.restore();
     };
 
-    const loop = async (ts) => {
-      const dt = Math.min(0.033, (ts - state.lastTs) / 1000);
-      state.lastTs = ts;
+    const drawBow = (s) => {
+      const { bow } = imagesRef.current;
 
-      state.w = canvas.clientWidth;
-      state.h = canvas.clientHeight;
+      // Slight scale-up while aiming to feel responsive
+      const scale = s.aiming ? 1.03 : 1.0;
 
-      if (!startTimeRef.current) startTimeRef.current = performance.now();
+      ctx.save();
+      ctx.globalAlpha = 0.96;
 
-      if (!state.completed) {
-        // update is async because of sound; keep it lightweight
-        await update(dt, state.w, state.h);
+      if (bow) {
+        const bowW = 150 * scale;
+        const bowH = bowW * (bow.height / bow.width);
+        const x = 18;
+        const y = s.H - bowH - 18;
+
+        ctx.drawImage(bow, x, y, bowW, bowH);
+      } else {
+        // fallback bow
+        ctx.strokeStyle = "#f2e7d1";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(46, s.H - 70, 60, -1.2, 1.1);
+        ctx.stroke();
       }
 
-      draw(state.w, state.h);
-
-      rafRef.current = requestAnimationFrame(loop);
+      ctx.restore();
     };
 
-    rafRef.current = requestAnimationFrame(loop);
+    const drawHUD = (s) => {
+      // Wind indicator
+      const wind = s.wind || 0;
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = "#f2e7d1";
+      ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const dir = wind === 0 ? "•" : wind > 0 ? "→" : "←";
+      const mag = Math.round(Math.abs(wind));
+      ctx.fillText(`Wind ${dir} ${mag}`, s.W - 96, 18);
+      ctx.restore();
+    };
+
+    const loop = (t) => {
+      const s = simRef.current;
+      if (!s) return;
+
+      const dt = Math.min(0.033, (t - last) / 1000);
+      last = t;
+
+      // In reduced motion, minimize wind and particles
+      if (reducedMotion) s.wind = 0;
+
+      update(dt);
+
+      // Draw
+      const rect = canvas.getBoundingClientRect();
+      s.W = rect.width;
+      s.H = rect.height;
+
+      ctx.clearRect(0, 0, s.W, s.H);
+      drawBackground(s.W, s.H);
+      drawCandles(s);
+      drawTrajectoryPreview(s);
+      drawArrows(s);
+      drawParticles(s);
+      drawBow(s);
+      drawHUD(s);
+
+      raf = requestAnimationFrame(loop);
+    };
+
+    raf = requestAnimationFrame(loop);
 
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
-      cancelAnimationFrame(rafRef.current);
+      canvas.removeEventListener("pointerleave", onUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candleCount, height, config]);
+  }, [candleCount, onComplete, reducedMotion]);
 
   return (
-    <div style={{ width: "100%", position: "relative" }}>
-      {showToggles && (
-        <div style={toggles}>
-          <button
-            type="button"
-            onClick={() => setHapticsOn((v) => !v)}
-            style={{ ...toggleBtn, ...(hapticsOn ? toggleOn : {}) }}
-          >
-            Haptics {hapticsOn ? "On" : "Off"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSoundOn((v) => !v)}
-            style={{ ...toggleBtn, ...(soundOn ? toggleOn : {}) }}
-          >
-            Sound {soundOn ? "On" : "Off"}
-          </button>
-        </div>
-      )}
-
-      <canvas
-        ref={canvasRef}
+    <div
+      ref={containerRef}
+      style={{
+        width,
+        position: "relative",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        touchAction: "none",
+      }}
+    >
+      {/* Header */}
+      <div
         style={{
-          width: "100%",
-          height,
-          borderRadius: 18,
-          border: "1px solid rgba(255,255,255,.10)",
-          boxShadow: "0 18px 40px rgba(0,0,0,.40)",
-          touchAction: "none",
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 12px",
         }}
-      />
-
-      {done && (
-        <div style={doneBadge}>
-          <div style={{ fontWeight: 900 }}>Unlocked</div>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>Proceed to your reward.</div>
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ fontSize: 14, opacity: 0.9, color: "#f2e7d1" }}>
+            Extinguish the candles
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.75, color: "#f2e7d1" }}>
+            Drag to aim + power. Release to shoot.
+          </div>
         </div>
-      )}
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ fontSize: 12, opacity: 0.8, color: "#f2e7d1" }}>
+            Shots: {shots}
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.8, color: "#f2e7d1" }}>
+            Left: {remaining}
+          </div>
+        </div>
+      </div>
+
+      {/* Canvas area */}
+      <div style={{ position: "relative", padding: "0 12px 12px" }}>
+        <div
+          style={{
+            position: "relative",
+            borderRadius: 18,
+            overflow: "hidden",
+            border: "1px solid rgba(242,231,209,0.12)",
+            boxShadow: "0 18px 55px rgba(0,0,0,0.45)",
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            style={{
+              width: "100%",
+              height,
+              display: "block",
+            }}
+          />
+
+          {/* Debug badge: helps confirm production is using /game assets */}
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              fontSize: 12,
+              padding: "6px 10px",
+              borderRadius: 999,
+              background: "rgba(0,0,0,0.35)",
+              color: "#fff",
+              zIndex: 20,
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+            title="If this says LOADING forever, check /game/*.png paths and filename casing."
+          >
+            {assetsReady ? "ASSETS: OK" : "ASSETS: LOADING"}
+          </div>
+
+          {/* Toggles */}
+          <div
+            style={{
+              position: "absolute",
+              left: 10,
+              top: 10,
+              display: "flex",
+              gap: 8,
+              zIndex: 20,
+            }}
+          >
+            <TogglePill label="Sound" value={soundOn} onChange={setSoundOn} />
+            <TogglePill label="Haptics" value={hapticsOn} onChange={setHapticsOn} />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer hint */}
+      <div style={{ padding: "0 12px 14px", color: "#f2e7d1", opacity: 0.7, fontSize: 12 }}>
+        Tip: If it looks blurry on mobile, the canvas is DPR-scaled already; then it’s likely the asset
+        filenames (case-sensitive) or upscaling.
+      </div>
     </div>
   );
 }
 
-const toggles = {
-  position: "absolute",
-  zIndex: 5,
-  top: 10,
-  left: 10,
-  display: "flex",
-  gap: 8,
-};
-
-const toggleBtn = {
-  borderRadius: 999,
-  border: "1px solid rgba(255,255,255,.14)",
-  background: "rgba(255,255,255,.06)",
-  color: "rgba(255,255,255,.85)",
-  fontSize: 12,
-  padding: "8px 10px",
-  backdropFilter: "blur(10px)",
-};
-
-const toggleOn = {
-  border: "1px solid rgba(255,210,122,.35)",
-  background: "rgba(255,210,122,.10)",
-  color: "rgba(255,210,122,.95)",
-};
-
-const doneBadge = {
-  position: "absolute",
-  left: 14,
-  bottom: 14,
-  padding: "10px 12px",
-  borderRadius: 14,
-  border: "1px solid rgba(255,210,122,.20)",
-  background: "rgba(0,0,0,.45)",
-  color: "rgba(255,210,122,.95)",
-  backdropFilter: "blur(10px)",
-};
+function TogglePill({ label, value, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!value)}
+      style={{
+        appearance: "none",
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: value ? "rgba(255, 204, 102, 0.22)" : "rgba(0,0,0,0.30)",
+        color: "#fff",
+        borderRadius: 999,
+        padding: "6px 10px",
+        fontSize: 12,
+        lineHeight: "12px",
+        cursor: "pointer",
+        display: "flex",
+        gap: 6,
+        alignItems: "center",
+      }}
+      aria-pressed={value}
+    >
+      <span style={{ opacity: 0.85 }}>{label}</span>
+      <span style={{ opacity: 0.95 }}>{value ? "On" : "Off"}</span>
+    </button>
+  );
+}
