@@ -1,105 +1,97 @@
 "use client";
 
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
-import CardInsideOrnate from "./CardInsideOrnate";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
-const BOW_ARROW_CONFIG = {
-  // Bow settings
-  bowRotation: 180, // Degrees to rotate the bow (90 = vertical)
-  bowWidth: 120, // Size of the bow in pixels
-  bowOffsetY: 40, // Vertical offset for the entire bow/arrow unit
-
-  // Arrow settings
-  arrowRotation: 0, // Degrees to rotate the arrow (0 = horizontal right)
-  arrowWidth: 140, // Size of the arrow in pixels
-  arrowOffsetX: 30, // Horizontal offset from bow center
-  arrowOffsetY: 0, // Vertical offset relative to bow
-  pullDistance: 100, // How far arrow moves when pulled back
-
-  // Flight settings
-  arrowFlightDistance: 500, // How far the arrow flies (in pixels)
-  arrowFlightDuration: 1.5, // Flight animation duration (in seconds)
-
-  // Candle extinguish timing (milliseconds after arrow release)
-  candleExtinguishDelays: [500, 600, 700, 800, 900],
-};
-
+/**
+ * BirthdayCard (Next.js / Vercel)
+ * - Calligraphy font (TTF) rendered in SVG <text>
+ * - "Ink pressure" via animated mask thickness (tapered ends, thick mid-line)
+ * - Paper grain overlay + ink bleed filter
+ * - Audio-synced writing driven by audio.currentTime
+ * - Autoplay-safe: shows a "Tap to start with sound" overlay if blocked
+ *
+ * Assets (default):
+ *  - Font:  /public/fonts/InterSignature-q20q2.ttf  -> /fonts/InterSignature-q20q2.ttf
+ *  - Audio: /public/audio/luke-poem.mp3            -> /audio/luke-poem.mp3
+ *  - Photos: /public/photo1.jpg etc.
+ */
 export default function BirthdayCard({
   toName = "Luke",
   photos = ["/photo1.jpg", "/photo2.jpg", "/photo3.jpg"],
-  captions = ["Memory #1", "Memory #2", "Memory #3"],
   fontUrl = "/fonts/InterSignature-q20q2.ttf",
   audioUrl = "/audio/luke-poem.mp3",
+  autoStart = true,
+
+  /**
+   * lineStartTimes: seconds for each poem line (INCLUDING blank spacer lines).
+   * If you want perfect sync, tweak these by small amounts.
+   * If you pass null, it will auto-distribute across the audio duration.
+   */
   lineStartTimes = [
-    0.0, 4.2, 7.4, 11.8, 15.4, 18.9, 23.1, 27.0, 31.6, 34.6, 36.9, 41.9, 45.9,
-    50.0, 53.1, 57.2, 62.1, 65.6, 69.4, 73.0, 77.0,
+    0.000, 4.288, 7.407, 11.825, 15.464,
+    18.943, 23.189, 27.060, 31.680, 34.677,
+    36.994, 41.951, 45.941, 50.052, 53.196,
+    57.290, 62.135, 65.698, 69.403,
   ],
 }) {
-  const POEM_LINES = [
-    "The world became a brighter place...",
-    "The moment Luke arrived,",
-    "With kindness written on his face",
-    "And a spirit meant to thrive.",
-    "",
-    "Through every year and every mile,",
-    "A soul grows in heart and mind,",
-    "With a steady hand and a ready smile,",
-    "The rarest sort to find.",
-    "",
-    "May this day be filled with all that's loved,",
-    "With laughter, warmth, and light,",
-    "And may the year ahead unfold...",
-    "To be exceptionally bright..",
-    "",
-    "So here's to Luke, for all he is,",
-    "And the light he's always shown,",
-    "",
-    "The greatest gift of all Dear Luke,",
-    "Is To Be Known",
-  ];
-
-  const EMPHASIS_WORDS = [
-    "Luke",
-    "thrive",
-    "loved",
-    "bright",
-    "Known",
-    "heart",
-  ];
-
-  const [fontReady, setFontReady] = useState(false);
-  const [cardOpen, setCardOpen] = useState(false);
-  const [arrowPull, setArrowPull] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [lineProgress, setLineProgress] = useState(() =>
-    POEM_LINES.map(() => 0),
+  const POEM_LINES = useMemo(
+    () => [
+      "The world became a brighter place",
+      "The moment Luke arrived,",
+      "With kindness written on your face",
+      "And a spirit meant to thrive",
+      "",
+      "Through every year and every mile,",
+      "You’ve grown in heart and mind,",
+      "With a steady hand and a ready smile,",
+      "The rarest soul to find.",
+      "",
+      "May your day be filled with all you love,",
+      "With laughter, warmth, and light,",
+      "And may the year ahead hold dreams",
+      "That shine forever bright.",
+      "",
+      "So here’s to you, for all you are,",
+      "And all you’re yet to be—",
+      "Luke, you truly are a star",
+      "For everyone to see.",
+    ],
+    []
   );
-  const [candlesLit, setCandlesLit] = useState([true, true, true, true, true]);
-  const [arrowFlying, setArrowFlying] = useState(false);
-  const [showSmoke, setShowSmoke] = useState([
-    false,
-    false,
-    false,
-    false,
-    false,
-  ]);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [photoSwipeOffset, setPhotoSwipeOffset] = useState(0);
-  const [isPhotoSwiping, setIsPhotoSwiping] = useState(false);
 
+  const svgRef = useRef(null);
+  const penRef = useRef(null);
   const audioRef = useRef(null);
-  const rafRef = useRef(null);
-  const dragStartX = useRef(0);
-  const photoSwipeStartX = useRef(0);
-  const silentAnimationRan = useRef(false);
 
+  // Animated mask: one path per line (white reveals the ink)
+  const maskPathsRef = useRef([]);
+  const rafRef = useRef(0);
+
+  const [status, setStatus] = useState("Ready ✍️");
+  const [ready, setReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [needsGesture, setNeedsGesture] = useState(false);
+
+  // Layout knobs
+  const viewW = 900;
+  const viewH = 560;
+  const startX = 40;
+  const startY = 90;
+  const lineGap = 48;
+  const maxRevealW = 860;
+
+  // Tuned "pressure" knobs
+  // Thinner starts/ends, richer mid-line, with a slightly late peak (feels more like a flourish)
+  const strokeMin = 18;   // thin
+  const strokeMax = 62;   // thick
+  const peakShift = 0.07; // shift thickness peak slightly later (0..0.15-ish)
+  const pressureGamma = 0.72; // <1 broadens the thick region
+
+  // Ink look
+  const inkFill = "rgba(255,255,255,.96)";
+  const inkGlow = "rgba(255,210,122,.22)";
+
+  // ---------- Font loading ----------
   useEffect(() => {
     let cancelled = false;
     async function loadFont() {
@@ -108,8 +100,10 @@ export default function BirthdayCard({
         await ff.load();
         document.fonts.add(ff);
         await document.fonts.ready;
-      } catch {}
-      if (!cancelled) setFontReady(true);
+      } catch {
+        // Fallback cursive is fine.
+      }
+      if (!cancelled) setReady(true);
     }
     loadFont();
     return () => {
@@ -117,1592 +111,601 @@ export default function BirthdayCard({
     };
   }, [fontUrl]);
 
-  const handleDragStart = useCallback(
-    (e) => {
-      if (cardOpen || arrowFlying) return;
-      setIsDragging(true);
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      dragStartX.current = clientX;
-      e.preventDefault();
-    },
-    [cardOpen, arrowFlying],
-  );
-
-  const handleDragMove = useCallback(
-    (e) => {
-      if (!isDragging || cardOpen || arrowFlying) return;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const delta = dragStartX.current - clientX;
-      const pull = Math.min(1, Math.max(0, delta / 100));
-      setArrowPull(pull);
-    },
-    [isDragging, cardOpen, arrowFlying],
-  );
-
-  const handleDragEnd = useCallback(() => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    if (arrowPull > 0.5) {
-      setArrowFlying(true);
-      setArrowPull(0);
-
-      BOW_ARROW_CONFIG.candleExtinguishDelays.forEach((delay, i) => {
-        setTimeout(() => {
-          setCandlesLit((prev) => {
-            const newState = [...prev];
-            newState[i] = false;
-            return newState;
-          });
-          setShowSmoke((prev) => {
-            const newState = [...prev];
-            newState[i] = true;
-            return newState;
-          });
-        }, delay);
-      });
-
-      setTimeout(() => {
-        setShowSmoke([false, false, false, false, false]);
-      }, 1800);
-
-      setTimeout(() => {
-        setCardOpen(true);
-        setArrowFlying(false);
-      }, 2000);
-    } else {
-      setArrowPull(0);
-    }
-  }, [isDragging, arrowPull]);
-
+  // ---------- Build mask paths once ----------
   useEffect(() => {
-    if (isDragging) {
-      window.addEventListener("mousemove", handleDragMove);
-      window.addEventListener("mouseup", handleDragEnd);
-      window.addEventListener("touchmove", handleDragMove, { passive: false });
-      window.addEventListener("touchend", handleDragEnd);
-      return () => {
-        window.removeEventListener("mousemove", handleDragMove);
-        window.removeEventListener("mouseup", handleDragEnd);
-        window.removeEventListener("touchmove", handleDragMove);
-        window.removeEventListener("touchend", handleDragEnd);
-      };
+    if (!ready) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const maskGroup = svg.querySelector("#maskGroup");
+    maskGroup.innerHTML = "";
+    maskPathsRef.current = [];
+
+    for (let i = 0; i < POEM_LINES.length; i++) {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("fill", "white");
+      p.setAttribute("d", capsulePath(0, lineCenterY(i), i));
+      maskGroup.appendChild(p);
+      maskPathsRef.current.push(p);
     }
-  }, [isDragging, handleDragMove, handleDragEnd]);
 
-  const handleArrowClick = () => {
-    if (!cardOpen && !isDragging && !arrowFlying) {
-      setArrowFlying(true);
-      [300, 400, 500, 600, 700].forEach((delay, i) => {
-        setTimeout(() => {
-          setCandlesLit((prev) => {
-            const newState = [...prev];
-            newState[i] = false;
-            return newState;
-          });
-          setShowSmoke((prev) => {
-            const newState = [...prev];
-            newState[i] = true;
-            return newState;
-          });
-        }, delay);
-      });
-      setTimeout(() => setShowSmoke([false, false, false, false, false]), 1800);
-      setTimeout(() => {
-        setCardOpen(true);
-        setArrowFlying(false);
-      }, 2000);
+    if (penRef.current) {
+      penRef.current.style.opacity = "0";
+      penRef.current.style.transform = "translate(-9999px,-9999px) rotate(18deg)";
     }
-  };
+  }, [ready, POEM_LINES]);
 
-  const handlePhotoSwipeStart = (e) => {
-    setIsPhotoSwiping(true);
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    photoSwipeStartX.current = clientX;
-  };
+  // ---------- Autostart (safe) ----------
+  useEffect(() => {
+    if (!ready || !autoStart) return;
 
-  const handlePhotoSwipeMove = (e) => {
-    if (!isPhotoSwiping) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const delta = clientX - photoSwipeStartX.current;
-    setPhotoSwipeOffset(delta);
-  };
+    const a = audioRef.current;
+    if (!a) return;
 
-  const handlePhotoSwipeEnd = () => {
-    if (!isPhotoSwiping) return;
-    setIsPhotoSwiping(false);
-
-    if (Math.abs(photoSwipeOffset) > 50) {
-      if (photoSwipeOffset < 0 && currentPhotoIndex < photos.length - 1) {
-        setCurrentPhotoIndex((prev) => prev + 1);
-      } else if (photoSwipeOffset > 0 && currentPhotoIndex > 0) {
-        setCurrentPhotoIndex((prev) => prev - 1);
-      }
-    }
-    setPhotoSwipeOffset(0);
-  };
-
-  const computeLineEnds = useCallback(() => {
-    const audio = audioRef.current;
-    const duration = audio?.duration || 72;
-    return lineStartTimes.map((t, i) =>
-      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : duration,
-    );
-  }, [lineStartTimes]);
-
-  const startAnimation = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const ends = computeLineEnds();
-
-    const tick = () => {
-      const t = audio.currentTime;
-      const newProgress = POEM_LINES.map((line, i) => {
-        if (!line.trim()) return t >= lineStartTimes[i] ? 1 : 0;
-        const t0 = lineStartTimes[i];
-        const t1 = ends[i];
-        return Math.min(1, Math.max(0, (t - t0) / Math.max(0.2, t1 - t0)));
-      });
-      setLineProgress(newProgress);
-
-      if (!audio.paused && !audio.ended) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else if (audio.ended) {
-        setIsPlaying(false);
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-  }, [lineStartTimes, computeLineEnds, POEM_LINES]);
-
-  const startSilentAnimation = useCallback(() => {
-    const totalDuration = 40;
-    const startTime = Date.now();
-    const originalDuration = lineStartTimes[lineStartTimes.length - 1] + 3;
-    const ends = lineStartTimes.map((t, i) =>
-      i < lineStartTimes.length - 1 ? lineStartTimes[i + 1] : originalDuration,
-    );
-    const scale = originalDuration / totalDuration;
-
-    const tick = () => {
-      const elapsed = (Date.now() - startTime) / 1000;
-      const t = elapsed * scale;
-
-      const newProgress = POEM_LINES.map((line, i) => {
-        if (!line.trim()) return t >= lineStartTimes[i] ? 1 : 0;
-        const t0 = lineStartTimes[i];
-        const t1 = ends[i];
-        return Math.min(1, Math.max(0, (t - t0) / Math.max(0.2, t1 - t0)));
-      });
-      setLineProgress(newProgress);
-
-      if (elapsed < totalDuration) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-  }, [lineStartTimes, POEM_LINES]);
-
-  const handlePlayAudio = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (audio.paused) {
+    const onMeta = async () => {
       try {
-        audio.currentTime = 0;
-        setLineProgress(POEM_LINES.map(() => 0));
-        await audio.play();
-        setIsPlaying(true);
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        startAnimation();
+        await a.play();
+        setNeedsGesture(false);
+        startSyncedAnimation();
       } catch {
-        startSilentAnimation();
+        setNeedsGesture(true);
+        setStatus("Tap to start (sound permission)");
       }
-    } else {
-      audio.pause();
-      setIsPlaying(false);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    }
-  };
+    };
 
-  const handleReplay = () => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-    setLineProgress(POEM_LINES.map(() => 0));
-    setIsPlaying(false);
+    a.addEventListener("loadedmetadata", onMeta);
+    return () => a.removeEventListener("loadedmetadata", onMeta);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, autoStart]);
+
+  // ---------- Helpers ----------
+  function stopRaf() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    handlePlayAudio();
-  };
-
-  useEffect(() => {
-    if (cardOpen && !isPlaying) {
-      silentAnimationRan.current = false;
-      const timer = setTimeout(() => {
-        if (!isPlaying && !silentAnimationRan.current) {
-          silentAnimationRan.current = true;
-          startSilentAnimation();
-        }
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [cardOpen, isPlaying, startSilentAnimation]);
-
-  const inkSplatters = React.useMemo(
-    () => [
-      { x: 45, y: 120, size: 3 },
-      { x: 380, y: 200, size: 4 },
-      { x: 120, y: 340, size: 2 },
-      { x: 420, y: 420, size: 3 },
-      { x: 70, y: 500, size: 2 },
-      { x: 350, y: 560, size: 4 },
-      { x: 200, y: 150, size: 2 },
-      { x: 450, y: 300, size: 3 },
-    ],
-    [],
-  );
-
-  const inkDotsStatic = React.useMemo(() => {
-    const seed = 12345;
-    const dots = [];
-    for (let i = 0; i < 25; i++) {
-      const pseudoRandom = (seed * (i + 1) * 9301 + 49297) % 233280;
-      const x = 20 + (pseudoRandom % 460);
-      const y = 30 + ((pseudoRandom * 7) % 620);
-      const size = 1 + (pseudoRandom % 3);
-      const opacity = 0.1 + (pseudoRandom % 30) / 100;
-      dots.push({ x, y, size, opacity });
-    }
-    return dots;
-  }, []);
-
-  const renderLineWithEmphasis = (line, i, progress) => {
-    if (!line.trim()) return null;
-
-    const isFinalLine = line === "Is To Be Known";
-    const y = 50 + i * 38;
-    const clipWidth = 520 * progress;
-    const wobble = isFinalLine ? 0 : Math.sin(i * 1.5) * 1.5;
-    const rotation = isFinalLine ? 0 : Math.sin(i * 0.7) * 0.5;
-
-    const words = line.split(" ");
-    let xOffset = isFinalLine ? 85 : 25;
-
-    return (
-      <g key={i}>
-        <defs>
-          <clipPath id={`clip-${i}`}>
-            <rect x="0" y={y - 45} width={clipWidth} height="80" />
-          </clipPath>
-        </defs>
-        <g
-          clipPath={`url(#clip-${i})`}
-          transform={`rotate(${rotation} 250 ${y})`}
-        >
-          {isFinalLine ? (
-            <>
-              {/* Decorative swash before */}
-              <text
-                x={xOffset - 45}
-                y={y + 20}
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontSize: 28,
-                  fill: 'rgba(201,165,90,0.6)',
-                }}
-              >
-                ❧
-              </text>
-              <text
-                x={xOffset}
-                y={y + 20}
-                style={{
-                  fontFamily: '"Great Vibes", cursive',
-                  fontSize: 56,
-                  fontWeight: 400,
-                  fill: "#1a0f08",
-                  filter: "drop-shadow(0 2px 4px rgba(139,90,43,0.35)) drop-shadow(0 0 12px rgba(201,165,90,0.25))",
-                  letterSpacing: 5,
-                }}
-              >
-                {line}
-              </text>
-              {/* Decorative swash after */}
-              <text
-                x={xOffset + 295}
-                y={y + 20}
-                style={{
-                  fontFamily: 'Georgia, serif',
-                  fontSize: 28,
-                  fill: 'rgba(201,165,90,0.6)',
-                  transform: 'scaleX(-1)',
-                }}
-              >
-                ❧
-              </text>
-            </>
-          ) : (
-            words.map((word, wordIdx) => {
-              const isEmphasis = EMPHASIS_WORDS.some((ew) => word.includes(ew));
-              const wordX = xOffset;
-              xOffset += word.length * 15 + 10;
-
-              return (
-                <text
-                  key={wordIdx}
-                  x={wordX}
-                  y={y + wobble}
-                  style={{
-                    fontFamily: '"Great Vibes", cursive',
-                    fontSize: isEmphasis ? 36 : 30,
-                    fontWeight: 400,
-                    fill: isEmphasis ? "#1a0f08" : "#2d1810",
-                    filter: isEmphasis
-                      ? "drop-shadow(0 1px 2px rgba(139,90,43,0.3))"
-                      : "drop-shadow(0 0.5px 1px rgba(0,0,0,0.08))",
-                    letterSpacing: isEmphasis ? 1.5 : 0.5,
-                  }}
-                >
-                  {word}
-                </text>
-              );
-            })
-          )}
-        </g>
-      </g>
-    );
-  };
-
-  if (!fontReady) {
-    return (
-      <div style={styles.loading}>
-        <div style={styles.loadingText}>Loading...</div>
-      </div>
-    );
+    rafRef.current = 0;
   }
 
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
+
+  function easeInOutCubic(x) {
+    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+
+  function hash01(n) {
+    // Deterministic pseudo-random (0..1) per line
+    const x = Math.sin(n * 999.123 + 0.123) * 10000;
+    return x - Math.floor(x);
+  }
+
+  function lineCenterY(i) {
+    return startY - 10 + i * lineGap;
+  }
+
+  function svgPointToPage(svg, x, y) {
+    const pt = svg.createSVGPoint();
+    pt.x = x;
+    pt.y = y;
+    return pt.matrixTransform(svg.getScreenCTM());
+  }
+
+  function computeAutoLineStarts(duration) {
+    const weights = POEM_LINES.map((l) => (l.trim() ? Math.max(6, l.length) : 4));
+    const total = weights.reduce((a, b) => a + b, 0);
+    let acc = 0;
+    return weights.map((w) => {
+      const t = (acc / total) * duration;
+      acc += w;
+      return t;
+    });
+  }
+
+  // ---------- Pressure-tuned mask path ----------
+  // progress: 0..1
+  // cy: center y for line band
+  // lineIndex: adds small per-line personality (pressure boost, nib wobble)
+  function capsulePath(progress, cy, lineIndex) {
+    const p = clamp(progress, 0, 1);
+    const pE = easeInOutCubic(p);
+
+    // Reveal length
+    const w = Math.max(0, maxRevealW * pE);
+    const x1 = startX + w;
+
+    // Per-line pressure personality
+    const rand = hash01(lineIndex + 1);
+    const line = POEM_LINES[lineIndex] ?? "";
+    const punctuationBoost = /[—–,.;:!?]$/.test(line.trim()) ? 1.06 : 1.0;
+    const lengthBoost = clamp(0.92 + (line.trim().length / 45) * 0.18, 0.92, 1.12);
+    const personality = (0.94 + rand * 0.12) * punctuationBoost * lengthBoost;
+
+    // Pressure curve (thickness): thin -> thick -> thin,
+    // with a slightly late peak to feel like a flourish.
+    const shifted = clamp(pE + peakShift, 0, 1);
+    const bell = Math.sin(Math.PI * shifted);
+    const broadBell = Math.pow(Math.max(0, bell), pressureGamma); // broaden mid region
+    const t = (strokeMin + (strokeMax - strokeMin) * broadBell) * personality;
+
+    // Taper ends a bit more (gives a nib-like lift)
+    const taper = 0.85 + 0.15 * Math.sin(Math.PI * pE);
+    const thickness = t * taper;
+
+    const r = thickness / 2;
+
+    // Ink wobble: subtle feathering feeling
+    const wobble = (Math.sin(pE * 10 + lineIndex) + Math.sin(pE * 23 + lineIndex * 2.3)) * 0.55;
+
+    const topY = cy - r + wobble;
+    const botY = cy + r + wobble;
+
+    // When nearly zero, show a dot-like nib kiss
+    if (w < 2) {
+      return `M ${startX} ${cy}
+              m -${r} 0
+              a ${r} ${r} 0 1 0 ${2 * r} 0
+              a ${r} ${r} 0 1 0 -${2 * r} 0`;
+    }
+
+    // Rounded capsule (pill)
+    return `
+      M ${startX} ${topY}
+      L ${x1} ${topY}
+      A ${r} ${r} 0 0 1 ${x1} ${botY}
+      L ${startX} ${botY}
+      A ${r} ${r} 0 0 1 ${startX} ${topY}
+      Z
+    `;
+  }
+
+  function findActiveLineIndex(tNow, starts, ends) {
+    for (let i = 0; i < starts.length; i++) {
+      if (tNow >= starts[i] && tNow < ends[i]) return i;
+    }
+    return -1;
+  }
+
+  // ---------- Animation driver (audio clock) ----------
+  function startSyncedAnimation() {
+    stopRaf();
+    const svg = svgRef.current;
+    const pen = penRef.current;
+    const audio = audioRef.current;
+    const paths = maskPathsRef.current;
+
+    if (!svg || !pen || !audio || !paths.length) return;
+
+    setIsPlaying(true);
+    setStatus("Writing…");
+
+    const startsProvided =
+      Array.isArray(lineStartTimes) && lineStartTimes.length === POEM_LINES.length;
+
+    const starts = startsProvided
+      ? lineStartTimes
+      : computeAutoLineStarts(Number.isFinite(audio.duration) ? audio.duration : 72);
+
+    const duration = Number.isFinite(audio.duration) ? audio.duration : (starts[starts.length - 1] + 2);
+    const ends = starts.map((t, i) => (i < starts.length - 1 ? starts[i + 1] : duration));
+
+    const tick = () => {
+      const tNow = audio.currentTime;
+
+      // Update per-line progress
+      for (let i = 0; i < paths.length; i++) {
+        const line = POEM_LINES[i];
+        const t0 = starts[i];
+        const t1 = ends[i];
+
+        if (!line.trim()) {
+          const done = tNow >= t0 ? 1 : 0;
+          paths[i].setAttribute("d", capsulePath(done, lineCenterY(i), i));
+          continue;
+        }
+
+        const p = clamp((tNow - t0) / Math.max(0.22, t1 - t0), 0, 1);
+        paths[i].setAttribute("d", capsulePath(p, lineCenterY(i), i));
+      }
+
+      // Move pen to active line
+      const activeIndex = findActiveLineIndex(tNow, starts, ends);
+      if (activeIndex >= 0) {
+        const t0 = starts[activeIndex];
+        const t1 = ends[activeIndex];
+        const p = clamp((tNow - t0) / Math.max(0.22, t1 - t0), 0, 1);
+        const pE = easeInOutCubic(p);
+
+        pen.style.opacity = "1";
+
+        const nibWobble = (Math.sin(pE * 9 + activeIndex) + Math.sin(pE * 19)) * 1.1;
+        const px = startX + maxRevealW * pE + 10;
+        const py = startY + activeIndex * lineGap + nibWobble;
+
+        const page = svgPointToPage(svg, px, py);
+        pen.style.transform = `translate(${page.x - 9}px, ${page.y - 9}px) rotate(${18 + Math.sin(pE * 7) * 3}deg)`;
+      } else {
+        pen.style.opacity = "0";
+      }
+
+      if (audio.ended) {
+        setStatus("Done 💛");
+        setIsPlaying(false);
+        pen.style.opacity = "0";
+        stopRaf();
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  async function handleStartFromOverlay() {
+    const a = audioRef.current;
+    if (!a) return;
+
+    try {
+      await a.play();
+      setNeedsGesture(false);
+      startSyncedAnimation();
+    } catch {
+      setStatus("Still blocked. Tap again or unmute.");
+    }
+  }
+
+  function handlePlayPause() {
+    const a = audioRef.current;
+    if (!a) return;
+
+    if (a.paused) {
+      a.play()
+        .then(() => {
+          setNeedsGesture(false);
+          startSyncedAnimation();
+        })
+        .catch(() => {
+          setNeedsGesture(true);
+          setStatus("Tap to start (sound permission)");
+        });
+    } else {
+      a.pause();
+      setIsPlaying(false);
+      setStatus("Paused");
+      stopRaf();
+    }
+  }
+
+  function handleReplay() {
+    const a = audioRef.current;
+    if (!a) return;
+
+    a.pause();
+    a.currentTime = 0;
+    setStatus("Writing…");
+    a.play()
+      .then(() => {
+        setNeedsGesture(false);
+        startSyncedAnimation();
+      })
+      .catch(() => {
+        setNeedsGesture(true);
+        setStatus("Tap to start (sound permission)");
+      });
+  }
+
+  // ---------- Render ----------
   return (
-    <div style={styles.container}>
-      <audio ref={audioRef} src={audioUrl} preload="auto" />
-
-      {!cardOpen && (
-        <div style={styles.cardFront}>
-          <div style={styles.cardPaper}>
-            <div style={styles.cardEdgeLeft} />
-            <div style={styles.cardEdgeRight} />
-
-            {/* Festive party background animations */}
-            <div style={styles.partyBackground}>
-              {/* Floating confetti - varied shapes */}
-              {[...Array(25)].map((_, i) => (
-                <div
-                  key={`confetti-${i}`}
-                  style={{
-                    ...styles.confetti,
-                    left: `${3 + (i * 3.8) % 94}%`,
-                    backgroundColor: ['#8b1a4a', '#1a3a5c', '#4a2c7a', '#2d5a4a', '#8b4513', '#6b2d5b'][i % 6],
-                    animationDelay: `${i * 0.25}s`,
-                    animationDuration: `${4 + (i % 4)}s`,
-                    width: i % 3 === 0 ? 12 : i % 3 === 1 ? 8 : 6,
-                    height: i % 3 === 0 ? 12 : i % 3 === 1 ? 14 : 8,
-                    borderRadius: i % 4 === 0 ? '50%' : i % 4 === 1 ? '2px' : '0',
-                    transform: `rotate(${i * 15}deg)`,
-                  }}
-                />
-              ))}
-              {/* Floating ribbons */}
-              {[...Array(6)].map((_, i) => (
-                <div
-                  key={`ribbon-${i}`}
-                  style={{
-                    ...styles.ribbon,
-                    left: `${8 + (i * 16) % 84}%`,
-                    backgroundColor: ['#6b2d5b', '#1a3a5c', '#4a2c7a'][i % 3],
-                    animationDelay: `${i * 0.8}s`,
-                    height: 30 + (i % 3) * 10,
-                  }}
-                />
-              ))}
-              {/* Floating stars */}
-              {[...Array(10)].map((_, i) => (
-                <div
-                  key={`star-${i}`}
-                  style={{
-                    ...styles.floatingStar,
-                    left: `${8 + (i * 10) % 84}%`,
-                    top: `${10 + (i * 8) % 75}%`,
-                    animationDelay: `${i * 0.4}s`,
-                    fontSize: `${12 + (i % 4) * 5}px`,
-                    color: ['#8b6914', '#5c4a1a', '#6b4423'][i % 3],
-                  }}
-                >
-                  ✦
-                </div>
-              ))}
-              {/* Sparkles with glow */}
-              {[...Array(15)].map((_, i) => (
-                <div
-                  key={`sparkle-${i}`}
-                  style={{
-                    ...styles.sparkle,
-                    left: `${5 + (i * 6.5) % 90}%`,
-                    top: `${8 + (i * 6) % 84}%`,
-                    animationDelay: `${i * 0.35}s`,
-                    backgroundColor: ['#c9a227', '#8b6914', '#a67c00'][i % 3],
-                    boxShadow: `0 0 ${8 + (i % 3) * 4}px ${['#c9a227', '#8b6914', '#a67c00'][i % 3]}`,
-                  }}
-                />
-              ))}
-              {/* Floating orbs */}
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={`orb-${i}`}
-                  style={{
-                    ...styles.floatingOrb,
-                    left: `${10 + (i * 12) % 80}%`,
-                    animationDelay: `${i * 0.6}s`,
-                    background: `radial-gradient(circle at 30% 30%, ${['rgba(139, 26, 74, 0.4)', 'rgba(26, 58, 92, 0.4)', 'rgba(74, 44, 122, 0.4)'][i % 3]}, transparent)`,
-                    width: 20 + (i % 3) * 15,
-                    height: 20 + (i % 3) * 15,
-                  }}
-                />
-              ))}
-              {/* Floating balloons */}
-              {[...Array(7)].map((_, i) => (
-                <div
-                  key={`balloon-${i}`}
-                  style={{
-                    ...styles.balloon,
-                    left: `${5 + (i * 14) % 90}%`,
-                    animationDelay: `${i * 0.7}s`,
-                    animationDuration: `${5 + (i % 3)}s`,
-                  }}
-                >
-                  <div
-                    style={{
-                      ...styles.balloonBody,
-                      background: `radial-gradient(circle at 30% 25%, ${
-                        ['#a82255', '#1e4d7a', '#5c3d8a', '#2a6b50', '#8a4520', '#6b3d6b', '#4a6b8a'][i]
-                      } 0%, ${
-                        ['#7a1940', '#153a5c', '#3d2860', '#1a4a35', '#5c3015', '#4a2850', '#2a4a6a'][i]
-                      } 100%)`,
-                    }}
-                  >
-                    <div style={styles.balloonShine} />
-                  </div>
-                  <div
-                    style={{
-                      ...styles.balloonString,
-                      backgroundColor: ['#7a1940', '#153a5c', '#3d2860', '#1a4a35', '#5c3015', '#4a2850', '#2a4a6a'][i],
-                    }}
-                  />
-                </div>
-              ))}
+    <div className="min-h-screen w-full grid place-items-center p-6" style={{ color: "white" }}>
+      <div
+        className="w-full max-w-[980px] rounded-[22px] overflow-hidden"
+        style={{
+          border: "1px solid rgba(255,255,255,.10)",
+          boxShadow: "0 18px 60px rgba(0,0,0,.45)",
+          background:
+            "radial-gradient(1000px 600px at 15% 15%, rgba(158,231,255,.18), transparent 60%)," +
+            "radial-gradient(900px 650px at 85% 25%, rgba(255,210,122,.16), transparent 55%)," +
+            "radial-gradient(800px 600px at 60% 90%, rgba(206,166,255,.12), transparent 55%)," +
+            "linear-gradient(160deg, #0f1220, #1a1f35)",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "16px 16px",
+            borderBottom: "1px solid rgba(255,255,255,.10)",
+            backdropFilter: "blur(10px)",
+            background: "linear-gradient(90deg, rgba(158,231,255,.10), rgba(255,210,122,.08))",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              Happy Birthday, {toName} 🎉
             </div>
-
-            <div style={styles.embossedBorder} />
-
-            <div style={styles.cornerTL}>❧</div>
-            <div style={styles.cornerTR}>❧</div>
-            <div style={styles.cornerBL}>❧</div>
-            <div style={styles.cornerBR}>❧</div>
-
-            <div style={styles.decorTop} />
-            <div style={styles.decorBottom} />
-
-            <div style={styles.frontContent}>
-              <div style={styles.titleSection}>
-                <div style={styles.starDecor}>✦ ✦ ✦</div>
-                <h1 style={styles.mainTitle}>Happy Birthday</h1>
-                <h2 style={styles.nameTitle}>{toName}</h2>
-                <div style={styles.starDecor}>✦ ✦ ✦</div>
-              </div>
-
-              <div style={styles.interactionArea}>
-                <div style={styles.bowSection}>
-                  <div
-                    style={{
-                      ...styles.bowContainer,
-                      transform: `scaleX(${1 + arrowPull * 0.1})`,
-                    }}
-                  >
-                    <img src="/bow.png" alt="Bow" style={styles.bowImage} />
-                  </div>
-
-                  <div
-                    style={{
-                      ...styles.arrowWrapper,
-                      transform: `translateY(-50%) translateX(${-arrowPull * BOW_ARROW_CONFIG.pullDistance}px)`,
-                      opacity: arrowFlying ? 0 : 1,
-                      transition: arrowFlying
-                        ? "opacity 0.15s"
-                        : "transform 0.05s",
-                    }}
-                    onMouseDown={handleDragStart}
-                    onTouchStart={handleDragStart}
-                    onClick={handleArrowClick}
-                  >
-                    <img
-                      src="/arrow.png"
-                      alt="Arrow"
-                      style={styles.arrowImage}
-                    />
-                  </div>
-                </div>
-
-                <div style={styles.targetSection}>
-                  <div style={styles.candlesCluster}>
-                    {[0, 1, 2, 3, 4].map((i) => {
-                      const positions = [
-                        { x: -35, y: 0, scale: 0.9, z: 1 },
-                        { x: 35, y: 0, scale: 0.9, z: 1 },
-                        { x: -55, y: -30, scale: 0.75, z: 0 },
-                        { x: 0, y: -35, scale: 0.8, z: 0 },
-                        { x: 55, y: -30, scale: 0.75, z: 0 },
-                      ];
-                      const pos = positions[i];
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            ...styles.candleContainer,
-                            transform: `translateX(${pos.x}px) translateY(${pos.y}px) scale(${pos.scale})`,
-                            zIndex: pos.z,
-                          }}
-                        >
-                          <img
-                            src="/candle.png"
-                            alt="Candle"
-                            style={{
-                              ...styles.candleImage,
-                              filter: candlesLit[i]
-                                ? "brightness(1)"
-                                : "brightness(0.65) saturate(0.7)",
-                            }}
-                          />
-
-                          {candlesLit[i] && (
-                            <div style={styles.flameContainer}>
-                              <div style={styles.flameOuter} />
-                              <div style={styles.flameInner} />
-                              <div style={styles.flameGlow} />
-                            </div>
-                          )}
-
-                          {showSmoke[i] && (
-                            <div style={styles.smokeContainer}>
-                              <div style={styles.smoke1} />
-                              <div style={styles.smoke2} />
-                              <div style={styles.smoke3} />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {arrowFlying && (
-                    <img
-                      src="/arrow.png"
-                      alt="Flying Arrow"
-                      style={styles.flyingArrow}
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div style={styles.instructionBox}>
-                <p style={styles.instruction}>
-                  {arrowPull > 0.5
-                    ? "Release to shoot!"
-                    : arrowPull > 0
-                      ? "Pull back more..."
-                      : "Pull the arrow back to extinguish the candles"}
-                </p>
-                <div style={styles.pullMeter}>
-                  <div
-                    style={{
-                      ...styles.pullFill,
-                      width: `${arrowPull * 100}%`,
-                      background:
-                        arrowPull > 0.5
-                          ? "linear-gradient(90deg, #4ade80, #22c55e)"
-                          : "linear-gradient(90deg, #fbbf24, #f59e0b)",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={styles.footerDecor}>
-                <span style={styles.decorDot}>◆</span>
-                <span style={styles.decorLine} />
-                <span style={styles.decorStar}>★</span>
-                <span style={styles.decorLine} />
-                <span style={styles.decorDot}>◆</span>
-              </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,.70)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              Pressure ink + paper grain + synced narration.
             </div>
           </div>
-        </div>
-      )}
 
-      {cardOpen && (
-        <div className="card-inner-responsive" style={styles.cardInner}>
-          <div className="card-left-responsive" style={styles.cardLeft}>
-            <div style={styles.photoGallery}>
-              <div
-                style={{
-                  ...styles.photoCarousel,
-                  transform: `translateX(${-currentPhotoIndex * 100 + photoSwipeOffset * 0.3}%)`,
-                }}
-                onMouseDown={handlePhotoSwipeStart}
-                onMouseMove={handlePhotoSwipeMove}
-                onMouseUp={handlePhotoSwipeEnd}
-                onMouseLeave={handlePhotoSwipeEnd}
-                onTouchStart={handlePhotoSwipeStart}
-                onTouchMove={handlePhotoSwipeMove}
-                onTouchEnd={handlePhotoSwipeEnd}
-              >
-                {photos.map((src, i) => (
-                  <div key={i} style={styles.photoSlide}>
-                    <div style={styles.polaroid}>
-                      <div style={styles.polaroidTape} />
-                      <div style={styles.polaroidImage}>
-                        <img src={src} alt={captions[i]} style={styles.photo} />
-                      </div>
-                      <div style={styles.polaroidCaption}>{captions[i]}</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              onClick={handlePlayPause}
+              style={btnStyle("primary")}
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? "⏸ Pause" : "▶ Play"}
+            </button>
+            <button onClick={handleReplay} style={btnStyle()} aria-label="Replay">
+              ↺ Replay
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.35fr", minHeight: 580 }}>
+          {/* Left photos */}
+          <div
+            style={{
+              padding: 16,
+              borderRight: "1px solid rgba(255,255,255,.10)",
+              display: "grid",
+              placeItems: "center",
+              background:
+                "radial-gradient(700px 450px at 30% 20%, rgba(255,210,122,.10), transparent 60%)," +
+                "radial-gradient(600px 400px at 75% 65%, rgba(158,231,255,.10), transparent 55%)",
+            }}
+          >
+            <div style={{ position: "relative", width: "92%", maxWidth: 340, aspectRatio: "4 / 5" }}>
+              {photos.slice(0, 3).map((src, i) => {
+                const rot = [-6, 5, -2][i] ?? 0;
+                const tx = [-10, 10, 0][i] ?? 0;
+                const ty = [6, 0, -4][i] ?? 0;
+                const opacity = [1, 0.95, 0.92][i] ?? 1;
+                return (
+                  <div
+                    key={src + i}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: 18,
+                      overflow: "hidden",
+                      border: "1px solid rgba(255,255,255,.15)",
+                      boxShadow: "0 14px 35px rgba(0,0,0,.35)",
+                      background: "rgba(255,255,255,.08)",
+                      transform: `rotate(${rot}deg) translate(${tx}px, ${ty}px)`,
+                      transformOrigin: "60% 80%",
+                      opacity,
+                    }}
+                  >
+                    <img src={src} alt={`Photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "22%", background: "rgba(0,0,0,.35)", borderTop: "1px solid rgba(255,255,255,.10)", backdropFilter: "blur(6px)" }} />
+                    <div style={{ position: "absolute", left: 12, right: 12, bottom: 10, fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center", textShadow: "0 2px 14px rgba(0,0,0,.60)" }}>
+                      <span style={{ fontWeight: 800, color: "rgba(255,210,122,.95)" }}>Memory #{i + 1}</span>
+                      <span>♡</span>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <div style={styles.photoDots}>
-                {photos.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPhotoIndex(i)}
-                    style={{
-                      ...styles.photoDot,
-                      background:
-                        i === currentPhotoIndex
-                          ? "#fff"
-                          : "rgba(255,255,255,0.3)",
-                      transform:
-                        i === currentPhotoIndex ? "scale(1.3)" : "scale(1)",
-                    }}
-                  />
-                ))}
-              </div>
-
-              <p style={styles.swipeHint}>← Swipe to see more →</p>
+                );
+              })}
             </div>
           </div>
 
-          <div className="card-right-responsive" style={styles.cardRight}>
-            <div style={styles.audioControlsFloating}>
-              <button onClick={handlePlayAudio} style={styles.playBtn}>
-                {isPlaying ? "⏸" : "▶"}
-              </button>
-              <button onClick={handleReplay} style={styles.replayBtn}>
-                ↺
-              </button>
-            </div>
-            <div style={styles.ornateContainer}>
-              <CardInsideOrnate name={toName} lineProgress={lineProgress} emphasisWords={EMPHASIS_WORDS} />
+          {/* Right poem */}
+          <div style={{ padding: 16 }}>
+            <div
+              style={{
+                position: "relative",
+                height: "100%",
+                borderRadius: 18,
+                border: "1px solid rgba(255,255,255,.10)",
+                overflow: "hidden",
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03))," +
+                  "radial-gradient(900px 600px at 50% 0%, rgba(255,210,122,.08), transparent 60%)," +
+                  "radial-gradient(700px 500px at 20% 80%, rgba(158,231,255,.08), transparent 55%)",
+              }}
+            >
+              {/* Paper grain overlay */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                  opacity: 0.18,
+                  backgroundImage:
+                    "radial-gradient(circle at 20% 30%, rgba(255,255,255,.35) 0 1px, transparent 2px)," +
+                    "radial-gradient(circle at 70% 60%, rgba(255,255,255,.28) 0 1px, transparent 2px)," +
+                    "radial-gradient(circle at 40% 80%, rgba(255,255,255,.22) 0 1px, transparent 2px)",
+                  backgroundSize: "120px 120px",
+                  mixBlendMode: "overlay",
+                }}
+              />
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, padding: "18px 20px 0", position: "relative" }}>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>To {toName},</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,.70)", whiteSpace: "nowrap" }}>{status}</div>
+              </div>
+
+              <div
+                style={{
+                  margin: "10px 20px 14px",
+                  height: 1,
+                  opacity: 0.7,
+                  background: "linear-gradient(90deg, rgba(255,210,122,.45), rgba(158,231,255,.35), transparent)",
+                }}
+              />
+
+              <div style={{ padding: "0 20px 64px", position: "relative" }}>
+                <svg ref={svgRef} viewBox={`0 0 ${viewW} ${viewH}`} width="100%" height="auto" style={{ display: "block" }} aria-label="Poem">
+                  <defs>
+                    <mask id="revealMask">
+                      <rect x="0" y="0" width={viewW} height={viewH} fill="black" />
+                      <g id="maskGroup" />
+                    </mask>
+
+                    {/* Ink bleed: blurred underlayer */}
+                    <filter id="inkBleed" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="0.95" result="blur" />
+                      <feColorMatrix
+                        in="blur"
+                        type="matrix"
+                        values="
+                          1 0 0 0 0
+                          0 1 0 0 0
+                          0 0 1 0 0
+                          0 0 0 0.45 0"
+                        result="bleed"
+                      />
+                      <feMerge>
+                        <feMergeNode in="bleed" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  {/* Bleed underlayer */}
+                  <text
+                    x={startX}
+                    y={startY}
+                    mask="url(#revealMask)"
+                    style={{
+                      fontFamily: `"InterSignature", cursive`,
+                      fontSize: 42,
+                      fill: "rgba(255,255,255,.22)",
+                      filter: "url(#inkBleed)",
+                    }}
+                  >
+                    {POEM_LINES.map((line, i) => (
+                      <tspan key={i} x={startX} y={startY + i * lineGap}>
+                        {line || " "}
+                      </tspan>
+                    ))}
+                  </text>
+
+                  {/* Main ink */}
+                  <text
+                    x={startX}
+                    y={startY}
+                    mask="url(#revealMask)"
+                    style={{
+                      fontFamily: `"InterSignature", cursive`,
+                      fontSize: 42,
+                      fill: inkFill,
+                      filter: `drop-shadow(0 0 10px ${inkGlow})`,
+                    }}
+                  >
+                    {POEM_LINES.map((line, i) => (
+                      <tspan key={i} x={startX} y={startY + i * lineGap}>
+                        {line || " "}
+                      </tspan>
+                    ))}
+                  </text>
+                </svg>
+              </div>
+
+              {/* Pen nib */}
+              <div
+                ref={penRef}
+                style={{
+                  position: "absolute",
+                  width: 18,
+                  height: 18,
+                  borderRadius: 6,
+                  boxShadow: "0 10px 24px rgba(0,0,0,.35)",
+                  pointerEvents: "none",
+                  opacity: 0,
+                  background: "linear-gradient(160deg, rgba(255,210,122,.9), rgba(158,231,255,.55))",
+                  transform: "translate(-9999px,-9999px) rotate(18deg)",
+                }}
+              >
+                <div style={{ position: "absolute", left: 5, top: 5, width: 8, height: 8, borderRadius: 3, background: "rgba(0,0,0,.55)" }} />
+              </div>
+
+              {/* Audio */}
+              <audio ref={audioRef} src={audioUrl} preload="metadata" />
+
+              {/* Autoplay overlay */}
+              {needsGesture && (
+                <button
+                  onClick={handleStartFromOverlay}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    background: "rgba(0,0,0,.42)",
+                    backdropFilter: "blur(6px)",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "white",
+                  }}
+                >
+                  <span
+                    style={{
+                      padding: "12px 18px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(255,255,255,.25)",
+                      background: "rgba(255,255,255,.10)",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Tap to start with sound ▶
+                  </span>
+                </button>
+              )}
+
+              <div style={{ position: "absolute", left: 18, right: 18, bottom: 14, fontSize: 12, color: "rgba(255,255,255,.70)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    background: "rgba(255,210,122,.95)",
+                    boxShadow: "0 0 18px rgba(255,210,122,.65), 0 0 40px rgba(158,231,255,.22)",
+                  }}
+                />
+                <span>Audio: {audioUrl}</span>
+              </div>
             </div>
           </div>
         </div>
-      )}
 
-      <style>{`
-        @keyframes polaroidIn {
-          from {
-            opacity: 0;
-            transform: rotate(0deg) translateY(30px) scale(0.8);
+        {/* Mobile stacking */}
+        <style>{`
+          @media (max-width: 860px) {
+            .stackGrid {
+              grid-template-columns: 1fr !important;
+            }
           }
-          to {
-            opacity: 1;
-          }
-        }
-        
-        @keyframes flicker {
-          0%, 100% { transform: scaleY(1) scaleX(1); opacity: 1; }
-          25% { transform: scaleY(1.15) scaleX(0.92); opacity: 0.85; }
-          50% { transform: scaleY(0.9) scaleX(1.08); opacity: 1; }
-          75% { transform: scaleY(1.08) scaleX(0.95); opacity: 0.9; }
-        }
-        
-        @keyframes naturalFlicker {
-          0% { transform: translateX(-50%) scaleY(1) scaleX(1) skewX(0deg); opacity: 1; }
-          15% { transform: translateX(-50%) scaleY(1.08) scaleX(0.94) skewX(2deg); opacity: 0.92; }
-          30% { transform: translateX(-50%) scaleY(0.95) scaleX(1.04) skewX(-1deg); opacity: 1; }
-          45% { transform: translateX(-50%) scaleY(1.12) scaleX(0.9) skewX(3deg); opacity: 0.88; }
-          60% { transform: translateX(-50%) scaleY(0.92) scaleX(1.06) skewX(-2deg); opacity: 0.95; }
-          75% { transform: translateX(-50%) scaleY(1.05) scaleX(0.96) skewX(1deg); opacity: 1; }
-          90% { transform: translateX(-50%) scaleY(0.98) scaleX(1.02) skewX(-1deg); opacity: 0.9; }
-          100% { transform: translateX(-50%) scaleY(1) scaleX(1) skewX(0deg); opacity: 1; }
-        }
-        
-        @keyframes glowPulse {
-          0%, 100% { opacity: 0.5; transform: scale(1); }
-          50% { opacity: 0.85; transform: scale(1.15); }
-        }
-
-        @keyframes smokeRise {
-          0% { opacity: 0.7; transform: translateY(0) scale(1) rotate(0deg); }
-          50% { opacity: 0.4; transform: translateY(-40px) scale(1.8) rotate(10deg); }
-          100% { opacity: 0; transform: translateY(-80px) scale(2.5) rotate(-5deg); }
-        }
-
-        @keyframes confettiFall {
-          0% { 
-            transform: translateY(-30px) rotate(0deg) translateX(0); 
-            opacity: 0;
-          }
-          5% {
-            opacity: 0.9;
-          }
-          50% {
-            transform: translateY(300px) rotate(360deg) translateX(20px);
-          }
-          100% { 
-            transform: translateY(700px) rotate(720deg) translateX(-10px); 
-            opacity: 0.2;
-          }
-        }
-
-        @keyframes floatStar {
-          0% { 
-            transform: translateY(0) scale(1) rotate(0deg); 
-            opacity: 0.5;
-          }
-          25% {
-            transform: translateY(-10px) scale(1.1) rotate(10deg);
-            opacity: 0.8;
-          }
-          50% { 
-            transform: translateY(-20px) scale(1.3) rotate(0deg); 
-            opacity: 1;
-          }
-          75% {
-            transform: translateY(-10px) scale(1.1) rotate(-10deg);
-            opacity: 0.8;
-          }
-          100% { 
-            transform: translateY(0) scale(1) rotate(0deg); 
-            opacity: 0.5;
-          }
-        }
-
-        @keyframes sparkleGlow {
-          0%, 100% { 
-            transform: scale(0) rotate(0deg); 
-            opacity: 0;
-          }
-          25% {
-            transform: scale(0.5) rotate(45deg);
-            opacity: 0.5;
-          }
-          50% { 
-            transform: scale(1.2) rotate(90deg); 
-            opacity: 1;
-          }
-          75% {
-            transform: scale(0.8) rotate(135deg);
-            opacity: 0.7;
-          }
-        }
-
-        @keyframes ribbonFall {
-          0% {
-            transform: translateY(-50px) rotate(0deg) scaleY(1);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.8;
-          }
-          25% {
-            transform: translateY(150px) rotate(15deg) scaleY(1.2);
-          }
-          50% {
-            transform: translateY(350px) rotate(-10deg) scaleY(0.9);
-          }
-          75% {
-            transform: translateY(500px) rotate(20deg) scaleY(1.1);
-          }
-          100% {
-            transform: translateY(700px) rotate(-5deg) scaleY(1);
-            opacity: 0.1;
-          }
-        }
-
-        @keyframes orbFloat {
-          0% {
-            transform: translateY(0) translateX(0) scale(1);
-            opacity: 0.3;
-          }
-          25% {
-            transform: translateY(-30px) translateX(15px) scale(1.1);
-            opacity: 0.5;
-          }
-          50% {
-            transform: translateY(-50px) translateX(0) scale(1.2);
-            opacity: 0.6;
-          }
-          75% {
-            transform: translateY(-30px) translateX(-15px) scale(1.1);
-            opacity: 0.5;
-          }
-          100% {
-            transform: translateY(0) translateX(0) scale(1);
-            opacity: 0.3;
-          }
-        }
-
-        @keyframes balloonFloat {
-          0% {
-            transform: translateY(0) translateX(0) rotate(0deg);
-            opacity: 0;
-          }
-          10% {
-            opacity: 0.9;
-          }
-          25% {
-            transform: translateY(-180px) translateX(10px) rotate(3deg);
-          }
-          50% {
-            transform: translateY(-380px) translateX(-8px) rotate(-2deg);
-          }
-          75% {
-            transform: translateY(-550px) translateX(12px) rotate(4deg);
-          }
-          90% {
-            opacity: 0.7;
-          }
-          100% {
-            transform: translateY(-720px) translateX(0) rotate(0deg);
-            opacity: 0;
-          }
-        }
-
-        @keyframes flyArrow {
-          0% { 
-            transform: translateY(-50%) translateX(0px) rotate(0deg); 
-            opacity: 1; 
-          }
-          30% {
-            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance * 0.4}px) rotate(0deg);
-            opacity: 1;
-          }
-          75% { 
-            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance * 0.85}px) rotate(1deg); 
-            opacity: 1; 
-          }
-          95% { 
-            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance * 0.96}px) rotate(0deg); 
-            opacity: 0.8; 
-          }
-          100% { 
-            transform: translateY(-50%) translateX(${BOW_ARROW_CONFIG.arrowFlightDistance}px) rotate(0deg); 
-            opacity: 0; 
-          }
-        }
-
-        @keyframes bowPullback {
-          0% { transform: scaleY(1); }
-          100% { transform: scaleY(0.9); }
-        }
-
-        @keyframes arrowShake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-2px); }
-          75% { transform: translateX(2px); }
-        }
-
-        @media (max-width: 768px) {
-          .card-inner-responsive {
-            grid-template-columns: 1fr !important;
-            min-height: auto !important;
-          }
-          .card-left-responsive {
-            padding: 20px !important;
-            border-right: none !important;
-            border-bottom: 1px solid rgba(255,255,255,0.08) !important;
-          }
-          .card-right-responsive {
-            padding: 16px 20px !important;
-          }
-          .poem-svg-responsive {
-            min-height: 600px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .card-left-responsive {
-            padding: 15px !important;
-          }
-        }
-      `}</style>
+        `}</style>
+      </div>
     </div>
   );
 }
 
-const styles = {
-  container: {
-    minHeight: "100vh",
-    width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    background:
-      "radial-gradient(ellipse at 30% 20%, #2d1f3d 0%, #1a1225 40%, #0d0a12 100%)",
-    boxSizing: "border-box",
-  },
-  loading: {
-    minHeight: "100vh",
-    width: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#1a1225",
-  },
-  loadingText: {
+function btnStyle(kind) {
+  const base = {
+    appearance: "none",
+    borderRadius: 999,
+    padding: "10px 12px",
+    fontWeight: 900,
+    letterSpacing: "0.2px",
+    cursor: "pointer",
+    border: "1px solid rgba(255,255,255,.16)",
+    background: "rgba(0,0,0,.20)",
     color: "white",
-    fontSize: 18,
-    fontFamily: "system-ui, sans-serif",
-  },
-  cardFront: {
-    width: "100%",
-    maxWidth: 750,
-    perspective: "1500px",
-  },
-  cardPaper: {
-    position: "relative",
-    background: `
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 28px,
-        rgba(200,180,160,0.08) 28px,
-        rgba(200,180,160,0.08) 29px
-      ),
-      repeating-linear-gradient(
-        90deg,
-        transparent,
-        transparent 28px,
-        rgba(200,180,160,0.05) 28px,
-        rgba(200,180,160,0.05) 29px
-      ),
-      linear-gradient(165deg, #fdf9f3 0%, #f8f3eb 30%, #f0e8db 70%, #e8dfd0 100%)
-    `,
-    borderRadius: 16,
-    padding: "50px 40px",
-    boxShadow: `
-      0 1px 2px rgba(0,0,0,0.07),
-      0 4px 8px rgba(0,0,0,0.07),
-      0 8px 16px rgba(0,0,0,0.08),
-      0 16px 32px rgba(0,0,0,0.1),
-      0 32px 64px rgba(0,0,0,0.12),
-      inset 0 2px 0 rgba(255,255,255,0.9),
-      inset 0 -1px 0 rgba(0,0,0,0.05)
-    `,
-    border: "1px solid rgba(180,160,140,0.25)",
-    overflow: "hidden",
-  },
-  cardEdgeLeft: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 8,
-    background: "linear-gradient(90deg, rgba(0,0,0,0.08), transparent)",
-  },
-  cardEdgeRight: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 8,
-    background: "linear-gradient(-90deg, rgba(0,0,0,0.05), transparent)",
-  },
-  embossedBorder: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    right: 20,
-    bottom: 20,
-    border: "2px solid rgba(180,150,120,0.2)",
-    borderRadius: 8,
-    boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.05)",
-    pointerEvents: "none",
-    zIndex: 1,
-  },
-  partyBackground: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: "hidden",
-    pointerEvents: "none",
-    zIndex: 0,
-  },
-  confetti: {
-    position: "absolute",
-    top: -20,
-    width: 10,
-    height: 10,
-    borderRadius: 2,
-    animation: "confettiFall 4s linear infinite",
-  },
-  floatingStar: {
-    position: "absolute",
-    top: "15%",
-    color: "#d4a574",
-    animation: "floatStar 2.5s ease-in-out infinite",
-    opacity: 0.6,
-  },
-  sparkle: {
-    position: "absolute",
-    width: 5,
-    height: 5,
-    backgroundColor: "#c9a227",
-    borderRadius: "50%",
-    boxShadow: "0 0 8px #c9a227",
-    animation: "sparkleGlow 2.5s ease-in-out infinite",
-  },
-  ribbon: {
-    position: "absolute",
-    top: -40,
-    width: 4,
-    borderRadius: 2,
-    animation: "ribbonFall 6s ease-in-out infinite",
-  },
-  floatingOrb: {
-    position: "absolute",
-    top: "20%",
-    borderRadius: "50%",
-    animation: "orbFloat 5s ease-in-out infinite",
-  },
-  balloon: {
-    position: "absolute",
-    bottom: -80,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    animation: "balloonFloat 6s ease-in-out infinite",
-  },
-  balloonBody: {
-    width: 35,
-    height: 42,
-    borderRadius: "50% 50% 50% 50% / 40% 40% 60% 60%",
-    position: "relative",
-    boxShadow: "inset -3px -3px 8px rgba(0,0,0,0.3), 2px 4px 8px rgba(0,0,0,0.2)",
-  },
-  balloonShine: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    width: 10,
-    height: 12,
-    borderRadius: "50%",
-    background: "rgba(255,255,255,0.4)",
-    filter: "blur(2px)",
-  },
-  balloonString: {
-    width: 1,
-    height: 40,
-    marginTop: -2,
-  },
-  cornerTL: {
-    position: "absolute",
-    top: 30,
-    left: 30,
-    fontSize: 22,
-    color: "rgba(180,150,120,0.4)",
-    transform: "rotate(-45deg)",
-  },
-  cornerTR: {
-    position: "absolute",
-    top: 30,
-    right: 30,
-    fontSize: 22,
-    color: "rgba(180,150,120,0.4)",
-    transform: "rotate(45deg) scaleX(-1)",
-  },
-  cornerBL: {
-    position: "absolute",
-    bottom: 30,
-    left: 30,
-    fontSize: 22,
-    color: "rgba(180,150,120,0.4)",
-    transform: "rotate(-135deg)",
-  },
-  cornerBR: {
-    position: "absolute",
-    bottom: 30,
-    right: 30,
-    fontSize: 22,
-    color: "rgba(180,150,120,0.4)",
-    transform: "rotate(135deg) scaleX(-1)",
-  },
-  decorTop: {
-    position: "absolute",
-    top: 40,
-    left: 50,
-    right: 50,
-    height: 1,
-    background:
-      "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
-  },
-  decorBottom: {
-    position: "absolute",
-    bottom: 40,
-    left: 50,
-    right: 50,
-    height: 1,
-    background:
-      "linear-gradient(90deg, transparent, rgba(180,140,100,0.25) 15%, rgba(180,140,100,0.35) 50%, rgba(180,140,100,0.25) 85%, transparent)",
-  },
-  frontContent: {
-    position: "relative",
-    zIndex: 1,
-  },
-  titleSection: {
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  starDecor: {
-    color: "#c9a55a",
-    fontSize: 16,
-    letterSpacing: 12,
-    marginBottom: 6,
-  },
-  mainTitle: {
-    fontFamily: '"InterSignature", Georgia, serif',
-    fontSize: "clamp(36px, 6.5vw, 58px)",
-    fontWeight: 700,
-    color: "#2a1810",
-    margin: "6px 0",
-    letterSpacing: 3,
-    textShadow: "2px 2px 4px rgba(0,0,0,0.2), 0 0 20px rgba(139, 26, 74, 0.15)",
-  },
-  nameTitle: {
-    fontFamily: '"InterSignature", Georgia, serif',
-    fontSize: "clamp(44px, 8.5vw, 72px)",
-    fontWeight: 700,
-    color: "#8b5a2b",
-    margin: "0 0 6px",
-    letterSpacing: 3,
-    textShadow: "2px 2px 4px rgba(0,0,0,0.1)",
-  },
-  interactionArea: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "15px 10px",
-    gap: 50,
-    minHeight: 250,
-  },
-  bowSection: {
-    position: "relative",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: BOW_ARROW_CONFIG.bowOffsetY,
-  },
-  bowContainer: {
-    transition: "transform 0.1s ease-out",
-    transformOrigin: "center",
-  },
-  bowImage: {
-    width: BOW_ARROW_CONFIG.bowWidth,
-    height: "auto",
-    filter: "drop-shadow(3px 5px 8px rgba(0,0,0,0.35))",
-    transform: `rotate(${BOW_ARROW_CONFIG.bowRotation}deg)`,
-  },
-  arrowWrapper: {
-    position: "absolute",
-    top: `calc(50% + ${BOW_ARROW_CONFIG.arrowOffsetY}px)`,
-    left: BOW_ARROW_CONFIG.arrowOffsetX,
-    transform: "translateY(-50%)",
-    cursor: "grab",
-    zIndex: 10,
-    padding: 10,
-    userSelect: "none",
-    touchAction: "none",
-  },
-  arrowImage: {
-    width: BOW_ARROW_CONFIG.arrowWidth,
-    height: "auto",
-    filter: "drop-shadow(2px 3px 5px rgba(0,0,0,0.35))",
-    transform: `rotate(${BOW_ARROW_CONFIG.arrowRotation}deg)`,
-    pointerEvents: "none",
-  },
-  bowString: {
-    display: "none",
-  },
-  targetSection: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "flex-end",
-  },
-  candlesCluster: {
-    position: "relative",
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    width: 220,
-    height: 220,
-  },
-  candleContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: "50%",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    marginLeft: -45,
-  },
-  candleImage: {
-    width: 90,
-    height: "auto",
-    filter: "drop-shadow(3px 8px 10px rgba(0,0,0,0.35))",
-    transition: "filter 0.4s ease-out",
-  },
-  flameContainer: {
-    position: "absolute",
-    top: -50,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 50,
-    height: 70,
-  },
-  flameOuter: {
-    position: "absolute",
-    bottom: 0,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 30,
-    height: 50,
-    background:
-      "radial-gradient(ellipse at 50% 85%, #ff4500 0%, #ff6b35 20%, #ff9500 45%, #ffcc00 70%, transparent 100%)",
-    borderRadius: "50% 50% 50% 50% / 65% 65% 35% 35%",
-    animation: "naturalFlicker 0.5s ease-in-out infinite",
-  },
-  flameInner: {
-    position: "absolute",
-    bottom: 5,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 12,
-    height: 25,
-    background:
-      "radial-gradient(ellipse at 50% 80%, #fff 0%, #fffbe6 45%, #ffd54f 75%, transparent 100%)",
-    borderRadius: "50% 50% 50% 50% / 70% 70% 30% 30%",
-    animation: "naturalFlicker 0.3s ease-in-out infinite",
-  },
-  flameGlow: {
-    position: "absolute",
-    bottom: -10,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 60,
-    height: 60,
-    background:
-      "radial-gradient(circle, rgba(255,150,50,0.35) 0%, rgba(255,100,30,0.15) 45%, transparent 70%)",
-    animation: "glowPulse 0.9s ease-in-out infinite",
-    pointerEvents: "none",
-  },
-  smokeContainer: {
-    position: "absolute",
-    top: -60,
-    left: "50%",
-    transform: "translateX(-50%)",
-  },
-  smoke1: {
-    position: "absolute",
-    width: 18,
-    height: 18,
-    background: "rgba(150,150,150,0.6)",
-    borderRadius: "50%",
-    animation: "smokeRise 1.2s ease-out forwards",
-    left: -10,
-  },
-  smoke2: {
-    position: "absolute",
-    width: 22,
-    height: 22,
-    background: "rgba(130,130,130,0.5)",
-    borderRadius: "50%",
-    animation: "smokeRise 1.4s ease-out 0.1s forwards",
-  },
-  smoke3: {
-    position: "absolute",
-    width: 14,
-    height: 14,
-    background: "rgba(140,140,140,0.4)",
-    borderRadius: "50%",
-    animation: "smokeRise 1.1s ease-out 0.2s forwards",
-    left: 16,
-  },
-  flyingArrow: {
-    position: "absolute",
-    width: BOW_ARROW_CONFIG.arrowWidth,
-    height: "auto",
-    top: "calc(50% + 45px)",
-    left: -200,
-    transform: `translateY(-50%) rotate(${BOW_ARROW_CONFIG.arrowRotation}deg)`,
-    animation: `flyArrow ${BOW_ARROW_CONFIG.arrowFlightDuration}s ease-out forwards`,
-    filter: "drop-shadow(3px 3px 6px rgba(0,0,0,0.4))",
-    zIndex: 20,
-  },
-  instructionBox: {
-    textAlign: "center",
-    marginTop: 15,
-    padding: "14px 20px",
-    background: "rgba(60,40,20,0.05)",
-    borderRadius: 8,
-    border: "1px solid rgba(180,140,100,0.2)",
-  },
-  instruction: {
-    fontFamily: "Georgia, serif",
-    fontSize: 14,
-    color: "#5a4030",
-    margin: "0 0 10px",
-    fontStyle: "italic",
-  },
-  pullMeter: {
-    width: "100%",
-    maxWidth: 180,
-    height: 6,
-    background: "rgba(0,0,0,0.1)",
-    borderRadius: 3,
-    margin: "0 auto",
-    overflow: "hidden",
-  },
-  pullFill: {
-    height: "100%",
-    borderRadius: 3,
-    transition: "width 0.08s, background 0.2s",
-  },
-  footerDecor: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    marginTop: 20,
-    color: "#c9a55a",
-  },
-  decorDot: {
-    fontSize: 9,
-    opacity: 0.7,
-  },
-  decorLine: {
-    width: 50,
-    height: 1,
-    background:
-      "linear-gradient(90deg, transparent, rgba(180,140,100,0.4), transparent)",
-  },
-  decorStar: {
-    fontSize: 13,
-  },
-  cardInner: {
-    display: "grid",
-    gridTemplateColumns: "280px 1fr",
-    minHeight: 700,
-    width: "100%",
-    maxWidth: 1200,
-    background: "linear-gradient(145deg, #1a1520 0%, #0f0a15 100%)",
-    borderRadius: 24,
-    boxShadow:
-      "0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
-    overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.1)",
-    animation: "fadeIn 0.8s ease-out",
-    position: "relative",
-  },
-  cardLeft: {
-    padding: 20,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background:
-      "linear-gradient(135deg, rgba(30,20,40,0.9) 0%, rgba(15,10,25,0.95) 100%)",
-    borderRight: "1px solid rgba(255,255,255,0.1)",
-    position: "relative",
-  },
-  photoGallery: {
-    width: "100%",
-    maxWidth: 280,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 12,
-    overflow: "hidden",
-  },
-  photoCarousel: {
-    display: "flex",
-    width: "100%",
-    transition: "transform 0.3s ease-out",
-    cursor: "grab",
-  },
-  photoSlide: {
-    minWidth: "100%",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "0 10px",
-    boxSizing: "border-box",
-  },
-  polaroid: {
-    position: "relative",
-    background: "#fefefe",
-    padding: "12px 12px 45px",
-    borderRadius: 4,
-    boxShadow: "0 10px 40px rgba(0,0,0,0.4), 0 3px 10px rgba(0,0,0,0.2)",
-    transform: "rotate(-2deg)",
-    width: 220,
-    maxWidth: "100%",
-  },
-  polaroidTape: {
-    position: "absolute",
-    top: -12,
-    left: "50%",
-    transform: "translateX(-50%) rotate(2deg)",
-    width: 70,
-    height: 24,
-    background:
-      "linear-gradient(180deg, rgba(255,255,220,0.7), rgba(240,230,180,0.6))",
-    borderRadius: 2,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-  },
-  polaroidImage: {
-    width: "100%",
-    aspectRatio: "1/1",
-    background: "#e0e0e0",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  photo: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-  },
-  polaroidCaption: {
-    position: "absolute",
-    bottom: 12,
-    left: 0,
-    right: 0,
-    textAlign: "center",
-    fontFamily: '"Great Vibes", cursive',
-    fontSize: 20,
-    color: "#3d2b1f",
-  },
-  photoDots: {
-    display: "flex",
-    gap: 10,
-    justifyContent: "center",
-  },
-  photoDot: {
-    width: 10,
-    height: 10,
-    borderRadius: "50%",
-    border: "none",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-  },
-  swipeHint: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.4)",
-    fontStyle: "italic",
-    margin: 0,
-  },
-  cardRight: {
-    padding: "10px",
-    display: "flex",
-    flexDirection: "column",
-    background: "transparent",
-    position: "relative",
-    flex: 1.5,
-  },
-  ornateContainer: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  audioControlsFloating: {
-    position: "absolute",
-    top: 15,
-    right: 15,
-    display: "flex",
-    gap: 8,
-    zIndex: 10,
-  },
-  poemHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottom: "1px solid rgba(139,90,43,0.2)",
-  },
-  toName: {
-    fontFamily: '"Great Vibes", cursive',
-    fontSize: 34,
-    fontWeight: 400,
-    color: "#2d1810",
-    letterSpacing: 1.5,
-    textShadow: "1px 1px 2px rgba(201,165,90,0.35)",
-  },
-  audioControls: {
-    display: "flex",
-    gap: 8,
-  },
-  playBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: "50%",
-    border: "1px solid rgba(139,90,43,0.3)",
-    background: "linear-gradient(145deg, #c9a55a, #8b6914)",
-    color: "#fff",
-    fontSize: 16,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.2s",
-    boxShadow: "0 2px 8px rgba(139,90,43,0.3)",
-  },
-  replayBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: "50%",
-    border: "1px solid rgba(139,90,43,0.3)",
-    background: "rgba(201,165,90,0.2)",
-    color: "#5a4030",
-    fontSize: 18,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.2s",
-  },
-  poemContainer: {
-    flex: 1,
-    overflow: "hidden",
-  },
-  poemSvg: {
-    width: "100%",
-    height: "100%",
-    display: "block",
-    minHeight: 680,
-  },
-};
+    transition: "transform .08s ease, background .2s ease, border-color .2s ease",
+  };
+
+  if (kind === "primary") {
+    return {
+      ...base,
+      border: "1px solid rgba(255,255,255,.20)",
+      background: "linear-gradient(90deg, rgba(255,210,122,.22), rgba(158,231,255,.18))",
+    };
+  }
+
+  return base;
+}
