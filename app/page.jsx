@@ -2,8 +2,12 @@
 
 import React, { useMemo, useState } from "react";
 import ArcheryGame from "./components/ArcheryGame";
+<<<<<<< Updated upstream
 import OrnateBirthdayCard from "./components/OrnateBirthdayCard";
 import PhotoCarousel from "./components/PhotoCarousel";
+=======
+import BirthdayCard from "./components/BirthdayCard";
+>>>>>>> Stashed changes
 
 export default function Page() {
   const [step, setStep] = useState("archery"); // "archery" | "earned" | "poem"
@@ -102,6 +106,7 @@ export default function Page() {
 
       {step === "poem" && (
         <div style={{ width: "100%" }}>
+<<<<<<< Updated upstream
           <div style={{ display: "grid", gap: 14 }}>
             <PhotoCarousel
               photos={["/photo1.jpg", "/photo2.jpg", "/photo3.jpg"]}
@@ -118,6 +123,15 @@ export default function Page() {
               showControls={true}
             />
           </div>
+=======
+          <BirthdayCard
+            toName="Luke"
+            photos={["/photo1.jpg", "/photo2.jpg", "/photo3.jpg"]}
+            fontUrl="/fonts/InterSignature-q20q2.ttf"
+            audioUrl="/audio/luke-poem.mp3"
+            autoStart={true}
+          />
+>>>>>>> Stashed changes
         </div>
       )}
     </div>
