@@ -1,7 +1,9 @@
-\
+js
+
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { jsx } from "react/jsx-runtime";
 
 /**
  * Mobile-first Archery mini-game (canvas)
