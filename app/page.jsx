@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ArcheryGame from "./components/ArcheryGame";
 import OrnateBirthdayCard from "./components/OrnateBirthdayCard";
 import PhotoCarousel from "./components/PhotoCarousel";
@@ -9,8 +9,19 @@ export default function Page() {
   const [step, setStep] = useState("archery"); // "archery" | "earned" | "poem"
   const [result, setResult] = useState({ shots: null, timeMs: null });
 
+  // Optional: fallback event listener (extra safety)
+  useEffect(() => {
+    const handler = (e) => {
+      const { shots, timeMs } = e?.detail || {};
+      if (shots == null && timeMs == null) return;
+      setResult({ shots: shots ?? null, timeMs: timeMs ?? null });
+      setStep("earned");
+    };
+    window.addEventListener("archery:complete", handler);
+    return () => window.removeEventListener("archery:complete", handler);
+  }, []);
+
   const earnedCopy = useMemo(() => {
-    // Light “earned” framing: performance -> praise -> permission -> poem
     return {
       title: "You earned what comes next.",
       stats: [
@@ -42,9 +53,7 @@ export default function Page() {
           <div style={headerBlock}>
             <div style={kicker}>Step 1</div>
             <h1 style={h1}>Extinguish the candles.</h1>
-            <p style={p}>
-              Drag to aim. Release to shoot. Precision first.
-            </p>
+            <p style={p}>Drag to aim. Release to shoot. Precision first.</p>
           </div>
 
           <ArcheryGame
@@ -76,8 +85,7 @@ export default function Page() {
             <div style={tinyRow}>
               <div style={pill}>Shots: {result.shots ?? "—"}</div>
               <div style={pill}>
-                Time:{" "}
-                {result.timeMs == null ? "—" : `${Math.round(result.timeMs / 1000)}s`}
+                Time: {result.timeMs == null ? "—" : `${Math.round(result.timeMs / 1000)}s`}
               </div>
             </div>
 
@@ -93,9 +101,7 @@ export default function Page() {
               Continue
             </button>
 
-            <div style={finePrint}>
-              Tip: tap play if your phone blocks auto-audio.
-            </div>
+            <div style={finePrint}>Tip: tap play if your phone blocks auto-audio.</div>
           </div>
         </div>
       )}
@@ -105,11 +111,7 @@ export default function Page() {
           <div style={{ display: "grid", gap: 14 }}>
             <PhotoCarousel
               photos={["/photo1.jpg", "/photo2.jpg", "/photo3.jpg"]}
-              captions={[
-                "Memory 1",
-                "Memory 2",
-                "Memory 3",
-              ]}
+              captions={["Memory 1", "Memory 2", "Memory 3"]}
             />
             <OrnateBirthdayCard
               name="Luke"

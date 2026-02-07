@@ -6,171 +6,261 @@ import CardInsideOrnate from "./CardInsideOrnate";
 /**
  * OrnateBirthdayCard
  * - Uses your existing CardInsideOrnate visuals (fonts + SVG "ink" animation)
- * - Drives lineProgress from audio.currentTime via requestAnimationFrame (mobile-stable)
- * - Does NOT modify CardInsideOrnate at all
+ * - Drives lineProgress from audio.currentTime via requestAnimationFrame
+ * - Autoplay-safe overlay if blocked
+ *
+ * Props:
+ *  - name: string
+ *  - audioUrl: string
+ *  - autoStart: boolean
+ *  - showControls: boolean
  */
-function clamp01(x) {
-  return Math.max(0, Math.min(1, x));
-}
-
-function buildLineSchedule(lines, duration, opts = {}) {
-  const leadIn = opts.leadIn ?? 0.2;
-  const tailOut = opts.tailOut ?? 0.1;
-  const blankPause = opts.blankPause ?? 0.5;
-  const minLine = opts.minLine ?? 0.25;
-
-  const usable = Math.max(0.5, duration - leadIn - tailOut);
-
-  const weights = lines.map((ln) => (ln.trim() ? Math.max(1, ln.length) : 0));
-  const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
-
-  const rawTimes = weights.map((w, i) => {
-    if (!lines[i].trim()) return 0;
-    return Math.max(minLine, (usable * w) / totalWeight);
-  });
-
-  const blankCount = lines.filter((l) => !l.trim()).length;
-  const totalBlankPause = blankCount * blankPause;
-
-  const nonBlankTotal = rawTimes.reduce((a, b) => a + b, 0) || 1;
-  const scale = (usable - totalBlankPause) / Math.max(0.001, nonBlankTotal);
-  const times = rawTimes.map((t) => t * scale);
-
-  const schedule = [];
-  let t = leadIn;
-
-  for (let i = 0; i < lines.length; i++) {
-    if (!lines[i].trim()) {
-      schedule.push({ start: t, end: t }); // blank
-      t += blankPause;
-      continue;
-    }
-    const start = t;
-    const end = t + times[i];
-    schedule.push({ start, end });
-    t = end;
-  }
-
-  return schedule;
-}
-
 export default function OrnateBirthdayCard({
   name = "Luke",
   audioUrl = "/audio/luke-poem.mp3",
-  autoStart = false,
+  autoStart = true,
   showControls = true,
 }) {
   const audioRef = useRef(null);
-  const [lineProgress, setLineProgress] = useState([]);
+  const rafRef = useRef(0);
+
+  const [needsGesture, setNeedsGesture] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [status, setStatus] = useState("Ready ✍️");
 
-  // Keep these lines EXACTLY matching CardInsideOrnate’s poemLines.
-  const lines = useMemo(() => {
-    // Duplicate here intentionally so we don’t touch CardInsideOrnate.
-    // (If you later export poemLines, we can import it instead.)
-    return [
-      `The world became a brighter place...`,
-      `The moment ${name} arrived,`,
-      `With kindness written on his face`,
-      `And a spirit meant to thrive.`,
-      ``,
-      `Through every year and every mile,`,
-      `A soul grows in heart and mind,`,
-      `With a steady hand and a ready smile,`,
-      `The rarest sort to find.`,
-      ``,
-      `May this day be filled with all that's loved,`,
-      `With laughter, warmth, and light,`,
-      `And may the year ahead unfold...`,
-      `To be exceptionally bright..`,
-      ``,
-      `So here's to ${name}, for all he is,`,
-      `And the light he's always shown,`,
-      ``,
-      `The greatest gift of all Dear ${name},`,
-      `Is To Be - Known`,
-    ];
-  }, [name]);
+  // CardInsideOrnate expects lineProgress array (0..1 per line)
+  const [lineProgress, setLineProgress] = useState([]);
 
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+  // If CardInsideOrnate exports/uses a fixed poem length, we align to it by “probing”
+  // but we keep it defensive: start with 24 lines and adapt if needed.
+  const defaultLineCount = 24;
 
-    let raf = 0;
-    let schedule = null;
+  const ensureLineCount = useMemo(() => {
+    // If we already have progress, use its length, else default
+    return lineProgress.length ? lineProgress.length : defaultLineCount;
+  }, [lineProgress.length]);
+
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  function stopRaf() {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+  }
+
+  // Simple, even timing if you don’t pass a custom schedule into CardInsideOrnate
+  // (CardInsideOrnate may have its own more accurate timings; this just drives progress smoothly.)
+  function computeProgressFromAudio(t, duration, lineCount) {
+    if (!Number.isFinite(duration) || duration <= 0) return new Array(lineCount).fill(0);
+
+    // Allocate time proportionally but gently: line i starts at i/lineCount of the audio.
+    const per = duration / lineCount;
+    const out = new Array(lineCount).fill(0);
+
+    for (let i = 0; i < lineCount; i++) {
+      const t0 = i * per;
+      const t1 = (i + 1) * per;
+      const p = clamp((t - t0) / Math.max(0.22, t1 - t0), 0, 1);
+      out[i] = p;
+    }
+    return out;
+  }
+
+  function startSyncedAnimation() {
+    stopRaf();
+    const a = audioRef.current;
+    if (!a) return;
+
+    setIsPlaying(true);
+    setStatus("Writing…");
 
     const tick = () => {
-      // If audio isn't ready, keep polling (prevents NaNs on iOS)
-      if (!schedule || audio.readyState < 2) {
-        raf = requestAnimationFrame(tick);
+      const tNow = a.currentTime;
+      const dur = a.duration;
+
+      const next = computeProgressFromAudio(tNow, dur, ensureLineCount);
+      setLineProgress(next);
+
+      if (a.ended) {
+        setStatus("Done 💛");
+        setIsPlaying(false);
+        stopRaf();
         return;
       }
 
-      const t = audio.currentTime || 0;
-
-      const next = schedule.map((seg, i) => {
-        if (!lines[i].trim()) return 0;
-        const denom = Math.max(0.0001, seg.end - seg.start);
-        return clamp01((t - seg.start) / denom);
-      });
-
-      setLineProgress(next);
-      raf = requestAnimationFrame(tick);
+      rafRef.current = requestAnimationFrame(tick);
     };
 
-    const onMeta = () => {
-      // Prefer duration-based schedule. If duration is missing, fall back later.
-      const dur = Number.isFinite(audio.duration) ? audio.duration : 30;
-      schedule = buildLineSchedule(lines, dur, {
-        leadIn: 0.2,
-        tailOut: 0.1,
-        blankPause: 0.55,
-        minLine: 0.25,
-      });
-    };
+    rafRef.current = requestAnimationFrame(tick);
+  }
 
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onEnded = () => setIsPlaying(false);
+  async function attemptAutoplay() {
+    const a = audioRef.current;
+    if (!a) return;
 
-    audio.addEventListener("loadedmetadata", onMeta);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnded);
-
-    // Build schedule asap if metadata already available
-    if (audio.readyState >= 1) onMeta();
-
-    raf = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      audio.removeEventListener("loadedmetadata", onMeta);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnded);
-    };
-  }, [lines]);
+    try {
+      await a.play();
+      setNeedsGesture(false);
+      startSyncedAnimation();
+    } catch {
+      setNeedsGesture(true);
+      setStatus("Tap to start (sound permission)");
+    }
+  }
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !autoStart) return;
+    const a = audioRef.current;
+    if (!a) return;
 
-    // Autoplay-safe: only attempt if already allowed; otherwise user taps play.
-    audio.play().catch(() => {});
+    const onEnded = () => {
+      setIsPlaying(false);
+      setStatus("Done 💛");
+      stopRaf();
+    };
+
+    a.addEventListener("ended", onEnded);
+    return () => a.removeEventListener("ended", onEnded);
+  }, []);
+
+  useEffect(() => {
+    if (!autoStart) return;
+
+    const a = audioRef.current;
+    if (!a) return;
+
+    const onMeta = () => {
+      attemptAutoplay();
+    };
+
+    a.addEventListener("loadedmetadata", onMeta);
+    return () => a.removeEventListener("loadedmetadata", onMeta);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);
 
+  function handlePlayPause() {
+    const a = audioRef.current;
+    if (!a) return;
+
+    if (a.paused) {
+      a.play()
+        .then(() => {
+          setNeedsGesture(false);
+          startSyncedAnimation();
+        })
+        .catch(() => {
+          setNeedsGesture(true);
+          setStatus("Tap to start (sound permission)");
+        });
+    } else {
+      a.pause();
+      setIsPlaying(false);
+      setStatus("Paused");
+      stopRaf();
+    }
+  }
+
+  function handleReplay() {
+    const a = audioRef.current;
+    if (!a) return;
+
+    a.pause();
+    a.currentTime = 0;
+    setStatus("Writing…");
+
+    a.play()
+      .then(() => {
+        setNeedsGesture(false);
+        startSyncedAnimation();
+      })
+      .catch(() => {
+        setNeedsGesture(true);
+        setStatus("Tap to start (sound permission)");
+      });
+  }
+
   return (
-    <div style={{ width: "100%", maxWidth: 520, margin: "0 auto" }}>
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        preload="auto"
-        playsInline
-        controls={showControls}
-        style={{ width: "100%", marginBottom: 10 }}
-      />
-      <CardInsideOrnate name={name} lineProgress={lineProgress} />
+    <div style={{ width: "100%" }}>
+      {showControls && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            gap: 10,
+            padding: "10px 8px",
+          }}
+        >
+          <div style={{ color: "rgba(255,255,255,0.78)", fontSize: 12 }}>{status}</div>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={handlePlayPause} style={btn("primary")} aria-label={isPlaying ? "Pause" : "Play"}>
+              {isPlaying ? "⏸ Pause" : "▶ Play"}
+            </button>
+            <button onClick={handleReplay} style={btn()} aria-label="Replay">
+              ↺ Replay
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ position: "relative" }}>
+        <CardInsideOrnate name={name} lineProgress={lineProgress} />
+
+        <audio ref={audioRef} src={audioUrl} preload="metadata" />
+
+        {needsGesture && (
+          <button
+            onClick={attemptAutoplay}
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              background: "rgba(0,0,0,.42)",
+              backdropFilter: "blur(6px)",
+              border: "none",
+              cursor: "pointer",
+              color: "white",
+              borderRadius: 18,
+            }}
+          >
+            <span
+              style={{
+                padding: "12px 18px",
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,.25)",
+                background: "rgba(255,255,255,.10)",
+                fontWeight: 900,
+              }}
+            >
+              Tap to start with sound ▶
+            </span>
+          </button>
+        )}
+      </div>
     </div>
   );
+}
+
+function btn(kind) {
+  const base = {
+    appearance: "none",
+    borderRadius: 999,
+    padding: "10px 12px",
+    fontWeight: 900,
+    letterSpacing: "0.2px",
+    cursor: "pointer",
+    border: "1px solid rgba(255,255,255,.16)",
+    background: "rgba(0,0,0,.20)",
+    color: "white",
+  };
+
+  if (kind === "primary") {
+    return {
+      ...base,
+      border: "1px solid rgba(255,255,255,.20)",
+      background: "linear-gradient(90deg, rgba(255,210,122,.22), rgba(158,231,255,.18))",
+    };
+  }
+
+  return base;
 }
