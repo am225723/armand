@@ -2,21 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * ArcheryGame.jsx
- * - Calls onComplete({ shots, timeMs }) (matches your page.jsx destructuring)
- * - Continue button + event fallback: window "archery:complete" detail { shots, timeMs }
- * - Bigger arrow + arrow follows finger while pulling
- * - Short, curved bowstring segment near bow (no long ugly line)
- * - Better candle flames (flicker + glow + hot core)
- * - Translucent canvas with vignette depth so it blends with your “front card”
- *
- * Assets (case-sensitive):
- *  public/game/bow.png
- *  public/game/arrow.png
- *  public/game/candle.png
- */
-
 function clamp01(x) {
   return Math.max(0, Math.min(1, x));
 }
@@ -40,9 +25,30 @@ export default function ArcheryGame({
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
 
+  // Bow SVG layer refs
+  const bowWrapRef = useRef(null);
+  const bowSvgHostRef = useRef(null); // where we inject inline svg
+  const bowSvgElRef = useRef(null); // actual svg element
+  const bowStringElRef = useRef(null); // path/line we will deform
+
+  // We compute these every frame after layout
+  const anchorsRef = useRef({
+    // in CSS pixels, container coordinates
+    stringTop: { x: 0, y: 0 },
+    stringBot: { x: 0, y: 0 },
+    nock: { x: 0, y: 0 },
+    // within SVG viewBox coordinates
+    vb: { minX: 0, minY: 0, w: 0, h: 0 },
+    // string endpoints within viewBox coords (computed from bbox)
+    vbTop: { x: 0, y: 0 },
+    vbBot: { x: 0, y: 0 },
+    vbNock: { x: 0, y: 0 },
+  });
+
   const [soundOn, setSoundOn] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(false);
   const [assetsReady, setAssetsReady] = useState(false);
+  const [bowSvgReady, setBowSvgReady] = useState(false);
 
   const [shotsUI, setShotsUI] = useState(0);
   const [remainingUI, setRemainingUI] = useState(candleCount);
@@ -55,7 +61,7 @@ export default function ArcheryGame({
   useEffect(() => void (soundOnRef.current = soundOn), [soundOn]);
   useEffect(() => void (hapticsOnRef.current = hapticsOn), [hapticsOn]);
 
-  // lightweight sound
+  // Tiny sound
   const audioRef = useRef(null);
   const playTone = (freq = 520, ms = 60) => {
     if (!soundOnRef.current) return;
@@ -92,31 +98,104 @@ export default function ArcheryGame({
     } catch {}
   };
 
-  // images
-  const imagesRef = useRef({ bow: null, arrow: null, candle: null, loaded: false });
+  // Other images (arrow/candle). Bow comes from SVG now.
+  const imagesRef = useRef({ arrow: null, candle: null, loaded: false });
   useEffect(() => {
     let cancelled = false;
-    const bow = new Image();
     const arrow = new Image();
     const candle = new Image();
 
-    bow.src = "/game/bow.png";
     arrow.src = "/game/arrow.png";
     candle.src = "/game/candle.png";
 
     let loaded = 0;
     const onLoad = () => {
       loaded += 1;
-      if (!cancelled && loaded === 3) {
-        imagesRef.current = { bow, arrow, candle, loaded: true };
+      if (!cancelled && loaded === 2) {
+        imagesRef.current = { arrow, candle, loaded: true };
         setAssetsReady(true);
       }
     };
 
-    bow.onload = onLoad;
     arrow.onload = onLoad;
     candle.onload = onLoad;
 
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load bow.svg as INLINE SVG so we can mutate its string
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBowSvg() {
+      try {
+        const res = await fetch("/game/bow.svg", { cache: "no-store" });
+        const txt = await res.text();
+        if (cancelled) return;
+
+        const host = bowSvgHostRef.current;
+        if (!host) return;
+
+        host.innerHTML = txt;
+
+        const svg = host.querySelector("svg");
+        if (!svg) throw new Error("No <svg> root found in bow.svg");
+        bowSvgElRef.current = svg;
+
+        // Ensure it scales nicely
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+        svg.style.width = "100%";
+        svg.style.height = "100%";
+        svg.style.display = "block";
+
+        // Find string element
+        let stringEl =
+          svg.querySelector("#bow-string") ||
+          svg.querySelector('[data-role="bow-string"]') ||
+          svg.querySelector(".bow-string");
+
+        // Fallback: attempt to auto-detect a long thin vertical-ish line/path
+        if (!stringEl) {
+          const candidates = Array.from(svg.querySelectorAll("path,line,polyline"));
+          // heuristic: prefer stroke-only thin shapes
+          const scored = candidates
+            .map((el) => {
+              const stroke = el.getAttribute("stroke");
+              const fill = el.getAttribute("fill");
+              const sw = parseFloat(el.getAttribute("stroke-width") || "1");
+              let score = 0;
+
+              if (stroke && stroke !== "none") score += 3;
+              if (!fill || fill === "none") score += 2;
+              if (sw <= 3) score += 2;
+
+              try {
+                const bb = el.getBBox();
+                // tall and skinny => string-like
+                const tall = bb.height / Math.max(1, bb.width);
+                score += Math.min(6, tall);
+                score += Math.min(2, bb.height / 120);
+              } catch {}
+
+              return { el, score };
+            })
+            .sort((a, b) => b.score - a.score);
+
+          stringEl = scored[0]?.el || null;
+        }
+
+        bowStringElRef.current = stringEl;
+
+        setBowSvgReady(true);
+      } catch (e) {
+        // If bow.svg missing, we still run (but string won't animate)
+        setBowSvgReady(false);
+      }
+    }
+
+    loadBowSvg();
     return () => {
       cancelled = true;
     };
@@ -129,6 +208,7 @@ export default function ArcheryGame({
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
+
     const ctx = canvas.getContext("2d", { alpha: true });
 
     let raf = 0;
@@ -147,32 +227,30 @@ export default function ArcheryGame({
     resize();
     window.addEventListener("resize", resize);
 
-    // -------- feel knobs ----------
+    // ==========================
+    // FEEL / PHYSICS
+    // ==========================
     const GRAVITY = 1450;
-    const MAX_PULL = 460;
+    const MAX_PULL = 560; // more pull
     const MIN_PULL = 14;
 
-    const MAX_SPEED = 1300;
+    const MAX_SPEED = 1450;
     const MIN_SPEED = 430;
-
-    const SNAP_TO_ZONE = 0.70;
 
     const SPRING_K = 92;
     const SPRING_DAMP = 15;
-    const FOLLOW_THROUGH_KICK = 26;
+    const FOLLOW_THROUGH_KICK = 28;
 
-    // Bigger arrow
-    const ARROW_LEN = 240;
-    const ARROW_THICK = 16;
-
-    // Adjust to visually seat on string (depends on arrow PNG padding)
-    const NOCK_FORWARD = 28;
+    const ARROW_LEN = 280; // bigger
+    const ARROW_THICK = 20;
 
     const WIND_MAG = reducedMotion ? 0 : 28;
 
-    // Short string segment length (local only, not across the whole arena)
-    const STRING_SEGMENT = 0.32;
-    // --------------------------------
+    // ==========================
+    // IMPORTANT:
+    // We will compute the “red circle” nock point from the SVG string element bbox.
+    // If your bow.svg string is not 1 element, add id="bow-string" to the part you want pulled.
+    // ==========================
 
     const powerFromPull = (pullDist) => {
       const t = clamp01((pullDist - MIN_PULL) / (MAX_PULL - MIN_PULL));
@@ -184,21 +262,20 @@ export default function ArcheryGame({
       const rp = s.releasePoint;
       let dx = x - rp.x;
       let dy = y - rp.y;
-
-      dx = Math.min(dx, -14); // must stay left
+      dx = Math.min(dx, -14);
 
       const dist = Math.hypot(dx, dy) || 1;
       const scale = dist > MAX_PULL ? MAX_PULL / dist : 1;
-
       return { x: rp.x + dx * scale, y: rp.y + dy * scale };
     };
 
     const snapPointerToComfortZone = (s, px, py) => {
       const rp = s.releasePoint;
-      const comfort = { x: rp.x - 235, y: rp.y + 18 };
+      const comfort = { x: rp.x - 280, y: rp.y + 8 };
+      const snap = 0.72;
       const blended = {
-        x: lerp(px, comfort.x, SNAP_TO_ZONE),
-        y: lerp(py, comfort.y, SNAP_TO_ZONE),
+        x: lerp(px, comfort.x, snap),
+        y: lerp(py, comfort.y, snap),
       };
       return constrainPull(s, blended.x, blended.y);
     };
@@ -218,34 +295,29 @@ export default function ArcheryGame({
         return { x, y, w, h, lit: true, flamePhase: Math.random() * 999 };
       });
 
-      // bow up/right a bit = more room to pull
-      const bowAnchor = {
-        x: Math.max(150, W * 0.16),
-        y: Math.max(H * 0.72, H - 130),
-      };
-
-      const releasePoint = { x: bowAnchor.x + 185, y: bowAnchor.y - 178 };
-      const pullRelaxed = { x: releasePoint.x - 140, y: releasePoint.y + 16 };
-
       const wind = WIND_MAG === 0 ? 0 : (Math.random() * 2 - 1) * WIND_MAG;
 
       simRef.current = {
         W,
         H,
         wind,
-        aiming: false,
-        bowAnchor,
-        releasePoint,
 
-        pull: { ...pullRelaxed },
+        aiming: false,
+        done: false,
+
+        // These are in CSS px
+        releasePoint: { x: W * 0.16, y: H * 0.50 }, // will be overwritten from SVG
+        stringTop: { x: W * 0.16, y: H * 0.18 },
+        stringBot: { x: W * 0.16, y: H * 0.86 },
+
+        pull: { x: W * 0.16 - 140, y: H * 0.50 },
         pullVel: { x: 0, y: 0 },
-        pullRelaxed: { ...pullRelaxed },
+        pullRelaxed: { x: W * 0.16 - 140, y: H * 0.50 },
 
         followKick: 0,
         arrows: [],
         particles: [],
         candles,
-        done: false,
 
         shots: 0,
         startedAt: null,
@@ -272,18 +344,13 @@ export default function ArcheryGame({
         s.startedAt && s.finishedAt ? Math.max(0, s.finishedAt - s.startedAt) : null;
 
       const payload = { shots, timeMs };
-
       setDoneUI(true);
 
-      // This MUST match your page.jsx handler signature
       if (typeof onComplete === "function") {
         try {
           onComplete(payload);
-        } catch {
-          // If parent handler throws, fallback event still fires
-        }
+        } catch {}
       }
-
       dispatchComplete(payload);
     };
 
@@ -318,7 +385,6 @@ export default function ArcheryGame({
     const computeLaunch = (s, pullOverride = null) => {
       const rp = s.releasePoint;
       const pull = pullOverride ?? s.pull;
-
       const dx = pull.x - rp.x;
       const dy = pull.y - rp.y;
       const dist = Math.hypot(dx, dy);
@@ -378,8 +444,6 @@ export default function ArcheryGame({
       s.pull.y = p.y;
       s.pullVel.x = 0;
       s.pullVel.y = 0;
-
-      if (soundOnRef.current) playTone(220, 1);
     };
 
     const onMove = (e) => {
@@ -430,8 +494,8 @@ export default function ArcheryGame({
         const dx = s.pull.x - targetX;
         const dy = s.pull.y - targetY;
 
-        const ax = -SPRING_K * dx - 15 * s.pullVel.x;
-        const ay = -SPRING_K * dy - 15 * s.pullVel.y;
+        const ax = -SPRING_K * dx - SPRING_DAMP * s.pullVel.x;
+        const ay = -SPRING_K * dy - SPRING_DAMP * s.pullVel.y;
 
         s.pullVel.x += ax * dt;
         s.pullVel.y += ay * dt;
@@ -445,13 +509,181 @@ export default function ArcheryGame({
       }
     };
 
+    // ====== IMPORTANT: Sync canvas “string anchors” from SVG layout ======
+    const syncAnchorsFromSvg = () => {
+      const s = simRef.current;
+      const svg = bowSvgElRef.current;
+      const stringEl = bowStringElRef.current;
+      const wrap = bowWrapRef.current;
+      if (!s || !svg || !wrap || !stringEl) return;
+
+      // Wrap is positioned/sized in CSS px.
+      const wrapRect = wrap.getBoundingClientRect();
+
+      // SVG viewBox:
+      const vb = svg.viewBox?.baseVal;
+      const vbX = vb?.x ?? 0;
+      const vbY = vb?.y ?? 0;
+      const vbW = vb?.width ?? svg.getBBox().width;
+      const vbH = vb?.height ?? svg.getBBox().height;
+
+      // Find string bbox in viewBox coords
+      let bb;
+      try {
+        bb = stringEl.getBBox();
+      } catch {
+        return;
+      }
+
+      // Your “purple box” string endpoints:
+      // top of that element and bottom of that element
+      const vbTop = { x: bb.x + bb.width * 0.5, y: bb.y };
+      const vbBot = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
+
+      // Your “red circle” nock point:
+      // about mid-height of string element
+      const vbNock = { x: vbTop.x, y: lerp(vbTop.y, vbBot.y, 0.52) };
+
+      // Convert viewBox coords -> wrap CSS coords
+      const toPx = (pt) => {
+        const nx = (pt.x - vbX) / vbW;
+        const ny = (pt.y - vbY) / vbH;
+        return {
+          x: (wrapRect.left - container.getBoundingClientRect().left) + nx * wrapRect.width,
+          y: (wrapRect.top - container.getBoundingClientRect().top) + ny * wrapRect.height,
+        };
+      };
+
+      const topPx = toPx(vbTop);
+      const botPx = toPx(vbBot);
+      const nockPx = toPx(vbNock);
+
+      s.stringTop = topPx;
+      s.stringBot = botPx;
+      s.releasePoint = nockPx;
+
+      // relaxed arrow behind string
+      s.pullRelaxed = { x: nockPx.x - 160, y: nockPx.y + 6 };
+
+      // init pull if needed
+      if (!s.pull || (s.pull.x === 0 && s.pull.y === 0)) {
+        s.pull = { ...s.pullRelaxed };
+        s.pullVel = { x: 0, y: 0 };
+      }
+
+      anchorsRef.current = {
+        stringTop: topPx,
+        stringBot: botPx,
+        nock: nockPx,
+        vb: { minX: vbX, minY: vbY, w: vbW, h: vbH },
+        vbTop,
+        vbBot,
+        vbNock,
+      };
+    };
+
+    // Deform the SVG string toward your finger (red circle pull behavior)
+    const deformSvgString = () => {
+      const s = simRef.current;
+      const svg = bowSvgElRef.current;
+      const stringEl = bowStringElRef.current;
+      const wrap = bowWrapRef.current;
+      if (!s || !svg || !stringEl || !wrap) return;
+
+      // We only deform while aiming
+      if (!s.aiming) {
+        // Optional: reset if we stored original
+        const orig = stringEl.__orig;
+        if (orig) {
+          if (orig.type === "path") stringEl.setAttribute("d", orig.d);
+          if (orig.type === "line") {
+            stringEl.setAttribute("x1", orig.x1);
+            stringEl.setAttribute("y1", orig.y1);
+            stringEl.setAttribute("x2", orig.x2);
+            stringEl.setAttribute("y2", orig.y2);
+          }
+        }
+        return;
+      }
+
+      // Convert the current pull point (CSS px) back into viewBox coords
+      const wrapRect = wrap.getBoundingClientRect();
+      const vb = anchorsRef.current.vb;
+      if (!vb.w || !vb.h) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const pullLocal = {
+        x: (s.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width,
+        y: (s.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height,
+      };
+
+      const pullVB = {
+        x: vb.minX + pullLocal.x * vb.w,
+        y: vb.minY + pullLocal.y * vb.h,
+      };
+
+      // String endpoints in viewBox coords
+      const { vbTop, vbBot, vbNock } = anchorsRef.current;
+
+      // Bulge strength based on pull distance
+      const dx = pullVB.x - vbNock.x; // should be negative when pulling back
+      const dist = Math.abs(dx);
+      const t = clamp01((dist - 12) / 260);
+      const bulge = lerp(0, 80, t);
+
+      const ctrl = {
+        x: vbNock.x + dx * 0.85, // follow finger strongly
+        y: vbNock.y + (pullVB.y - vbNock.y) * 0.85,
+      };
+
+      // Store original if not stored
+      if (!stringEl.__orig) {
+        if (stringEl.tagName.toLowerCase() === "path") {
+          stringEl.__orig = { type: "path", d: stringEl.getAttribute("d") || "" };
+        } else if (stringEl.tagName.toLowerCase() === "line") {
+          stringEl.__orig = {
+            type: "line",
+            x1: stringEl.getAttribute("x1"),
+            y1: stringEl.getAttribute("y1"),
+            x2: stringEl.getAttribute("x2"),
+            y2: stringEl.getAttribute("y2"),
+          };
+        } else {
+          // if it's polyline, we won’t mutate it here (you can add id to a path/line for best results)
+          return;
+        }
+      }
+
+      // If path: replace with a quadratic string curve
+      if (stringEl.tagName.toLowerCase() === "path") {
+        const d = `M ${vbTop.x} ${vbTop.y} Q ${ctrl.x - bulge} ${ctrl.y} ${vbBot.x} ${vbBot.y}`;
+        stringEl.setAttribute("d", d);
+      }
+
+      // If line: convert line endpoints to follow a mild curve by switching to path is ideal.
+      // But we can at least shift x toward pull slightly (basic bend illusion).
+      if (stringEl.tagName.toLowerCase() === "line") {
+        // Pull the midpoint illusion by shifting x2 slightly (not perfect)
+        const x1 = vbTop.x;
+        const y1 = vbTop.y;
+        const x2 = vbBot.x;
+        const y2 = vbBot.y;
+        const shift = dx * 0.22;
+        stringEl.setAttribute("x1", String(x1 + shift));
+        stringEl.setAttribute("y1", String(y1));
+        stringEl.setAttribute("x2", String(x2 + shift));
+        stringEl.setAttribute("y2", String(y2));
+      }
+    };
+
     const update = (dt) => {
       const s = simRef.current;
       if (!s) return;
 
+      syncAnchorsFromSvg();
       updatePullSpring(s, dt);
+      deformSvgString();
 
-      // flame flicker
       for (const c of s.candles) {
         if (c.lit) c.flamePhase += dt * 6.2;
       }
@@ -496,7 +728,9 @@ export default function ArcheryGame({
       }
     };
 
-    // ---------- drawing ----------
+    // ==========================
+    // DRAWING
+    // ==========================
     const drawVignette = (W, H) => {
       const g = ctx.createRadialGradient(W * 0.58, H * 0.35, 80, W * 0.58, H * 0.45, W * 0.95);
       g.addColorStop(0, "rgba(0,0,0,0.06)");
@@ -505,7 +739,7 @@ export default function ArcheryGame({
       ctx.fillRect(0, 0, W, H);
 
       ctx.save();
-      ctx.globalAlpha = 0.22;
+      ctx.globalAlpha = 0.18;
       ctx.strokeStyle = "rgba(242,231,209,0.22)";
       ctx.lineWidth = 1;
       ctx.strokeRect(10, 10, W - 20, H - 20);
@@ -517,7 +751,6 @@ export default function ArcheryGame({
       for (const c of s.candles) {
         if (!c.lit) continue;
 
-        // base glow
         ctx.save();
         ctx.globalAlpha = 0.20;
         ctx.fillStyle = "#ffcc66";
@@ -530,27 +763,24 @@ export default function ArcheryGame({
           ctx.drawImage(candle, c.x - c.w / 2, c.y - c.h, c.w, c.h);
         }
 
-        // flame overlay (better)
+        // Better flame
         const t = c.flamePhase;
         const flick = 0.78 + 0.22 * Math.sin(t) + 0.10 * Math.sin(t * 2.25);
-
         const fx = c.x;
         const fy = c.y - c.h * 0.92;
-        const fw = c.w * 0.40 * flick;
-        const fh = c.h * 0.22 * flick;
+        const fw = c.w * 0.42 * flick;
+        const fh = c.h * 0.24 * flick;
 
-        // outer glow
         ctx.save();
-        ctx.globalAlpha = 0.22;
+        ctx.globalAlpha = 0.24;
         ctx.fillStyle = "#ffcc66";
         ctx.beginPath();
-        ctx.ellipse(fx, fy, fw * 2.2, fh * 1.6, 0, 0, Math.PI * 2);
+        ctx.ellipse(fx, fy, fw * 2.3, fh * 1.7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        // flame body
         ctx.save();
-        ctx.globalAlpha = 0.86;
+        ctx.globalAlpha = 0.90;
         ctx.fillStyle = "#ffd27a";
         ctx.beginPath();
         ctx.moveTo(fx, fy - fh);
@@ -558,11 +788,10 @@ export default function ArcheryGame({
         ctx.quadraticCurveTo(fx - fw, fy - fh * 0.2, fx, fy - fh);
         ctx.fill();
 
-        // hot core
-        ctx.globalAlpha = 0.70;
+        ctx.globalAlpha = 0.74;
         ctx.fillStyle = "#fff2c9";
         ctx.beginPath();
-        ctx.ellipse(fx, fy, fw * 0.32, fh * 0.55, 0, 0, Math.PI * 2);
+        ctx.ellipse(fx, fy, fw * 0.34, fh * 0.58, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -580,9 +809,9 @@ export default function ArcheryGame({
       let vy = launch.vy;
 
       ctx.save();
-      ctx.globalAlpha = 0.24;
+      ctx.globalAlpha = 0.22;
       ctx.fillStyle = "#f2e7d1";
-      for (let i = 0; i < 28; i++) {
+      for (let i = 0; i < 26; i++) {
         const step = 0.016;
         vy += GRAVITY * step;
         vx += s.wind * step * 0.2;
@@ -593,44 +822,29 @@ export default function ArcheryGame({
       ctx.restore();
     };
 
-    // Arrow always visible; follows finger while aiming.
-    const drawNockedArrowAndString = (s) => {
+    const drawNockedArrow = (s) => {
       const { arrow } = imagesRef.current;
       if (!arrow) return;
 
       const rp = s.releasePoint;
       const nock = s.aiming ? { x: s.pull.x, y: s.pull.y } : { x: s.pullRelaxed.x, y: s.pullRelaxed.y };
 
-      const aim = s.aiming ? s.pull : s.pullRelaxed;
-      const launch = computeLaunch(s, aim);
+      // visually keep arrow centered on string, but allow small vertical from finger
+      const visualY = s.aiming ? nock.y : rp.y + 6;
 
-      // arrow (bigger)
+      const launch = computeLaunch(s, s.aiming ? s.pull : s.pullRelaxed);
+
       ctx.save();
-      ctx.globalAlpha = s.aiming ? 0.94 : 0.65;
-      ctx.translate(nock.x, nock.y);
+      ctx.globalAlpha = s.aiming ? 0.96 : 0.72;
+      ctx.translate(nock.x, visualY);
       ctx.rotate(launch.rot);
-      ctx.drawImage(arrow, -ARROW_LEN / 2 + NOCK_FORWARD, -ARROW_THICK / 2, ARROW_LEN, ARROW_THICK);
+
+      // Draw arrow so that its “nock” end sits at translate origin
+      // We can’t know exact nock pixel in your PNG, so we bias it near the back.
+      const nockOffset = ARROW_LEN * 0.38;
+      ctx.drawImage(arrow, -nockOffset, -ARROW_THICK / 2, ARROW_LEN, ARROW_THICK);
+
       ctx.restore();
-
-      // short curved string near the bow
-      if (s.aiming) {
-        const tSeg = STRING_SEGMENT;
-        const sx = lerp(rp.x, s.pull.x, tSeg);
-        const sy = lerp(rp.y, s.pull.y, tSeg);
-
-        const midx = (rp.x + sx) / 2;
-        const midy = (rp.y + sy) / 2 + (s.pull.y - rp.y) * 0.10;
-
-        ctx.save();
-        ctx.globalAlpha = 0.52;
-        ctx.strokeStyle = "rgba(242,231,209,0.80)";
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(rp.x, rp.y);
-        ctx.quadraticCurveTo(midx, midy, sx, sy);
-        ctx.stroke();
-        ctx.restore();
-      }
     };
 
     const drawFlyingArrows = (s) => {
@@ -642,7 +856,7 @@ export default function ArcheryGame({
         ctx.save();
         ctx.translate(a.x, a.y);
         ctx.rotate(a.rot);
-        ctx.drawImage(arrow, -a.length / 2, -a.thickness / 2, a.length, a.thickness);
+        ctx.drawImage(arrow, -a.length * 0.38, -a.thickness / 2, a.length, a.thickness);
         ctx.restore();
       }
     };
@@ -655,38 +869,6 @@ export default function ArcheryGame({
         ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillRect(p.x, p.y, 2, 2);
       }
-      ctx.restore();
-    };
-
-    const drawBow = (s) => {
-      const { bow } = imagesRef.current;
-      if (!bow) return;
-
-      ctx.save();
-      ctx.globalAlpha = 0.96;
-
-      const padTop = 10;
-      const padBottom = 12;
-
-      const aimScale = s.aiming ? 1.02 : 1.0;
-      let bowW = 190 * aimScale;
-      let bowH = bowW * (bow.height / bow.width);
-
-      const maxH = s.H - padTop - padBottom;
-      if (bowH > maxH) {
-        const k = maxH / bowH;
-        bowH *= k;
-        bowW *= k;
-      }
-
-      const x = s.bowAnchor.x - 24;
-      const y = Math.max(padTop, s.bowAnchor.y - bowH + 18);
-
-      // mirror so it faces right (candles)
-      ctx.translate(x + bowW, y);
-      ctx.scale(-1, 1);
-      ctx.drawImage(bow, 0, 0, bowW, bowH);
-
       ctx.restore();
     };
 
@@ -718,11 +900,13 @@ export default function ArcheryGame({
 
       drawVignette(s.W, s.H);
       drawCandles(s);
-      drawNockedArrowAndString(s);
+
+      // NOTE: bow itself is SVG overlay, not drawn here
+      drawNockedArrow(s);
       drawTrajectoryPreview(s);
       drawFlyingArrows(s);
+
       drawParticles(s);
-      drawBow(s);
       drawHUD(s);
 
       raf = requestAnimationFrame(loop);
@@ -733,13 +917,14 @@ export default function ArcheryGame({
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("pointerleave", onUp);
     };
-  }, [candleCount, onComplete, reducedMotion]);
+  }, [candleCount, onComplete, reducedMotion, bowSvgReady]);
 
   return (
     <div
@@ -755,7 +940,7 @@ export default function ArcheryGame({
       <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px" }}>
         <div style={{ color: "#f2e7d1" }}>
           <div style={{ fontSize: 14, opacity: 0.92 }}>Extinguish the candles</div>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Pull back. Release.</div>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>Pull the string. Release.</div>
         </div>
         <div style={{ color: "#f2e7d1", fontSize: 12, opacity: 0.85, display: "flex", gap: 10 }}>
           <span>Shots: {shotsUI}</span>
@@ -775,6 +960,7 @@ export default function ArcheryGame({
             backdropFilter: "blur(10px)",
           }}
         >
+          {/* Canvas for candles + arrow physics */}
           <canvas
             ref={canvasRef}
             style={{
@@ -784,6 +970,23 @@ export default function ArcheryGame({
               background: "transparent",
             }}
           />
+
+          {/* Bow SVG overlay: positioned left, full bow visible */}
+          <div
+            ref={bowWrapRef}
+            style={{
+              position: "absolute",
+              left: 18,
+              top: 10,
+              bottom: 10,
+              width: 210,
+              pointerEvents: "none",
+              opacity: 0.95,
+              filter: "drop-shadow(0 10px 22px rgba(0,0,0,0.45))",
+            }}
+          >
+            <div ref={bowSvgHostRef} style={{ width: "100%", height: "100%" }} />
+          </div>
 
           <div
             style={{
@@ -838,6 +1041,7 @@ export default function ArcheryGame({
                 <button
                   type="button"
                   onClick={() => {
+                    // Fallback manual advance
                     const s = simRef.current;
                     if (!s) return;
                     if (!s.finishedAt) s.finishedAt = performance.now();
