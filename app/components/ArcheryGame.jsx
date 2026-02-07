@@ -581,7 +581,7 @@ export default function ArcheryGame({
 
       const len = 140;
       const thick = 12;
-      ctx.drawImage(arrow, -len * 0.12, -thick / 2, len, thick);
+     ctx.drawImage(arrow, -len / 2, -thick / 2, len, thick);
 
       ctx.restore();
     };
@@ -596,7 +596,7 @@ export default function ArcheryGame({
           ctx.save();
           ctx.translate(a.x, a.y);
           ctx.rotate(a.rot);
-          ctx.drawImage(arrow, -a.length * 0.12, -a.thickness / 2, a.length, a.thickness);
+          ctx.drawImage(arrow, -a.length / 2, -a.thickness / 2, a.length, a.thickness);
           ctx.restore();
         } else {
           ctx.save();
@@ -648,14 +648,27 @@ export default function ArcheryGame({
       ctx.globalAlpha = 0.96;
 
       if (bow) {
-        const baseW = 160;
-        const scale = s.aiming ? 1.03 : 1.0;
-        const bowW = baseW * scale;
-        const bowH = bowW * (bow.height / bow.width);
+    const baseW = 175;
+const aimScale = s.aiming ? 1.03 : 1.0;
 
-        // anchor-based placement
-        const x = s.bowAnchor.x - 10;
-        const y = s.H - bowH - 16;
+// First compute "natural" size
+let bowW = baseW * aimScale;
+let bowH = bowW * (bow.height / bow.width);
+
+// If it would clip vertically, scale it down to fit
+const padTop = 10;
+const padBottom = 14;
+const maxH = s.H - padTop - padBottom;
+
+if (bowH > maxH) {
+  const k = maxH / bowH;
+  bowH = bowH * k;
+  bowW = bowW * k;
+}
+
+// Place fully inside canvas
+const x = s.bowAnchor.x;          // keep your anchor meaning
+const y = Math.max(padTop, (s.H - bowH) * 0.55);// guaranteed visible
 
         // mirror horizontally
         ctx.translate(x + bowW, y);
