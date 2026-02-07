@@ -2,35 +2,12 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * ArcheryGame.jsx (mobile-first)
- * - Uses real assets from /public/game:
- *    /game/bow.png
- *    /game/arrow.png
- *    /game/candle.png
- * - Drag to aim + power
- * - Gravity arc + dotted trajectory preview
- * - Subtle wind
- * - Particles on hit
- * - Haptics + Sound toggles (default OFF)
- *
- * Props:
- *  - onComplete?: () => void
- *  - candleCount?: number (default 7)
- *  - width?: number|string (default "100%")
- *  - height?: number (default 420)
- */
-
 function clamp01(x) {
   return Math.max(0, Math.min(1, x));
 }
 
 function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-}
-
-function nowSec() {
-  return performance.now() / 1000;
 }
 
 function prefersReducedMotion() {
@@ -55,14 +32,15 @@ export default function ArcheryGame({
 
   const reducedMotion = useMemo(() => prefersReducedMotion(), []);
 
-  // Keep these as refs so toggling doesn't restart the simulation.
+  // keep toggles in refs so sim doesn't reset
   const soundOnRef = useRef(soundOn);
   const hapticsOnRef = useRef(hapticsOn);
   useEffect(() => void (soundOnRef.current = soundOn), [soundOn]);
   useEffect(() => void (hapticsOnRef.current = hapticsOn), [hapticsOn]);
 
-  const audioRef = useRef(null); // WebAudio context + nodes
-  const playClick = (freq = 520, durationMs = 60) => {
+  // lightweight sound
+  const audioRef = useRef(null);
+  const playTone = (freq = 520, ms = 60) => {
     if (!soundOnRef.current) return;
     try {
       if (!audioRef.current) {
@@ -76,7 +54,6 @@ export default function ArcheryGame({
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
-      gain.gain.value = 0.0001;
 
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -84,13 +61,11 @@ export default function ArcheryGame({
       const t0 = ctx.currentTime;
       gain.gain.setValueAtTime(0.0001, t0);
       gain.gain.exponentialRampToValueAtTime(0.08, t0 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durationMs / 1000);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + ms / 1000);
 
       osc.start(t0);
-      osc.stop(t0 + durationMs / 1000 + 0.02);
-    } catch {
-      // ignore
-    }
+      osc.stop(t0 + ms / 1000 + 0.02);
+    } catch {}
   };
 
   const vibrate = (pattern = 10) => {
@@ -98,28 +73,19 @@ export default function ArcheryGame({
     if (navigator && "vibrate" in navigator) {
       try {
         navigator.vibrate(pattern);
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
   };
 
-  // Load assets (real bow/arrow/candle)
-  const imagesRef = useRef({
-    bow: null,
-    arrow: null,
-    candle: null,
-    loaded: false,
-  });
-
+  // images
+  const imagesRef = useRef({ bow: null, arrow: null, candle: null, loaded: false });
   useEffect(() => {
     let cancelled = false;
-
     const bow = new Image();
     const arrow = new Image();
     const candle = new Image();
 
-    // IMPORTANT: case-sensitive on Vercel/Linux. Match filenames exactly in /public/game.
+    // NOTE: filenames are case-sensitive on Vercel/Linux
     bow.src = "/game/bow.png";
     arrow.src = "/game/arrow.png";
     candle.src = "/game/candle.png";
@@ -132,25 +98,16 @@ export default function ArcheryGame({
         setAssetsReady(true);
       }
     };
-    const onError = () => {
-      // If any fail, we still run with drawn fallbacks.
-      // We only mark ready if all 3 loaded; otherwise keep false.
-    };
-
     bow.onload = onLoad;
     arrow.onload = onLoad;
     candle.onload = onLoad;
-
-    bow.onerror = onError;
-    arrow.onerror = onError;
-    candle.onerror = onError;
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Simulation state lives in refs (no re-render loop)
+  // sim state
   const simRef = useRef(null);
 
   useEffect(() => {
@@ -162,7 +119,7 @@ export default function ArcheryGame({
     let raf = 0;
     let last = performance.now();
 
-    // HiDPI canvas (fixes "low quality" on mobile)
+    // HiDPI canvas (fixes blur)
     const resize = () => {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
       const rect = canvas.getBoundingClientRect();
@@ -176,50 +133,45 @@ export default function ArcheryGame({
     resize();
     window.addEventListener("resize", resize);
 
-    // Create candles arranged in an arc-ish row
     const init = () => {
       const rect = canvas.getBoundingClientRect();
       const W = rect.width;
       const H = rect.height;
 
       const candles = Array.from({ length: candleCount }).map((_, i) => {
-        const spread = Math.min(46, Math.max(26, W / (candleCount + 3)));
-        const baseX = W * 0.55;
+        const spread = Math.min(52, Math.max(30, W / (candleCount + 3)));
+        const baseX = W * 0.66;
         const x = baseX + i * spread;
         const y = H * 0.46 + Math.sin(i * 0.35) * 4;
 
-        // Candle draw size (tuned to feel like your asset scale)
-        const h = Math.max(72, Math.min(110, H * 0.22));
+        const h = Math.max(78, Math.min(120, H * 0.24));
         const w = h * 0.32;
 
-        return {
-          x,
-          y,
-          w,
-          h,
-          lit: true,
-          flicker: Math.random() * 10,
-        };
+        return { x, y, w, h, lit: true, flicker: Math.random() * 10 };
       });
 
-      // Bow anchor (bottom-left)
-      const bowAnchor = { x: 26, y: H - 34 };
+      // bow anchor (where the bow sits)
+      const bowAnchor = { x: 22, y: H - 18 };
 
-      // Wind (small)
-      const wind = (Math.random() * 2 - 1) * (reducedMotion ? 0 : 70);
+      // IMPORTANT: arrow launch point (roughly where the string meets the arrow)
+      const releasePoint = { x: bowAnchor.x + 115, y: bowAnchor.y - 165 };
+
+      // wind (subtle)
+      const wind = reducedMotion ? 0 : (Math.random() * 2 - 1) * 65;
 
       simRef.current = {
         W,
         H,
-        bowAnchor,
         wind,
         aiming: false,
-        aimNow: { x: bowAnchor.x + 80, y: bowAnchor.y - 120 },
+        // "pull back" point the user drags to (string hand position)
+        pull: { x: releasePoint.x - 70, y: releasePoint.y + 20 },
+        bowAnchor,
+        releasePoint,
         arrows: [],
         particles: [],
         candles,
         done: false,
-        finishedAt: null,
       };
 
       setRemaining(candles.filter((c) => c.lit).length);
@@ -228,103 +180,141 @@ export default function ArcheryGame({
 
     init();
 
-    // Helpers: background and particles
     const drawBackground = (W, H) => {
-      // parchment-ish gradient (matches your card world better)
       const g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, "#161412");
-      g.addColorStop(0.45, "#0f0e0d");
-      g.addColorStop(1, "#0b0a09");
+      g.addColorStop(0, "#151311");
+      g.addColorStop(0.55, "#0f0e0d");
+      g.addColorStop(1, "#0a0908");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, H);
 
-      // subtle vignette
+      // vignette
       ctx.save();
-      ctx.globalAlpha = 0.18;
+      ctx.globalAlpha = 0.2;
       ctx.fillStyle = "#000";
       ctx.beginPath();
       ctx.rect(0, 0, W, H);
-      ctx.rect(10, 10, W - 20, H - 20);
+      ctx.rect(12, 12, W - 24, H - 24);
       ctx.fill("evenodd");
       ctx.restore();
     };
 
     const spawnSparks = (x, y) => {
       const s = simRef.current;
-      for (let i = 0; i < 24; i++) {
+      for (let i = 0; i < 26; i++) {
         s.particles.push({
           x,
           y,
-          vx: (Math.random() - 0.5) * 420,
-          vy: (Math.random() - 0.9) * 520,
-          life: 0.38 + Math.random() * 0.22,
+          vx: (Math.random() - 0.5) * 460,
+          vy: (Math.random() - 0.9) * 560,
+          life: 0.36 + Math.random() * 0.26,
         });
       }
     };
 
-    const capsulePath = (x, y, w, h) => ({ x, y, w, h }); // placeholder for hitbox readability
+    // physics
+    const GRAVITY = 1500;
+    const MAX_PULL = 190; // how far you can draw the string
+    const MIN_PULL = 30;
+    const MAX_SPEED = 1100;
+    const MIN_SPEED = 420;
 
-    // Physics constants (tuned for mobile)
-    const GRAVITY = 1500; // px/s^2
-    const MAX_POWER = 1100;
-    const MIN_POWER = 350;
+    // Convert pull distance into power
+    const powerFromPull = (pullDist) => {
+      const t = clamp01((pullDist - MIN_PULL) / (MAX_PULL - MIN_PULL));
+      // ease out for a satisfying curve
+      const eased = 1 - Math.pow(1 - t, 2.2);
+      return MIN_SPEED + eased * (MAX_SPEED - MIN_SPEED);
+    };
+
+    const constrainPull = (s, x, y) => {
+      // Constrain pull point to a circle behind the releasePoint
+      // so you can pull far, but not across the whole screen in weird ways
+      const rp = s.releasePoint;
+      const dx = x - rp.x;
+      const dy = y - rp.y;
+
+      // We want "pull back" to the LEFT of releasePoint.
+      // If user drags to the right, clamp so it still behaves.
+      const clampedDx = Math.min(dx, -8);
+
+      const dist = Math.hypot(clampedDx, dy) || 1;
+      const max = MAX_PULL;
+      const scale = dist > max ? max / dist : 1;
+
+      return { x: rp.x + clampedDx * scale, y: rp.y + dy * scale };
+    };
 
     const shoot = () => {
       const s = simRef.current;
       if (!s || s.done) return;
 
-      const startX = s.bowAnchor.x + 72;
-      const startY = s.bowAnchor.y - 122;
+      const rp = s.releasePoint;
+      const pull = s.pull;
 
-      const dx = startX - s.aimNow.x;
-      const dy = startY - s.aimNow.y;
+      // Arrow should fly from the bow toward the candles.
+      // In real archery: you pull string back, so arrow is launched opposite the pull vector.
+      const pullDx = pull.x - rp.x;
+      const pullDy = pull.y - rp.y;
 
-      const dist = Math.hypot(dx, dy);
-      // drag distance to power (clamped)
-      const power = Math.max(MIN_POWER, Math.min(MAX_POWER, dist * 7));
+      const pullDist = Math.hypot(pullDx, pullDy);
+      const speed = powerFromPull(pullDist);
 
-      const angle = Math.atan2(dy, dx);
+      // Launch direction is from pull toward release (opposite of pull vector)
+      let vx = (-pullDx / (pullDist || 1)) * speed;
+      let vy = (-pullDy / (pullDist || 1)) * speed;
 
-      // Arrow sizing (drawn image gets scaled)
+      // Ensure it goes RIGHTWARD (toward candles)
+      if (vx < 80) vx = 80;
+
       s.arrows.push({
-        x: startX,
-        y: startY,
-        vx: Math.cos(angle) * power,
-        vy: Math.sin(angle) * power,
-        rot: angle,
+        x: rp.x,
+        y: rp.y,
+        vx,
+        vy,
+        rot: Math.atan2(vy, vx),
         alive: true,
-        length: 130,
-        thickness: 10,
+        length: 140,
+        thickness: 12,
       });
 
       setShots((v) => v + 1);
-      playClick(420, 55);
+      playTone(420, 55);
       vibrate(10);
     };
 
-    // Pointer events (mobile friendly)
+    // pointer events
     const onDown = (e) => {
       const s = simRef.current;
       if (!s || s.done) return;
 
-      // Ensure webaudio can start on user gesture
-      if (soundOnRef.current) playClick(220, 1);
+      // unlock webaudio on gesture (silent warmup if needed)
+      if (soundOnRef.current) playTone(220, 1);
 
       s.aiming = true;
-      const rect = canvas.getBoundingClientRect();
-      s.aimNow = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const r = canvas.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      s.pull = constrainPull(s, x, y);
     };
+
     const onMove = (e) => {
       const s = simRef.current;
       if (!s || !s.aiming || s.done) return;
-      const rect = canvas.getBoundingClientRect();
-      s.aimNow = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const r = canvas.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      s.pull = constrainPull(s, x, y);
     };
+
     const onUp = () => {
       const s = simRef.current;
       if (!s || !s.aiming || s.done) return;
       s.aiming = false;
       shoot();
+      // reset pull to a relaxed position
+      const rp = s.releasePoint;
+      s.pull = { x: rp.x - 60, y: rp.y + 10 };
     };
 
     canvas.addEventListener("pointerdown", onDown);
@@ -337,30 +327,28 @@ export default function ArcheryGame({
       const s = simRef.current;
       if (!s) return;
 
-      // update arrows
+      // arrows
       for (const a of s.arrows) {
         if (!a.alive) continue;
 
         a.vy += GRAVITY * dt;
-        a.vx += s.wind * dt * 0.2; // wind influence
+        a.vx += s.wind * dt * 0.2;
         a.x += a.vx * dt;
         a.y += a.vy * dt;
         a.rot = Math.atan2(a.vy, a.vx);
 
-        // kill if out of bounds
-        if (a.x > s.W + 160 || a.y > s.H + 160 || a.y < -260) a.alive = false;
+        if (a.x > s.W + 180 || a.y > s.H + 180 || a.y < -260) a.alive = false;
 
-        // collisions
-        const arrowBox = { x: a.x - 10, y: a.y - 6, w: 44, h: 16 };
+        const arrowBox = { x: a.x - 14, y: a.y - 8, w: 54, h: 18 };
         for (const c of s.candles) {
           if (!c.lit) continue;
-          const candleBox = capsulePath(c.x - c.w / 2, c.y - c.h, c.w, c.h);
+          const candleBox = { x: c.x - c.w / 2, y: c.y - c.h, w: c.w, h: c.h };
           if (rectsIntersect(arrowBox, candleBox)) {
             c.lit = false;
             a.alive = false;
-
             spawnSparks(c.x, c.y - c.h * 0.75);
-            playClick(760, 70);
+
+            playTone(760, 70);
             vibrate([12, 18, 12]);
 
             const left = s.candles.filter((cc) => cc.lit).length;
@@ -368,9 +356,7 @@ export default function ArcheryGame({
 
             if (left === 0 && !s.done) {
               s.done = true;
-              s.finishedAt = nowSec();
               if (typeof onComplete === "function") {
-                // small delay so the final hit lands
                 setTimeout(() => onComplete(), 550);
               }
             }
@@ -378,7 +364,7 @@ export default function ArcheryGame({
         }
       }
 
-      // update particles
+      // particles
       s.particles = s.particles.filter((p) => p.life > 0);
       for (const p of s.particles) {
         p.vy = (p.vy ?? 0) + GRAVITY * 0.35 * dt;
@@ -387,39 +373,36 @@ export default function ArcheryGame({
         p.life -= dt;
       }
 
-      // candle flicker
-      for (const c of s.candles) {
-        c.flicker += dt * 9;
-      }
+      for (const c of s.candles) c.flicker += dt * 9;
     };
 
     const drawTrajectoryPreview = (s) => {
       if (!s.aiming) return;
 
-      const startX = s.bowAnchor.x + 72;
-      const startY = s.bowAnchor.y - 122;
+      const rp = s.releasePoint;
+      const pull = s.pull;
 
-      const dx = startX - s.aimNow.x;
-      const dy = startY - s.aimNow.y;
+      const dx = pull.x - rp.x;
+      const dy = pull.y - rp.y;
       const dist = Math.hypot(dx, dy);
-      const power = Math.max(MIN_POWER, Math.min(MAX_POWER, dist * 7));
-      const angle = Math.atan2(dy, dx);
+      const speed = powerFromPull(dist);
 
-      let x = startX;
-      let y = startY;
-      let vx = Math.cos(angle) * power;
-      let vy = Math.sin(angle) * power;
+      let vx = (-dx / (dist || 1)) * speed;
+      let vy = (-dy / (dist || 1)) * speed;
+      if (vx < 80) vx = 80;
+
+      let x = rp.x;
+      let y = rp.y;
 
       ctx.save();
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = "#f2e7d1";
-      for (let i = 0; i < 22; i++) {
-        // fixed small step for preview
-        const dt = 0.016;
-        vy += GRAVITY * dt;
-        vx += s.wind * dt * 0.2;
-        x += vx * dt;
-        y += vy * dt;
+      for (let i = 0; i < 26; i++) {
+        const step = 0.016;
+        vy += GRAVITY * step;
+        vx += s.wind * step * 0.2;
+        x += vx * step;
+        y += vy * step;
         ctx.fillRect(x, y, 2, 2);
       }
       ctx.restore();
@@ -431,10 +414,9 @@ export default function ArcheryGame({
       for (const c of s.candles) {
         if (!c.lit) continue;
 
-        // If asset loaded, draw it; else fallback
         if (candle) {
+          // glow behind
           ctx.save();
-          // warm glow behind candle
           ctx.globalAlpha = 0.25;
           ctx.fillStyle = "#ffcc66";
           ctx.beginPath();
@@ -444,7 +426,7 @@ export default function ArcheryGame({
 
           ctx.drawImage(candle, c.x - c.w / 2, c.y - c.h, c.w, c.h);
         } else {
-          // Fallback: simple candle
+          // fallback
           ctx.save();
           ctx.fillStyle = "#e8dcc8";
           ctx.fillRect(c.x - c.w / 2, c.y - c.h, c.w, c.h);
@@ -467,15 +449,17 @@ export default function ArcheryGame({
           ctx.save();
           ctx.translate(a.x, a.y);
           ctx.rotate(a.rot);
+
+          // IMPORTANT: Your arrow image points RIGHT already.
+          // This draw places the arrow centered and pointing forward.
           ctx.drawImage(arrow, -a.length * 0.12, -a.thickness / 2, a.length, a.thickness);
           ctx.restore();
         } else {
-          // fallback arrow
           ctx.save();
           ctx.translate(a.x, a.y);
           ctx.rotate(a.rot);
           ctx.fillStyle = "#d7f3ff";
-          ctx.fillRect(0, -2, 40, 4);
+          ctx.fillRect(0, -2, 46, 4);
           ctx.restore();
         }
       }
@@ -493,41 +477,58 @@ export default function ArcheryGame({
 
     const drawBow = (s) => {
       const { bow } = imagesRef.current;
+      const rp = s.releasePoint;
 
-      // Slight scale-up while aiming to feel responsive
-      const scale = s.aiming ? 1.03 : 1.0;
-
+      // Draw the bow image FLIPPED so it faces the candles (to the right)
+      // Your bow PNG appears to face left in the screenshot.
+      // We mirror it horizontally.
       ctx.save();
       ctx.globalAlpha = 0.96;
 
       if (bow) {
-        const bowW = 150 * scale;
+        const baseW = 160;
+        const scale = s.aiming ? 1.03 : 1.0;
+        const bowW = baseW * scale;
         const bowH = bowW * (bow.height / bow.width);
-        const x = 18;
-        const y = s.H - bowH - 18;
 
-        ctx.drawImage(bow, x, y, bowW, bowH);
+        const x = 16;
+        const y = s.H - bowH - 16;
+
+        // Mirror horizontally
+        ctx.translate(x + bowW, y);
+        ctx.scale(-1, 1);
+        ctx.drawImage(bow, 0, 0, bowW, bowH);
       } else {
-        // fallback bow
         ctx.strokeStyle = "#f2e7d1";
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(46, s.H - 70, 60, -1.2, 1.1);
+        ctx.arc(58, s.H - 82, 66, -1.15, 1.05);
         ctx.stroke();
       }
 
       ctx.restore();
+
+      // Optional: draw a string line (helps the "pull" feel)
+      if (s.aiming) {
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = "#f2e7d1";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(rp.x, rp.y);
+        ctx.lineTo(s.pull.x, s.pull.y);
+        ctx.stroke();
+        ctx.restore();
+      }
     };
 
     const drawHUD = (s) => {
-      // Wind indicator
-      const wind = s.wind || 0;
       ctx.save();
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = "#f2e7d1";
       ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-      const dir = wind === 0 ? "•" : wind > 0 ? "→" : "←";
-      const mag = Math.round(Math.abs(wind));
+      const dir = s.wind === 0 ? "•" : s.wind > 0 ? "→" : "←";
+      const mag = Math.round(Math.abs(s.wind));
       ctx.fillText(`Wind ${dir} ${mag}`, s.W - 96, 18);
       ctx.restore();
     };
@@ -539,12 +540,10 @@ export default function ArcheryGame({
       const dt = Math.min(0.033, (t - last) / 1000);
       last = t;
 
-      // In reduced motion, minimize wind and particles
       if (reducedMotion) s.wind = 0;
 
       update(dt);
 
-      // Draw
       const rect = canvas.getBoundingClientRect();
       s.W = rect.width;
       s.H = rect.height;
@@ -572,7 +571,6 @@ export default function ArcheryGame({
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("pointerleave", onUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candleCount, onComplete, reducedMotion]);
 
   return (
@@ -586,36 +584,17 @@ export default function ArcheryGame({
         touchAction: "none",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 12px",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <div style={{ fontSize: 14, opacity: 0.9, color: "#f2e7d1" }}>
-            Extinguish the candles
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.75, color: "#f2e7d1" }}>
-            Drag to aim + power. Release to shoot.
-          </div>
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px" }}>
+        <div style={{ color: "#f2e7d1" }}>
+          <div style={{ fontSize: 14, opacity: 0.92 }}>Extinguish the candles</div>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>Pull the string back. Release to shoot.</div>
         </div>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ fontSize: 12, opacity: 0.8, color: "#f2e7d1" }}>
-            Shots: {shots}
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.8, color: "#f2e7d1" }}>
-            Left: {remaining}
-          </div>
+        <div style={{ color: "#f2e7d1", fontSize: 12, opacity: 0.85, display: "flex", gap: 10 }}>
+          <span>Shots: {shots}</span>
+          <span>Left: {remaining}</span>
         </div>
       </div>
 
-      {/* Canvas area */}
       <div style={{ position: "relative", padding: "0 12px 12px" }}>
         <div
           style={{
@@ -626,16 +605,8 @@ export default function ArcheryGame({
             boxShadow: "0 18px 55px rgba(0,0,0,0.45)",
           }}
         >
-          <canvas
-            ref={canvasRef}
-            style={{
-              width: "100%",
-              height,
-              display: "block",
-            }}
-          />
+          <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />
 
-          {/* Debug badge: helps confirm production is using /game assets */}
           <div
             style={{
               position: "absolute",
@@ -649,32 +620,15 @@ export default function ArcheryGame({
               zIndex: 20,
               border: "1px solid rgba(255,255,255,0.08)",
             }}
-            title="If this says LOADING forever, check /game/*.png paths and filename casing."
           >
             {assetsReady ? "ASSETS: OK" : "ASSETS: LOADING"}
           </div>
 
-          {/* Toggles */}
-          <div
-            style={{
-              position: "absolute",
-              left: 10,
-              top: 10,
-              display: "flex",
-              gap: 8,
-              zIndex: 20,
-            }}
-          >
+          <div style={{ position: "absolute", left: 10, top: 10, display: "flex", gap: 8, zIndex: 20 }}>
             <TogglePill label="Sound" value={soundOn} onChange={setSoundOn} />
             <TogglePill label="Haptics" value={hapticsOn} onChange={setHapticsOn} />
           </div>
         </div>
-      </div>
-
-      {/* Footer hint */}
-      <div style={{ padding: "0 12px 14px", color: "#f2e7d1", opacity: 0.7, fontSize: 12 }}>
-        Tip: If it looks blurry on mobile, the canvas is DPR-scaled already; then it’s likely the asset
-        filenames (case-sensitive) or upscaling.
       </div>
     </div>
   );
