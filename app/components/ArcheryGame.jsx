@@ -1,6 +1,22 @@
-"use client";
+\"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+
+/**
+ * ArcheryGame.jsx (mobile-first, real assets)
+ * Fixes:
+ * - More room to draw (bow + release point shifted right)
+ * - Start draw anywhere; it snaps your touch into a comfortable pull zone
+ * - Snap-to-centerline magnetism while aiming (subtle)
+ * - Arrow sits on the string while aiming (nocked arrow)
+ * - Arrow flies the correct way (toward candles)
+ * - String follow-through spring after release (brief, satisfying)
+ *
+ * Assets expected:
+ *  public/game/bow.png
+ *  public/game/arrow.png
+ *  public/game/candle.png
+ */
 
 function clamp01(x) {
   return Math.max(0, Math.min(1, x));
@@ -13,6 +29,10 @@ function rectsIntersect(a, b) {
 function prefersReducedMotion() {
   if (typeof window === "undefined") return false;
   return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
 }
 
 export default function ArcheryGame({
@@ -85,7 +105,7 @@ export default function ArcheryGame({
     const arrow = new Image();
     const candle = new Image();
 
-    // NOTE: filenames are case-sensitive on Vercel/Linux
+    // case-sensitive on Vercel/Linux
     bow.src = "/game/bow.png";
     arrow.src = "/game/arrow.png";
     candle.src = "/game/candle.png";
@@ -119,7 +139,7 @@ export default function ArcheryGame({
     let raf = 0;
     let last = performance.now();
 
-    // HiDPI canvas (fixes blur)
+    // HiDPI canvas for crisp rendering
     const resize = () => {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
       const rect = canvas.getBoundingClientRect();
@@ -132,6 +152,68 @@ export default function ArcheryGame({
 
     resize();
     window.addEventListener("resize", resize);
+
+    // ---------- TUNABLE FEEL CONSTANTS ----------
+    const GRAVITY = 1500; // px/s^2
+    const MAX_PULL = 280; // more room + power range
+    const MIN_PULL = 22;
+    const MAX_SPEED = 1120;
+    const MIN_SPEED = 420;
+
+    // Snap-to-centerline (releasePoint.y) magnetism while aiming
+    // Higher = more "locks" onto centerline
+    const MAGNET_STRENGTH = reducedMotion ? 0 : 7.0; // 0..10-ish
+
+    // How hard we snap "start anywhere" into the pull zone
+    const SNAP_TO_ZONE = 0.65; // 0..1
+
+    // Follow-through spring after release (string returns to relaxed)
+    // Higher stiffness = snappier, higher damping = less bounce
+    const SPRING_K = 95; // stiffness
+    const SPRING_DAMP = 14; // damping
+
+    // Arrow nock follow-through (tiny reverse kick then settle)
+    const FOLLOW_THROUGH_KICK = 18; // px (small)
+    // -------------------------------------------
+
+    const powerFromPull = (pullDist) => {
+      const t = clamp01((pullDist - MIN_PULL) / (MAX_PULL - MIN_PULL));
+      const eased = 1 - Math.pow(1 - t, 2.0);
+      return MIN_SPEED + eased * (MAX_SPEED - MIN_SPEED);
+    };
+
+    // Constrain pull behind the release point, within a max radius
+    // and keep it to the left side so the shot always makes sense.
+    const constrainPull = (s, x, y) => {
+      const rp = s.releasePoint;
+      let dx = x - rp.x;
+      let dy = y - rp.y;
+
+      // Force pull to the LEFT of release point (negative dx)
+      dx = Math.min(dx, -10);
+
+      const dist = Math.hypot(dx, dy) || 1;
+      const scale = dist > MAX_PULL ? MAX_PULL / dist : 1;
+
+      return { x: rp.x + dx * scale, y: rp.y + dy * scale };
+    };
+
+    // Starting a draw "anywhere": map pointer to a comfortable pull zone
+    // The zone is a circle behind the bow; we blend your pointer toward it.
+    const snapPointerToComfortZone = (s, px, py) => {
+      const rp = s.releasePoint;
+
+      // target comfort point roughly behind & slightly below the release point
+      const comfort = { x: rp.x - 120, y: rp.y + 25 };
+
+      // Blend pointer toward comfort zone so touches anywhere feel good
+      const blended = {
+        x: lerp(px, comfort.x, SNAP_TO_ZONE),
+        y: lerp(py, comfort.y, SNAP_TO_ZONE),
+      };
+
+      return constrainPull(s, blended.x, blended.y);
+    };
 
     const init = () => {
       const rect = canvas.getBoundingClientRect();
@@ -150,13 +232,15 @@ export default function ArcheryGame({
         return { x, y, w, h, lit: true, flicker: Math.random() * 10 };
       });
 
-      // bow anchor (where the bow sits)
-      const bowAnchor = { x: 22, y: H - 18 };
+      // Move bow to the right so you can pull back on mobile
+      const bowAnchor = { x: Math.max(90, W * 0.10), y: H - 18 };
 
-      // IMPORTANT: arrow launch point (roughly where the string meets the arrow)
-      const releasePoint = { x: bowAnchor.x + 115, y: bowAnchor.y - 165 };
+      // Release point further right (more draw room behind it)
+      const releasePoint = { x: bowAnchor.x + 155, y: bowAnchor.y - 165 };
 
-      // wind (subtle)
+      // Relaxed string hand position
+      const pullRelaxed = { x: releasePoint.x - 90, y: releasePoint.y + 18 };
+
       const wind = reducedMotion ? 0 : (Math.random() * 2 - 1) * 65;
 
       simRef.current = {
@@ -164,10 +248,16 @@ export default function ArcheryGame({
         H,
         wind,
         aiming: false,
-        // "pull back" point the user drags to (string hand position)
-        pull: { x: releasePoint.x - 70, y: releasePoint.y + 20 },
         bowAnchor,
         releasePoint,
+
+        pull: { ...pullRelaxed },
+        pullVel: { x: 0, y: 0 },
+        pullRelaxed: { ...pullRelaxed },
+
+        // a brief "kick" after release (follow-through)
+        followKick: 0,
+
         arrows: [],
         particles: [],
         candles,
@@ -188,7 +278,6 @@ export default function ArcheryGame({
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, H);
 
-      // vignette
       ctx.save();
       ctx.globalAlpha = 0.2;
       ctx.fillStyle = "#000";
@@ -212,37 +301,26 @@ export default function ArcheryGame({
       }
     };
 
-    // physics
-    const GRAVITY = 1500;
-    const MAX_PULL = 190; // how far you can draw the string
-    const MIN_PULL = 30;
-    const MAX_SPEED = 1100;
-    const MIN_SPEED = 420;
-
-    // Convert pull distance into power
-    const powerFromPull = (pullDist) => {
-      const t = clamp01((pullDist - MIN_PULL) / (MAX_PULL - MIN_PULL));
-      // ease out for a satisfying curve
-      const eased = 1 - Math.pow(1 - t, 2.2);
-      return MIN_SPEED + eased * (MAX_SPEED - MIN_SPEED);
-    };
-
-    const constrainPull = (s, x, y) => {
-      // Constrain pull point to a circle behind the releasePoint
-      // so you can pull far, but not across the whole screen in weird ways
+    const computeLaunch = (s) => {
       const rp = s.releasePoint;
-      const dx = x - rp.x;
-      const dy = y - rp.y;
+      const pull = s.pull;
 
-      // We want "pull back" to the LEFT of releasePoint.
-      // If user drags to the right, clamp so it still behaves.
-      const clampedDx = Math.min(dx, -8);
+      const dx = pull.x - rp.x;
+      const dy = pull.y - rp.y;
+      const dist = Math.hypot(dx, dy);
 
-      const dist = Math.hypot(clampedDx, dy) || 1;
-      const max = MAX_PULL;
-      const scale = dist > max ? max / dist : 1;
+      const speed = powerFromPull(dist);
 
-      return { x: rp.x + clampedDx * scale, y: rp.y + dy * scale };
+      // launch direction is opposite the pull vector
+      let vx = (-dx / (dist || 1)) * speed;
+      let vy = (-dy / (dist || 1)) * speed;
+
+      // always forward toward candles
+      if (vx < 80) vx = 80;
+
+      const rot = Math.atan2(vy, vx);
+
+      return { vx, vy, rot, speed, dist };
     };
 
     const shoot = () => {
@@ -250,71 +328,77 @@ export default function ArcheryGame({
       if (!s || s.done) return;
 
       const rp = s.releasePoint;
-      const pull = s.pull;
-
-      // Arrow should fly from the bow toward the candles.
-      // In real archery: you pull string back, so arrow is launched opposite the pull vector.
-      const pullDx = pull.x - rp.x;
-      const pullDy = pull.y - rp.y;
-
-      const pullDist = Math.hypot(pullDx, pullDy);
-      const speed = powerFromPull(pullDist);
-
-      // Launch direction is from pull toward release (opposite of pull vector)
-      let vx = (-pullDx / (pullDist || 1)) * speed;
-      let vy = (-pullDy / (pullDist || 1)) * speed;
-
-      // Ensure it goes RIGHTWARD (toward candles)
-      if (vx < 80) vx = 80;
+      const launch = computeLaunch(s);
 
       s.arrows.push({
         x: rp.x,
         y: rp.y,
-        vx,
-        vy,
-        rot: Math.atan2(vy, vx),
+        vx: launch.vx,
+        vy: launch.vy,
+        rot: launch.rot,
         alive: true,
         length: 140,
         thickness: 12,
       });
+
+      // Follow-through kick: a tiny extra tug backward then spring returns
+      s.followKick = FOLLOW_THROUGH_KICK;
 
       setShots((v) => v + 1);
       playTone(420, 55);
       vibrate(10);
     };
 
-    // pointer events
+    // Pointer events:
+    // - start draw anywhere
+    // - snap into comfortable pull zone
     const onDown = (e) => {
       const s = simRef.current;
       if (!s || s.done) return;
 
-      // unlock webaudio on gesture (silent warmup if needed)
       if (soundOnRef.current) playTone(220, 1);
 
       s.aiming = true;
+
       const r = canvas.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      s.pull = constrainPull(s, x, y);
+      const px = e.clientX - r.left;
+      const py = e.clientY - r.top;
+
+      // Start anywhere -> snap to comfort
+      const p = snapPointerToComfortZone(s, px, py);
+      s.pull.x = p.x;
+      s.pull.y = p.y;
+
+      // zero velocity so it feels anchored
+      s.pullVel.x = 0;
+      s.pullVel.y = 0;
     };
 
     const onMove = (e) => {
       const s = simRef.current;
       if (!s || !s.aiming || s.done) return;
+
       const r = canvas.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      s.pull = constrainPull(s, x, y);
+      const px = e.clientX - r.left;
+      const py = e.clientY - r.top;
+
+      // While dragging, do NOT snap hard; just constrain naturally
+      const p = constrainPull(s, px, py);
+      s.pull.x = p.x;
+      s.pull.y = p.y;
     };
 
     const onUp = () => {
       const s = simRef.current;
       if (!s || !s.aiming || s.done) return;
+
       s.aiming = false;
       shoot();
-      // reset pull to a relaxed position
-      const rp = s.releasePoint;
-      s.pull = { x: rp.x - 60, y: rp.y + 10 };
+
+      // start spring return (string follow-through)
+      // we leave pull where it is; spring system in update() will pull it home
+      playTone(760, 70);
+      vibrate([10, 16, 10]);
     };
 
     canvas.addEventListener("pointerdown", onDown);
@@ -323,9 +407,61 @@ export default function ArcheryGame({
     canvas.addEventListener("pointercancel", onUp);
     canvas.addEventListener("pointerleave", onUp);
 
+    const updatePullSpring = (s, dt) => {
+      // If aiming: subtle magnetism toward centerline + a bit of smoothing
+      // If not aiming: spring return to relaxed position (follow-through)
+      const rp = s.releasePoint;
+
+      if (s.aiming) {
+        // Magnetize Y toward centerline (rp.y)
+        const yTarget = rp.y;
+
+        // exponential smoothing towards centerline
+        const m = 1 - Math.exp(-MAGNET_STRENGTH * dt);
+        s.pull.y = lerp(s.pull.y, yTarget, m);
+
+        // keep pull constrained after magnetism adjustment
+        const p = constrainPull(s, s.pull.x, s.pull.y);
+        s.pull.x = p.x;
+        s.pull.y = p.y;
+
+        // followKick decays while aiming
+        s.followKick = Math.max(0, s.followKick - dt * 80);
+      } else {
+        // Follow-through kick: briefly tug further left then spring back
+        let targetX = s.pullRelaxed.x;
+        let targetY = s.pullRelaxed.y;
+
+        if (s.followKick > 0) {
+          targetX = s.pullRelaxed.x - s.followKick;
+          s.followKick = Math.max(0, s.followKick - dt * 70);
+        }
+
+        const dx = s.pull.x - targetX;
+        const dy = s.pull.y - targetY;
+
+        // spring force
+        const ax = -SPRING_K * dx - SPRING_DAMP * s.pullVel.x;
+        const ay = -SPRING_K * dy - SPRING_DAMP * s.pullVel.y;
+
+        s.pullVel.x += ax * dt;
+        s.pullVel.y += ay * dt;
+
+        s.pull.x += s.pullVel.x * dt;
+        s.pull.y += s.pullVel.y * dt;
+
+        // keep within constraints even during spring
+        const p = constrainPull(s, s.pull.x, s.pull.y);
+        s.pull.x = p.x;
+        s.pull.y = p.y;
+      }
+    };
+
     const update = (dt) => {
       const s = simRef.current;
       if (!s) return;
+
+      updatePullSpring(s, dt);
 
       // arrows
       for (const a of s.arrows) {
@@ -346,9 +482,9 @@ export default function ArcheryGame({
           if (rectsIntersect(arrowBox, candleBox)) {
             c.lit = false;
             a.alive = false;
-            spawnSparks(c.x, c.y - c.h * 0.75);
 
-            playTone(760, 70);
+            spawnSparks(c.x, c.y - c.h * 0.75);
+            playTone(880, 70);
             vibrate([12, 18, 12]);
 
             const left = s.candles.filter((cc) => cc.lit).length;
@@ -356,9 +492,7 @@ export default function ArcheryGame({
 
             if (left === 0 && !s.done) {
               s.done = true;
-              if (typeof onComplete === "function") {
-                setTimeout(() => onComplete(), 550);
-              }
+              if (typeof onComplete === "function") setTimeout(() => onComplete(), 550);
             }
           }
         }
@@ -380,19 +514,12 @@ export default function ArcheryGame({
       if (!s.aiming) return;
 
       const rp = s.releasePoint;
-      const pull = s.pull;
-
-      const dx = pull.x - rp.x;
-      const dy = pull.y - rp.y;
-      const dist = Math.hypot(dx, dy);
-      const speed = powerFromPull(dist);
-
-      let vx = (-dx / (dist || 1)) * speed;
-      let vy = (-dy / (dist || 1)) * speed;
-      if (vx < 80) vx = 80;
+      const launch = computeLaunch(s);
 
       let x = rp.x;
       let y = rp.y;
+      let vx = launch.vx;
+      let vy = launch.vy;
 
       ctx.save();
       ctx.globalAlpha = 0.55;
@@ -415,7 +542,6 @@ export default function ArcheryGame({
         if (!c.lit) continue;
 
         if (candle) {
-          // glow behind
           ctx.save();
           ctx.globalAlpha = 0.25;
           ctx.fillStyle = "#ffcc66";
@@ -426,7 +552,6 @@ export default function ArcheryGame({
 
           ctx.drawImage(candle, c.x - c.w / 2, c.y - c.h, c.w, c.h);
         } else {
-          // fallback
           ctx.save();
           ctx.fillStyle = "#e8dcc8";
           ctx.fillRect(c.x - c.w / 2, c.y - c.h, c.w, c.h);
@@ -439,6 +564,28 @@ export default function ArcheryGame({
       }
     };
 
+    // Nocked arrow sits at release point during aiming
+    const drawNockedArrow = (s) => {
+      if (!s.aiming) return;
+
+      const { arrow } = imagesRef.current;
+      if (!arrow) return;
+
+      const rp = s.releasePoint;
+      const launch = computeLaunch(s);
+
+      ctx.save();
+      ctx.globalAlpha = 0.88;
+      ctx.translate(rp.x, rp.y);
+      ctx.rotate(launch.rot);
+
+      const len = 140;
+      const thick = 12;
+      ctx.drawImage(arrow, -len * 0.12, -thick / 2, len, thick);
+
+      ctx.restore();
+    };
+
     const drawArrows = (s) => {
       const { arrow } = imagesRef.current;
 
@@ -449,9 +596,6 @@ export default function ArcheryGame({
           ctx.save();
           ctx.translate(a.x, a.y);
           ctx.rotate(a.rot);
-
-          // IMPORTANT: Your arrow image points RIGHT already.
-          // This draw places the arrow centered and pointing forward.
           ctx.drawImage(arrow, -a.length * 0.12, -a.thickness / 2, a.length, a.thickness);
           ctx.restore();
         } else {
@@ -475,13 +619,31 @@ export default function ArcheryGame({
       ctx.restore();
     };
 
-    const drawBow = (s) => {
+    const drawBowAndString = (s) => {
       const { bow } = imagesRef.current;
       const rp = s.releasePoint;
 
-      // Draw the bow image FLIPPED so it faces the candles (to the right)
-      // Your bow PNG appears to face left in the screenshot.
-      // We mirror it horizontally.
+      // draw string (always, so player understands the mechanic)
+      ctx.save();
+      ctx.globalAlpha = s.aiming ? 0.62 : 0.38;
+      ctx.strokeStyle = "#f2e7d1";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(rp.x, rp.y);
+      ctx.lineTo(s.pull.x, s.pull.y);
+      ctx.stroke();
+      ctx.restore();
+
+      // draw a little "hand" dot at pull point
+      ctx.save();
+      ctx.globalAlpha = s.aiming ? 0.85 : 0.55;
+      ctx.fillStyle = "#f2e7d1";
+      ctx.beginPath();
+      ctx.arc(s.pull.x, s.pull.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // draw bow image mirrored so it faces candles
       ctx.save();
       ctx.globalAlpha = 0.96;
 
@@ -491,10 +653,11 @@ export default function ArcheryGame({
         const bowW = baseW * scale;
         const bowH = bowW * (bow.height / bow.width);
 
-        const x = 16;
+        // anchor-based placement
+        const x = s.bowAnchor.x - 10;
         const y = s.H - bowH - 16;
 
-        // Mirror horizontally
+        // mirror horizontally
         ctx.translate(x + bowW, y);
         ctx.scale(-1, 1);
         ctx.drawImage(bow, 0, 0, bowW, bowH);
@@ -507,19 +670,6 @@ export default function ArcheryGame({
       }
 
       ctx.restore();
-
-      // Optional: draw a string line (helps the "pull" feel)
-      if (s.aiming) {
-        ctx.save();
-        ctx.globalAlpha = 0.55;
-        ctx.strokeStyle = "#f2e7d1";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(rp.x, rp.y);
-        ctx.lineTo(s.pull.x, s.pull.y);
-        ctx.stroke();
-        ctx.restore();
-      }
     };
 
     const drawHUD = (s) => {
@@ -550,11 +700,13 @@ export default function ArcheryGame({
 
       ctx.clearRect(0, 0, s.W, s.H);
       drawBackground(s.W, s.H);
+
       drawCandles(s);
+      drawNockedArrow(s);
       drawTrajectoryPreview(s);
       drawArrows(s);
       drawParticles(s);
-      drawBow(s);
+      drawBowAndString(s);
       drawHUD(s);
 
       raf = requestAnimationFrame(loop);
@@ -587,7 +739,9 @@ export default function ArcheryGame({
       <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px" }}>
         <div style={{ color: "#f2e7d1" }}>
           <div style={{ fontSize: 14, opacity: 0.92 }}>Extinguish the candles</div>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>Pull the string back. Release to shoot.</div>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>
+            Start anywhere. It’ll snap to the string. Pull back. Release.
+          </div>
         </div>
         <div style={{ color: "#f2e7d1", fontSize: 12, opacity: 0.85, display: "flex", gap: 10 }}>
           <span>Shots: {shots}</span>
