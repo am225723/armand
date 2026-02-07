@@ -3,37 +3,24 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /**
- * ArcheryGame.jsx (mobile-first, real assets)
- *
- * Fixes per request:
- * - REMOVE the visible string line (no line drawn)
- * - Arrow ALWAYS visible (idle + aiming), centered, slightly larger
- * - More pull distance + more comfortable draw (bigger MAX_PULL + shifted bow)
- * - Bow moved up + auto-scaled so it always fits fully in canvas
- * - Nicer visuals (better background + candle glow + gentle vignette)
- * - Guaranteed completion handling:
- *    - calls onComplete() when all candles extinguished
- *    - shows a "Continue" overlay as fallback (if onComplete not hooked)
- *
- * Assets expected (case-sensitive on Vercel/Linux):
- *  public/game/bow.png
- *  public/game/arrow.png
- *  public/game/candle.png
+ * ArcheryGame.jsx
+ * - Arrow follows your finger while aiming (nock follows pull point)
+ * - Arrow centered + slightly larger
+ * - NO string line
+ * - Optional translucent canvas + optional background image on container
+ * - Completion: calls onComplete(), also dispatches a DOM event "archery:complete"
  */
 
 function clamp01(x) {
   return Math.max(0, Math.min(1, x));
 }
-
 function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
-
 function prefersReducedMotion() {
   if (typeof window === "undefined") return false;
-  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
-
 function lerp(a, b, t) {
   return a + (b - a) * t;
 }
@@ -43,6 +30,10 @@ export default function ArcheryGame({
   candleCount = 7,
   width = "100%",
   height = 420,
+
+  // NEW: visuals
+  translucent = true,
+  backgroundImageUrl = "", // e.g. "/paper-dark.jpg" or "/textures/whatever.jpg"
 }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
@@ -53,13 +44,10 @@ export default function ArcheryGame({
 
   const [shots, setShots] = useState(0);
   const [remaining, setRemaining] = useState(candleCount);
-
-  // fallback overlay if parent doesn't navigate
   const [doneUI, setDoneUI] = useState(false);
 
   const reducedMotion = useMemo(() => prefersReducedMotion(), []);
 
-  // keep toggles in refs so sim doesn't reset
   const soundOnRef = useRef(soundOn);
   const hapticsOnRef = useRef(hapticsOn);
   useEffect(() => void (soundOnRef.current = soundOn), [soundOn]);
@@ -81,7 +69,6 @@ export default function ArcheryGame({
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
-
       osc.connect(gain);
       gain.connect(ctx.destination);
 
@@ -97,11 +84,9 @@ export default function ArcheryGame({
 
   const vibrate = (pattern = 10) => {
     if (!hapticsOnRef.current) return;
-    if (navigator && "vibrate" in navigator) {
-      try {
-        navigator.vibrate(pattern);
-      } catch {}
-    }
+    try {
+      navigator?.vibrate?.(pattern);
+    } catch {}
   };
 
   // images
@@ -133,7 +118,6 @@ export default function ArcheryGame({
     };
   }, []);
 
-  // sim state
   const simRef = useRef(null);
   const completedOnceRef = useRef(false);
 
@@ -146,7 +130,6 @@ export default function ArcheryGame({
     let raf = 0;
     let last = performance.now();
 
-    // HiDPI canvas for crisp rendering
     const resize = () => {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
       const rect = canvas.getBoundingClientRect();
@@ -160,34 +143,36 @@ export default function ArcheryGame({
     resize();
     window.addEventListener("resize", resize);
 
-    // ---------- TUNABLE FEEL CONSTANTS ----------
+    // ---- Feel tuning ----
     const GRAVITY = 1450;
 
-    // Pull farther
-    const MAX_PULL = 420;
+    // more pull
+    const MAX_PULL = 440;
     const MIN_PULL = 16;
 
-    const MAX_SPEED = 1220;
+    const MAX_SPEED = 1250;
     const MIN_SPEED = 420;
 
-    // start anywhere snap
     const SNAP_TO_ZONE = 0.72;
 
-    // follow-through spring
     const SPRING_K = 92;
     const SPRING_DAMP = 15;
     const FOLLOW_THROUGH_KICK = 26;
 
-    // Arrow draw parameters (bigger)
-    const ARROW_LEN = 180;
+    // arrow visuals
+    const ARROW_LEN = 190;
     const ARROW_THICK = 14;
 
-    // nock offset so it "sits" on the string area visually
-    const NOCK_FORWARD = 14;
+    // how far forward the arrow sits relative to the nock point
+    // (since we’re centering the image, this helps it look attached)
+    const NOCK_FORWARD = 18;
 
-    // remove wind entirely if you want max fairness
+    // wind
     const WIND_MAG = reducedMotion ? 0 : 35;
-    // -------------------------------------------
+
+    // aiming: how much the arrow nock sticks to your finger (1 = fully)
+    const NOCK_STICK = 1.0;
+    // ---------------------
 
     const powerFromPull = (pullDist) => {
       const t = clamp01((pullDist - MIN_PULL) / (MAX_PULL - MIN_PULL));
@@ -200,7 +185,6 @@ export default function ArcheryGame({
       let dx = x - rp.x;
       let dy = y - rp.y;
 
-      // must stay left of release point
       dx = Math.min(dx, -14);
 
       const dist = Math.hypot(dx, dy) || 1;
@@ -211,8 +195,7 @@ export default function ArcheryGame({
 
     const snapPointerToComfortZone = (s, px, py) => {
       const rp = s.releasePoint;
-      // comfort further behind to encourage strong pull
-      const comfort = { x: rp.x - 210, y: rp.y + 18 };
+      const comfort = { x: rp.x - 220, y: rp.y + 18 };
       const blended = {
         x: lerp(px, comfort.x, SNAP_TO_ZONE),
         y: lerp(py, comfort.y, SNAP_TO_ZONE),
@@ -230,22 +213,17 @@ export default function ArcheryGame({
         const baseX = W * 0.68;
         const x = baseX + i * spread;
         const y = H * 0.44 + Math.sin(i * 0.35) * 4;
-
         const h = Math.max(84, Math.min(128, H * 0.26));
         const w = h * 0.32;
-
         return { x, y, w, h, lit: true };
       });
 
-      // Move bow right + up so draw space exists AND full bow fits
       const bowAnchor = {
         x: Math.max(150, W * 0.16),
         y: Math.max(H * 0.72, H - 130),
       };
 
-      // Release point offset from bowAnchor
       const releasePoint = { x: bowAnchor.x + 185, y: bowAnchor.y - 178 };
-
       const pullRelaxed = { x: releasePoint.x - 135, y: releasePoint.y + 16 };
 
       const wind = WIND_MAG === 0 ? 0 : (Math.random() * 2 - 1) * WIND_MAG;
@@ -255,6 +233,7 @@ export default function ArcheryGame({
         H,
         wind,
         aiming: false,
+
         bowAnchor,
         releasePoint,
 
@@ -278,21 +257,24 @@ export default function ArcheryGame({
 
     init();
 
+    // background: translucent (no canvas fill) or soft ink background
     const drawBackground = (W, H) => {
-      // nicer: subtle radial + vignette
-      const rg = ctx.createRadialGradient(W * 0.55, H * 0.25, 40, W * 0.55, H * 0.45, W * 0.85);
-      rg.addColorStop(0, "rgba(255, 231, 200, 0.09)");
-      rg.addColorStop(0.35, "rgba(30, 26, 22, 0.92)");
-      rg.addColorStop(1, "rgba(8, 7, 7, 1)");
-      ctx.fillStyle = rg;
-      ctx.fillRect(0, 0, W, H);
-
-      const vg = ctx.createLinearGradient(0, 0, 0, H);
-      vg.addColorStop(0, "rgba(0,0,0,0.15)");
-      vg.addColorStop(0.6, "rgba(0,0,0,0.35)");
-      vg.addColorStop(1, "rgba(0,0,0,0.58)");
-      ctx.fillStyle = vg;
-      ctx.fillRect(0, 0, W, H);
+      if (translucent) {
+        // do nothing; let container background show through
+        // but add a subtle inner vignette for depth
+        const vg = ctx.createRadialGradient(W * 0.55, H * 0.38, 80, W * 0.55, H * 0.45, W * 0.95);
+        vg.addColorStop(0, "rgba(0,0,0,0.08)");
+        vg.addColorStop(1, "rgba(0,0,0,0.42)");
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, W, H);
+      } else {
+        const rg = ctx.createRadialGradient(W * 0.55, H * 0.25, 40, W * 0.55, H * 0.45, W * 0.85);
+        rg.addColorStop(0, "rgba(255, 231, 200, 0.09)");
+        rg.addColorStop(0.35, "rgba(30, 26, 22, 0.92)");
+        rg.addColorStop(1, "rgba(8, 7, 7, 1)");
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, W, H);
+      }
 
       ctx.save();
       ctx.globalAlpha = 0.22;
@@ -336,26 +318,36 @@ export default function ArcheryGame({
       return { vx, vy, rot, dist };
     };
 
+    const dispatchCompleteEvent = () => {
+      try {
+        window.dispatchEvent(new CustomEvent("archery:complete"));
+      } catch {}
+    };
+
+    const doComplete = () => {
+      // always show overlay so user sees a response
+      setDoneUI(true);
+
+      // call prop (if wired)
+      if (typeof onComplete === "function") {
+        try {
+          onComplete();
+        } catch {}
+      }
+
+      // also dispatch event as fallback wiring option
+      dispatchCompleteEvent();
+    };
+
     const finishIfDone = (s) => {
       const left = s.candles.filter((c) => c.lit).length;
       if (left !== 0) return;
 
-      if (!s.done) s.done = true;
+      s.done = true;
 
       if (!completedOnceRef.current) {
         completedOnceRef.current = true;
-
-        // Always show fallback UI (in case parent doesn't navigate)
-        setDoneUI(true);
-
-        // If onComplete exists, call it
-        if (typeof onComplete === "function") {
-          setTimeout(() => {
-            try {
-              onComplete();
-            } catch {}
-          }, 450);
-        }
+        setTimeout(doComplete, 350);
       }
     };
 
@@ -384,12 +376,9 @@ export default function ArcheryGame({
       vibrate(10);
     };
 
-    // start draw anywhere
     const onDown = (e) => {
       const s = simRef.current;
       if (!s || s.done) return;
-
-      if (soundOnRef.current) playTone(220, 1);
 
       s.aiming = true;
 
@@ -402,6 +391,8 @@ export default function ArcheryGame({
       s.pull.y = p.y;
       s.pullVel.x = 0;
       s.pullVel.y = 0;
+
+      if (soundOnRef.current) playTone(220, 1);
     };
 
     const onMove = (e) => {
@@ -436,14 +427,11 @@ export default function ArcheryGame({
 
     const updatePullSpring = (s, dt) => {
       if (s.aiming) {
-        // no magnet line, no dots, but keep constraint stable
         const p = constrainPull(s, s.pull.x, s.pull.y);
         s.pull.x = p.x;
         s.pull.y = p.y;
-
         s.followKick = Math.max(0, s.followKick - dt * 80);
       } else {
-        // follow-through kick then spring home
         let targetX = s.pullRelaxed.x;
         let targetY = s.pullRelaxed.y;
 
@@ -487,7 +475,6 @@ export default function ArcheryGame({
 
         if (a.x > s.W + 220 || a.y > s.H + 220 || a.y < -260) a.alive = false;
 
-        // collision box a bit bigger since arrow asset has padding
         const arrowBox = { x: a.x - 18, y: a.y - 10, w: 66, h: 22 };
         for (const c of s.candles) {
           if (!c.lit) continue;
@@ -529,7 +516,7 @@ export default function ArcheryGame({
       let vy = launch.vy;
 
       ctx.save();
-      ctx.globalAlpha = 0.32;
+      ctx.globalAlpha = 0.28;
       ctx.fillStyle = "#f2e7d1";
       for (let i = 0; i < 28; i++) {
         const step = 0.016;
@@ -548,7 +535,6 @@ export default function ArcheryGame({
       for (const c of s.candles) {
         if (!c.lit) continue;
 
-        // warmer glow behind candle
         ctx.save();
         ctx.globalAlpha = 0.22;
         ctx.fillStyle = "#ffcc66";
@@ -559,34 +545,38 @@ export default function ArcheryGame({
 
         if (candle) {
           ctx.drawImage(candle, c.x - c.w / 2, c.y - c.h, c.w, c.h);
-        } else {
-          // fallback
-          ctx.save();
-          ctx.fillStyle = "#e8dcc8";
-          ctx.fillRect(c.x - c.w / 2, c.y - c.h, c.w, c.h);
-          ctx.restore();
         }
       }
     };
 
-    // Arrow ALWAYS visible:
-    // - while aiming: use current pull
-    // - idle: use relaxed pull (slight transparency)
+    // Arrow always visible AND follows finger while aiming:
+    // We attach the arrow's "nock point" to a blend of pull and release.
     const drawNockedArrow = (s) => {
       const { arrow } = imagesRef.current;
       if (!arrow) return;
 
       const rp = s.releasePoint;
 
-      const pullForVisual = s.aiming ? s.pull : s.pullRelaxed;
-      const launch = computeLaunch(s, pullForVisual);
+      // If aiming, the nock follows your finger (pull point).
+      // If not aiming, it sits at a default relaxed position.
+      const nock = s.aiming
+        ? {
+            x: lerp(rp.x, s.pull.x, NOCK_STICK),
+            y: lerp(rp.y, s.pull.y, NOCK_STICK),
+          }
+        : { x: s.pullRelaxed.x, y: s.pullRelaxed.y };
+
+      // Direction should still be based on pull vs release (for correct aiming)
+      const launch = computeLaunch(s, s.aiming ? s.pull : s.pullRelaxed);
 
       ctx.save();
-      ctx.globalAlpha = s.aiming ? 0.92 : 0.62;
-      ctx.translate(rp.x, rp.y);
+      ctx.globalAlpha = s.aiming ? 0.94 : 0.65;
+
+      // Draw at the nock (finger) so it slides back with your pull
+      ctx.translate(nock.x, nock.y);
       ctx.rotate(launch.rot);
 
-      // CENTERED, slightly bigger, and positioned to look seated
+      // Centered, bigger
       ctx.drawImage(
         arrow,
         -ARROW_LEN / 2 + NOCK_FORWARD,
@@ -603,21 +593,13 @@ export default function ArcheryGame({
 
       for (const a of s.arrows) {
         if (!a.alive) continue;
+        if (!arrow) continue;
 
-        if (arrow) {
-          ctx.save();
-          ctx.translate(a.x, a.y);
-          ctx.rotate(a.rot);
-          ctx.drawImage(arrow, -a.length / 2, -a.thickness / 2, a.length, a.thickness);
-          ctx.restore();
-        } else {
-          ctx.save();
-          ctx.translate(a.x, a.y);
-          ctx.rotate(a.rot);
-          ctx.fillStyle = "#d7f3ff";
-          ctx.fillRect(-24, -2, 52, 4);
-          ctx.restore();
-        }
+        ctx.save();
+        ctx.translate(a.x, a.y);
+        ctx.rotate(a.rot);
+        ctx.drawImage(arrow, -a.length / 2, -a.thickness / 2, a.length, a.thickness);
+        ctx.restore();
       }
     };
 
@@ -634,34 +616,31 @@ export default function ArcheryGame({
 
     const drawBow = (s) => {
       const { bow } = imagesRef.current;
+      if (!bow) return;
 
       ctx.save();
       ctx.globalAlpha = 0.96;
 
-      if (bow) {
-        const padTop = 10;
-        const padBottom = 12;
+      const padTop = 10;
+      const padBottom = 12;
 
-        const aimScale = s.aiming ? 1.02 : 1.0;
-        let bowW = 190 * aimScale;
-        let bowH = bowW * (bow.height / bow.width);
+      const aimScale = s.aiming ? 1.02 : 1.0;
+      let bowW = 190 * aimScale;
+      let bowH = bowW * (bow.height / bow.width);
 
-        const maxH = s.H - padTop - padBottom;
-        if (bowH > maxH) {
-          const k = maxH / bowH;
-          bowH *= k;
-          bowW *= k;
-        }
-
-        // moved up and in
-        const x = s.bowAnchor.x - 24;
-        const y = Math.max(padTop, s.bowAnchor.y - bowH + 18);
-
-        // mirror to face candles
-        ctx.translate(x + bowW, y);
-        ctx.scale(-1, 1);
-        ctx.drawImage(bow, 0, 0, bowW, bowH);
+      const maxH = s.H - padTop - padBottom;
+      if (bowH > maxH) {
+        const k = maxH / bowH;
+        bowH *= k;
+        bowW *= k;
       }
+
+      const x = s.bowAnchor.x - 24;
+      const y = Math.max(padTop, s.bowAnchor.y - bowH + 18);
+
+      ctx.translate(x + bowW, y);
+      ctx.scale(-1, 1);
+      ctx.drawImage(bow, 0, 0, bowW, bowH);
 
       ctx.restore();
     };
@@ -695,8 +674,8 @@ export default function ArcheryGame({
       drawBackground(s.W, s.H);
 
       drawCandles(s);
-      drawNockedArrow(s);         // <-- ALWAYS visible now
-      drawTrajectoryPreview(s);   // only while aiming
+      drawNockedArrow(s);
+      drawTrajectoryPreview(s);
       drawArrows(s);
       drawParticles(s);
       drawBow(s);
@@ -716,7 +695,7 @@ export default function ArcheryGame({
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("pointerleave", onUp);
     };
-  }, [candleCount, onComplete, reducedMotion]);
+  }, [candleCount, onComplete, reducedMotion, translucent]);
 
   return (
     <div
@@ -732,9 +711,7 @@ export default function ArcheryGame({
       <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px" }}>
         <div style={{ color: "#f2e7d1" }}>
           <div style={{ fontSize: 14, opacity: 0.92 }}>Extinguish the candles</div>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>
-            Start anywhere. Pull back. Release.
-          </div>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>Pull back. Release.</div>
         </div>
         <div style={{ color: "#f2e7d1", fontSize: 12, opacity: 0.85, display: "flex", gap: 10 }}>
           <span>Shots: {shots}</span>
@@ -750,9 +727,23 @@ export default function ArcheryGame({
             overflow: "hidden",
             border: "1px solid rgba(242,231,209,0.14)",
             boxShadow: "0 18px 55px rgba(0,0,0,0.45)",
+
+            // translucent background + optional image
+            background:
+              backgroundImageUrl
+                ? `linear-gradient(rgba(10,9,8,0.55), rgba(10,9,8,0.55)), url(${backgroundImageUrl}) center/cover no-repeat`
+                : "linear-gradient(rgba(10,9,8,0.55), rgba(10,9,8,0.55))",
           }}
         >
-          <canvas ref={canvasRef} style={{ width: "100%", height, display: "block" }} />
+          <canvas
+            ref={canvasRef}
+            style={{
+              width: "100%",
+              height,
+              display: "block",
+              background: "transparent",
+            }}
+          />
 
           <div
             style={{
@@ -776,7 +767,6 @@ export default function ArcheryGame({
             <TogglePill label="Haptics" value={hapticsOn} onChange={setHapticsOn} />
           </div>
 
-          {/* Completion fallback overlay */}
           {doneUI && (
             <div
               style={{
@@ -803,16 +793,20 @@ export default function ArcheryGame({
                   color: "#f2e7d1",
                 }}
               >
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
-                  Candles out. 🔥✅
-                </div>
+                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Candles out. 🔥✅</div>
                 <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 12 }}>
-                  If you don’t auto-advance, tap Continue.
+                  If you don’t auto-advance, your parent step handler isn’t wired.
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    if (typeof onComplete === "function") onComplete();
+                    // call prop + event again
+                    try {
+                      if (typeof onComplete === "function") onComplete();
+                    } catch {}
+                    try {
+                      window.dispatchEvent(new CustomEvent("archery:complete"));
+                    } catch {}
                   }}
                   style={{
                     width: "100%",
