@@ -2,18 +2,11 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * ArcheryGame.jsx
- * - Bow is an inline SVG overlay (/public/game/bow.svg) so we can deform the real string.
- * - Arrow + candles are drawn on canvas (uses /public/game/arrow.png and /public/game/candle.png).
- * - Fixes:
- *   ✅ Bow moved right so you can pull back
- *   ✅ Candle layout clamps so all candles always show
- *   ✅ More pull room (comfort draw deeper)
- */
-
+function clamp(v, a, b) {
+  return Math.max(a, Math.min(b, v));
+}
 function clamp01(x) {
-  return Math.max(0, Math.min(1, x));
+  return clamp(x, 0, 1);
 }
 function lerp(a, b, t) {
   return a + (b - a) * t;
@@ -26,43 +19,53 @@ function prefersReducedMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 }
 
-// Keep these in sync with candle placement logic (bow footprint)
-const BOW_LEFT = 84;   // moved right
-const BOW_WIDTH = 240; // slightly larger
-
+/**
+ * ArcheryGame
+ * - bow.svg injected inline so we can deform the string element
+ * - arrow.png drawn on canvas (nocked follows finger)
+ * - candle.png drawn on canvas + procedural flame
+ *
+ * Assets:
+ *  /public/game/bow.svg   (add id="bow-string" to the string path/line)
+ *  /public/game/arrow.png
+ *  /public/game/candle.png
+ */
 export default function ArcheryGame({
   onComplete,
   candleCount = 7,
   width = "100%",
   height = 420,
+
+  // --- positioning knobs ---
+  bowLeft = 190, // ✅ move bow right (more pull room on the left)
+  bowWidth = 250,
+  bowTop = 4,
+
+  // --- tuning knobs ---
+  stringCurveStrength = 1.0, // ✅ tune curvature strength
+  stringVibrateOnRelease = true,
+  arrowScale = 1.15, // ✅ make arrow slightly bigger
+  // If arrow is not perfectly seated, tweak this:
+  // 0.12-0.20 usually. Higher = nock point is further toward the back of the image.
+  arrowNockRatio = 0.16,
+
+  // Bow visual orientation:
+  // TRUE => mirror bow so the "string area" appears on LEFT visually
+  // (this matches what you asked for)
+  flipBow = true,
 }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
 
   // Bow SVG layer refs
   const bowWrapRef = useRef(null);
-  const bowSvgHostRef = useRef(null); // where we inject inline svg
-  const bowSvgElRef = useRef(null); // actual svg element
-  const bowStringElRef = useRef(null); // path/line we will deform
-
-  // We compute these every frame after layout
-  const anchorsRef = useRef({
-    // in CSS pixels, container coordinates
-    stringTop: { x: 0, y: 0 },
-    stringBot: { x: 0, y: 0 },
-    nock: { x: 0, y: 0 },
-    // within SVG viewBox coordinates
-    vb: { minX: 0, minY: 0, w: 0, h: 0 },
-    // string endpoints within viewBox coords (computed from bbox)
-    vbTop: { x: 0, y: 0 },
-    vbBot: { x: 0, y: 0 },
-    vbNock: { x: 0, y: 0 },
-  });
+  const bowSvgHostRef = useRef(null);
+  const bowSvgElRef = useRef(null);
+  const bowStringElRef = useRef(null);
 
   const [soundOn, setSoundOn] = useState(false);
   const [hapticsOn, setHapticsOn] = useState(false);
   const [assetsReady, setAssetsReady] = useState(false);
-  const [bowSvgReady, setBowSvgReady] = useState(false);
 
   const [shotsUI, setShotsUI] = useState(0);
   const [remainingUI, setRemainingUI] = useState(candleCount);
@@ -112,7 +115,7 @@ export default function ArcheryGame({
     } catch {}
   };
 
-  // Other images (arrow/candle). Bow comes from SVG now.
+  // Images for arrow/candle
   const imagesRef = useRef({ arrow: null, candle: null, loaded: false });
   useEffect(() => {
     let cancelled = false;
@@ -139,7 +142,7 @@ export default function ArcheryGame({
     };
   }, []);
 
-  // Load bow.svg as INLINE SVG so we can mutate its string
+  // Load bow.svg inline (so we can bend the string)
   useEffect(() => {
     let cancelled = false;
 
@@ -158,7 +161,6 @@ export default function ArcheryGame({
         if (!svg) throw new Error("No <svg> root found in bow.svg");
         bowSvgElRef.current = svg;
 
-        // Ensure it scales nicely
         svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
         svg.style.width = "100%";
         svg.style.height = "100%";
@@ -170,7 +172,7 @@ export default function ArcheryGame({
           svg.querySelector('[data-role="bow-string"]') ||
           svg.querySelector(".bow-string");
 
-        // Fallback: attempt to auto-detect a long thin vertical-ish line/path
+        // Fallback: attempt to auto-detect a tall skinny stroke element
         if (!stringEl) {
           const candidates = Array.from(svg.querySelectorAll("path,line,polyline"));
           const scored = candidates
@@ -179,18 +181,15 @@ export default function ArcheryGame({
               const fill = el.getAttribute("fill");
               const sw = parseFloat(el.getAttribute("stroke-width") || "1");
               let score = 0;
-
               if (stroke && stroke !== "none") score += 3;
               if (!fill || fill === "none") score += 2;
               if (sw <= 3) score += 2;
-
               try {
                 const bb = el.getBBox();
                 const tall = bb.height / Math.max(1, bb.width);
                 score += Math.min(6, tall);
                 score += Math.min(2, bb.height / 120);
               } catch {}
-
               return { el, score };
             })
             .sort((a, b) => b.score - a.score);
@@ -199,9 +198,24 @@ export default function ArcheryGame({
         }
 
         bowStringElRef.current = stringEl;
-        setBowSvgReady(true);
+
+        // Store original geometry for reset
+        if (stringEl && !stringEl.__orig) {
+          const tag = stringEl.tagName.toLowerCase();
+          if (tag === "path") {
+            stringEl.__orig = { type: "path", d: stringEl.getAttribute("d") || "" };
+          } else if (tag === "line") {
+            stringEl.__orig = {
+              type: "line",
+              x1: stringEl.getAttribute("x1"),
+              y1: stringEl.getAttribute("y1"),
+              x2: stringEl.getAttribute("x2"),
+              y2: stringEl.getAttribute("y2"),
+            };
+          }
+        }
       } catch {
-        setBowSvgReady(false);
+        // ok: game still works; string won't deform
       }
     }
 
@@ -213,6 +227,14 @@ export default function ArcheryGame({
 
   const simRef = useRef(null);
   const completedOnceRef = useRef(false);
+
+  // anchor cache for string endpoints and nock
+  const anchorsRef = useRef({
+    vb: { minX: 0, minY: 0, w: 1, h: 1 },
+    vbTop: { x: 0, y: 0 },
+    vbBot: { x: 0, y: 0 },
+    vbNock: { x: 0, y: 0 },
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -241,20 +263,20 @@ export default function ArcheryGame({
     // FEEL / PHYSICS
     // ==========================
     const GRAVITY = 1450;
-    const MAX_PULL = 560;
+    const MAX_PULL = 620; // ✅ more pull room
     const MIN_PULL = 14;
 
-    const MAX_SPEED = 1450;
-    const MIN_SPEED = 430;
+    const MAX_SPEED = 1500;
+    const MIN_SPEED = 420;
 
     const SPRING_K = 92;
     const SPRING_DAMP = 15;
-    const FOLLOW_THROUGH_KICK = 28;
+    const FOLLOW_THROUGH_KICK = 26;
 
-    const ARROW_LEN = 280;
-    const ARROW_THICK = 20;
+    const ARROW_LEN = 280 * arrowScale;
+    const ARROW_THICK = 20 * arrowScale;
 
-    const WIND_MAG = reducedMotion ? 0 : 28;
+    const WIND_MAG = reducedMotion ? 0 : 24;
 
     const powerFromPull = (pullDist) => {
       const t = clamp01((pullDist - MIN_PULL) / (MAX_PULL - MIN_PULL));
@@ -262,10 +284,13 @@ export default function ArcheryGame({
       return MIN_SPEED + eased * (MAX_SPEED - MIN_SPEED);
     };
 
+    // pull should go LEFT from release point (finger drags left to draw)
     const constrainPull = (s, x, y) => {
       const rp = s.releasePoint;
       let dx = x - rp.x;
       let dy = y - rp.y;
+
+      // enforce pulling left (dx negative)
       dx = Math.min(dx, -14);
 
       const dist = Math.hypot(dx, dy) || 1;
@@ -273,16 +298,39 @@ export default function ArcheryGame({
       return { x: rp.x + dx * scale, y: rp.y + dy * scale };
     };
 
-    // ✅ more pull room (deeper comfort)
+    // start draw anywhere, but snap into comfy draw corridor behind string
     const snapPointerToComfortZone = (s, px, py) => {
       const rp = s.releasePoint;
-      const comfort = { x: rp.x - 330, y: rp.y + 8 }; // <- more pull room
+      const comfort = { x: rp.x - 300, y: rp.y + 6 };
       const snap = 0.72;
-      const blended = {
-        x: lerp(px, comfort.x, snap),
-        y: lerp(py, comfort.y, snap),
-      };
+      const blended = { x: lerp(px, comfort.x, snap), y: lerp(py, comfort.y, snap) };
       return constrainPull(s, blended.x, blended.y);
+    };
+
+    const buildCandles = (W, H) => {
+      const padR = 26;
+
+      // Reserve bow footprint + some gap AFTER bow. Candles start after that.
+      const bowRight = bowLeft + bowWidth;
+      const afterBowGap = 44;
+
+      const minStartX = bowRight + afterBowGap;
+      const maxEndX = W - padR;
+
+      const maxRowW = Math.max(0, maxEndX - minStartX);
+      const spread = candleCount <= 1 ? 0 : Math.min(56, maxRowW / (candleCount - 1));
+
+      const startX = Math.min(minStartX, maxEndX);
+      const rowW = spread * (candleCount - 1);
+      const baseX = Math.min(startX, maxEndX - rowW);
+
+      return Array.from({ length: candleCount }).map((_, i) => {
+        const x = baseX + i * spread;
+        const y = H * 0.44 + Math.sin(i * 0.35) * 4;
+        const h = Math.max(84, Math.min(128, H * 0.26));
+        const w = h * 0.32;
+        return { x, y, w, h, lit: true, flamePhase: Math.random() * 999 };
+      });
     };
 
     const init = () => {
@@ -290,51 +338,29 @@ export default function ArcheryGame({
       const W = rect.width;
       const H = rect.height;
 
-      // ✅ candle layout that ALWAYS fits on screen
-      const padR = 26;
-      const bowRight = BOW_LEFT + BOW_WIDTH;
-      const afterBowGap = 36;
-
-      const minStartX = bowRight + afterBowGap;
-      const maxEndX = W - padR;
-
-      const desiredSpread = 52;
-      const maxRowWidth = Math.max(0, maxEndX - minStartX);
-      const spread =
-        candleCount <= 1 ? 0 : Math.min(desiredSpread, maxRowWidth / (candleCount - 1));
-
-      const startX = Math.min(minStartX, maxEndX);
-      const rowW = spread * (candleCount - 1);
-      const baseX = Math.min(startX, maxEndX - rowW);
-
-      const candles = Array.from({ length: candleCount }).map((_, i) => {
-        const x = baseX + i * spread;
-        const y = H * 0.44 + Math.sin(i * 0.35) * 4;
-
-        const h = Math.max(84, Math.min(128, H * 0.26));
-        const w = h * 0.32;
-
-        return { x, y, w, h, lit: true, flamePhase: Math.random() * 999 };
-      });
-
+      const candles = buildCandles(W, H);
       const wind = WIND_MAG === 0 ? 0 : (Math.random() * 2 - 1) * WIND_MAG;
 
       simRef.current = {
         W,
         H,
         wind,
-
         aiming: false,
         done: false,
 
-        // these will be overwritten by SVG sync
-        releasePoint: { x: W * 0.26, y: H * 0.50 },
-        stringTop: { x: W * 0.26, y: H * 0.18 },
-        stringBot: { x: W * 0.26, y: H * 0.86 },
+        // will be synced from SVG:
+        releasePoint: { x: W * 0.33, y: H * 0.56 },
+        stringTop: { x: W * 0.33, y: H * 0.18 },
+        stringBot: { x: W * 0.33, y: H * 0.86 },
 
-        pull: { x: W * 0.26 - 200, y: H * 0.50 },
+        // pull position
+        pull: { x: W * 0.33 - 200, y: H * 0.56 },
         pullVel: { x: 0, y: 0 },
-        pullRelaxed: { x: W * 0.26 - 200, y: H * 0.50 },
+        pullRelaxed: { x: W * 0.33, y: H * 0.56 },
+
+        // subtle vibration
+        vibT: 0,
+        vibAmp: 0,
 
         followKick: 0,
         arrows: [],
@@ -354,26 +380,21 @@ export default function ArcheryGame({
 
     init();
 
-    const dispatchComplete = (payload) => {
-      try {
-        window.dispatchEvent(new CustomEvent("archery:complete", { detail: payload }));
-      } catch {}
-    };
-
     const fireComplete = (s) => {
       const shots = s.shots;
       const timeMs =
         s.startedAt && s.finishedAt ? Math.max(0, s.finishedAt - s.startedAt) : null;
 
       const payload = { shots, timeMs };
-      setDoneUI(true);
 
       if (typeof onComplete === "function") {
         try {
           onComplete(payload);
         } catch {}
       }
-      dispatchComplete(payload);
+      try {
+        window.dispatchEvent(new CustomEvent("archery:complete", { detail: payload }));
+      } catch {}
     };
 
     const finishIfDone = (s) => {
@@ -382,10 +403,12 @@ export default function ArcheryGame({
 
       s.done = true;
       if (!s.finishedAt) s.finishedAt = performance.now();
+      setDoneUI(true);
 
       if (!completedOnceRef.current) {
         completedOnceRef.current = true;
-        setTimeout(() => fireComplete(s), 350);
+        // ✅ autoadvance after a beat
+        setTimeout(() => fireComplete(s), 420);
       }
     };
 
@@ -413,6 +436,8 @@ export default function ArcheryGame({
 
       const speed = powerFromPull(dist);
 
+      // dx is negative when pulling back.
+      // -dx => positive vx (shoot to the right)
       let vx = (-dx / (dist || 1)) * speed;
       let vy = (-dy / (dist || 1)) * speed;
 
@@ -441,6 +466,11 @@ export default function ArcheryGame({
       });
 
       s.followKick = FOLLOW_THROUGH_KICK;
+
+      if (stringVibrateOnRelease) {
+        s.vibT = 0;
+        s.vibAmp = 1;
+      }
 
       s.shots += 1;
       setShotsUI(s.shots);
@@ -531,7 +561,7 @@ export default function ArcheryGame({
       }
     };
 
-    // ====== Sync canvas “string anchors” from SVG layout ======
+    // ===== Sync anchors from SVG string bbox =====
     const syncAnchorsFromSvg = () => {
       const s = simRef.current;
       const svg = bowSvgElRef.current;
@@ -539,13 +569,15 @@ export default function ArcheryGame({
       const wrap = bowWrapRef.current;
       if (!s || !svg || !wrap || !stringEl) return;
 
+      const containerRect = container.getBoundingClientRect();
       const wrapRect = wrap.getBoundingClientRect();
 
+      // SVG viewBox
       const vb = svg.viewBox?.baseVal;
       const vbX = vb?.x ?? 0;
       const vbY = vb?.y ?? 0;
-      const vbW = vb?.width ?? svg.getBBox().width;
-      const vbH = vb?.height ?? svg.getBBox().height;
+      const vbW = vb?.width ?? 1;
+      const vbH = vb?.height ?? 1;
 
       let bb;
       try {
@@ -554,17 +586,27 @@ export default function ArcheryGame({
         return;
       }
 
+      // top / bottom / nock in viewBox coords
       const vbTop = { x: bb.x + bb.width * 0.5, y: bb.y };
       const vbBot = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
       const vbNock = { x: vbTop.x, y: lerp(vbTop.y, vbBot.y, 0.52) };
 
+      anchorsRef.current = { vb: { minX: vbX, minY: vbY, w: vbW, h: vbH }, vbTop, vbBot, vbNock };
+
+      // map VB -> wrap px -> container-local px
       const toPx = (pt) => {
-        const nx = (pt.x - vbX) / vbW;
+        let nx = (pt.x - vbX) / vbW;
         const ny = (pt.y - vbY) / vbH;
-        const containerRect = container.getBoundingClientRect();
+
+        // ✅ account for visual mirroring
+        if (flipBow) nx = 1 - nx;
+
+        const xPage = wrapRect.left + nx * wrapRect.width;
+        const yPage = wrapRect.top + ny * wrapRect.height;
+
         return {
-          x: (wrapRect.left - containerRect.left) + nx * wrapRect.width,
-          y: (wrapRect.top - containerRect.top) + ny * wrapRect.height,
+          x: xPage - containerRect.left,
+          y: yPage - containerRect.top,
         };
       };
 
@@ -576,26 +618,17 @@ export default function ArcheryGame({
       s.stringBot = botPx;
       s.releasePoint = nockPx;
 
-      s.pullRelaxed = { x: nockPx.x - 180, y: nockPx.y + 6 };
+      // relaxed arrow sits ON string
+      s.pullRelaxed = { x: nockPx.x, y: nockPx.y };
 
-      // initialize pull once
-      if (!s.pull || (s.pull.x === 0 && s.pull.y === 0)) {
-        s.pull = { ...s.pullRelaxed };
-        s.pullVel = { x: 0, y: 0 };
+      // if not aiming, keep pull at relaxed
+      if (!s.aiming) {
+        s.pull.x = s.pullRelaxed.x;
+        s.pull.y = s.pullRelaxed.y;
       }
-
-      anchorsRef.current = {
-        stringTop: topPx,
-        stringBot: botPx,
-        nock: nockPx,
-        vb: { minX: vbX, minY: vbY, w: vbW, h: vbH },
-        vbTop,
-        vbBot,
-        vbNock,
-      };
     };
 
-    // Deform the SVG string toward your finger
+    // Deform SVG string toward pull point
     const deformSvgString = () => {
       const s = simRef.current;
       const svg = bowSvgElRef.current;
@@ -603,6 +636,9 @@ export default function ArcheryGame({
       const wrap = bowWrapRef.current;
       if (!s || !svg || !stringEl || !wrap) return;
 
+      const tag = stringEl.tagName.toLowerCase();
+
+      // reset if not aiming
       if (!s.aiming) {
         const orig = stringEl.__orig;
         if (orig) {
@@ -617,64 +653,44 @@ export default function ArcheryGame({
         return;
       }
 
+      const containerRect = container.getBoundingClientRect();
       const wrapRect = wrap.getBoundingClientRect();
       const vb = anchorsRef.current.vb;
       if (!vb.w || !vb.h) return;
 
-      const containerRect = container.getBoundingClientRect();
-      const pullLocal = {
-        x: (s.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width,
-        y: (s.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height,
-      };
+      // pull in wrap-local normalized coords
+      let localX = (s.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width;
+      const localY = (s.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height;
 
-      const pullVB = {
-        x: vb.minX + pullLocal.x * vb.w,
-        y: vb.minY + pullLocal.y * vb.h,
-      };
+      // ✅ inverse mirror mapping
+      if (flipBow) localX = 1 - localX;
+
+      const pullVB = { x: vb.minX + localX * vb.w, y: vb.minY + localY * vb.h };
 
       const { vbTop, vbBot, vbNock } = anchorsRef.current;
 
-      const dx = pullVB.x - vbNock.x;
+      const dx = pullVB.x - vbNock.x; // (negative when pulling back)
+      const dy = pullVB.y - vbNock.y;
+
       const dist = Math.abs(dx);
-      const t = clamp01((dist - 12) / 260);
-      const bulge = lerp(0, 80, t);
+      const t = clamp01((dist - 8) / 260);
+      const bulge = lerp(0, 80, t) * stringCurveStrength;
 
       const ctrl = {
-        x: vbNock.x + dx * 0.85,
-        y: vbNock.y + (pullVB.y - vbNock.y) * 0.85,
+        x: vbNock.x + dx * 0.92,
+        y: vbNock.y + dy * 0.88,
       };
 
-      if (!stringEl.__orig) {
-        if (stringEl.tagName.toLowerCase() === "path") {
-          stringEl.__orig = { type: "path", d: stringEl.getAttribute("d") || "" };
-        } else if (stringEl.tagName.toLowerCase() === "line") {
-          stringEl.__orig = {
-            type: "line",
-            x1: stringEl.getAttribute("x1"),
-            y1: stringEl.getAttribute("y1"),
-            x2: stringEl.getAttribute("x2"),
-            y2: stringEl.getAttribute("y2"),
-          };
-        } else {
-          return;
-        }
-      }
-
-      if (stringEl.tagName.toLowerCase() === "path") {
+      if (tag === "path") {
         const d = `M ${vbTop.x} ${vbTop.y} Q ${ctrl.x - bulge} ${ctrl.y} ${vbBot.x} ${vbBot.y}`;
         stringEl.setAttribute("d", d);
-      }
-
-      if (stringEl.tagName.toLowerCase() === "line") {
-        const x1 = vbTop.x;
-        const y1 = vbTop.y;
-        const x2 = vbBot.x;
-        const y2 = vbBot.y;
-        const shift = dx * 0.22;
-        stringEl.setAttribute("x1", String(x1 + shift));
-        stringEl.setAttribute("y1", String(y1));
-        stringEl.setAttribute("x2", String(x2 + shift));
-        stringEl.setAttribute("y2", String(y2));
+      } else if (tag === "line") {
+        // basic bend illusion for lines
+        const shift = dx * 0.24 * stringCurveStrength;
+        stringEl.setAttribute("x1", String(vbTop.x + shift));
+        stringEl.setAttribute("y1", String(vbTop.y));
+        stringEl.setAttribute("x2", String(vbBot.x + shift));
+        stringEl.setAttribute("y2", String(vbBot.y));
       }
     };
 
@@ -682,9 +698,20 @@ export default function ArcheryGame({
       const s = simRef.current;
       if (!s) return;
 
+      // keep W/H in sync with layout
+      const rect = canvas.getBoundingClientRect();
+      s.W = rect.width;
+      s.H = rect.height;
+
       syncAnchorsFromSvg();
       updatePullSpring(s, dt);
       deformSvgString();
+
+      // vibration decay
+      if (s.vibAmp > 0) {
+        s.vibT += dt;
+        s.vibAmp = Math.max(0, s.vibAmp - dt * 2.8);
+      }
 
       for (const c of s.candles) {
         if (c.lit) c.flamePhase += dt * 6.2;
@@ -753,11 +780,12 @@ export default function ArcheryGame({
       for (const c of s.candles) {
         if (!c.lit) continue;
 
+        // halo glow
         ctx.save();
-        ctx.globalAlpha = 0.20;
+        ctx.globalAlpha = 0.18;
         ctx.fillStyle = "#ffcc66";
         ctx.beginPath();
-        ctx.ellipse(c.x, c.y - c.h * 0.88, c.w * 1.1, c.h * 0.36, 0, 0, Math.PI * 2);
+        ctx.ellipse(c.x, c.y - c.h * 0.86, c.w * 1.25, c.h * 0.42, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
@@ -765,23 +793,24 @@ export default function ArcheryGame({
           ctx.drawImage(candle, c.x - c.w / 2, c.y - c.h, c.w, c.h);
         }
 
+        // nicer flame
         const t = c.flamePhase;
         const flick = 0.78 + 0.22 * Math.sin(t) + 0.10 * Math.sin(t * 2.25);
-        const fx = c.x;
+        const fx = c.x + Math.sin(t * 1.7) * 0.8;
         const fy = c.y - c.h * 0.92;
-        const fw = c.w * 0.42 * flick;
-        const fh = c.h * 0.24 * flick;
+        const fw = c.w * 0.45 * flick;
+        const fh = c.h * 0.26 * flick;
 
         ctx.save();
-        ctx.globalAlpha = 0.24;
+        ctx.globalAlpha = 0.22;
         ctx.fillStyle = "#ffcc66";
         ctx.beginPath();
-        ctx.ellipse(fx, fy, fw * 2.3, fh * 1.7, 0, 0, Math.PI * 2);
+        ctx.ellipse(fx, fy, fw * 2.4, fh * 1.9, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
         ctx.save();
-        ctx.globalAlpha = 0.90;
+        ctx.globalAlpha = 0.92;
         ctx.fillStyle = "#ffd27a";
         ctx.beginPath();
         ctx.moveTo(fx, fy - fh);
@@ -789,38 +818,13 @@ export default function ArcheryGame({
         ctx.quadraticCurveTo(fx - fw, fy - fh * 0.2, fx, fy - fh);
         ctx.fill();
 
-        ctx.globalAlpha = 0.74;
+        ctx.globalAlpha = 0.76;
         ctx.fillStyle = "#fff2c9";
         ctx.beginPath();
-        ctx.ellipse(fx, fy, fw * 0.34, fh * 0.58, 0, 0, Math.PI * 2);
+        ctx.ellipse(fx, fy, fw * 0.34, fh * 0.62, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
-    };
-
-    const drawTrajectoryPreview = (s) => {
-      if (!s.aiming) return;
-
-      const rp = s.releasePoint;
-      const launch = computeLaunch(s);
-
-      let x = rp.x;
-      let y = rp.y;
-      let vx = launch.vx;
-      let vy = launch.vy;
-
-      ctx.save();
-      ctx.globalAlpha = 0.22;
-      ctx.fillStyle = "#f2e7d1";
-      for (let i = 0; i < 26; i++) {
-        const step = 0.016;
-        vy += GRAVITY * step;
-        vx += s.wind * step * 0.2;
-        x += vx * step;
-        y += vy * step;
-        ctx.fillRect(x, y, 2, 2);
-      }
-      ctx.restore();
     };
 
     const drawNockedArrow = (s) => {
@@ -828,20 +832,27 @@ export default function ArcheryGame({
       if (!arrow) return;
 
       const rp = s.releasePoint;
-      const nock = s.aiming
-        ? { x: s.pull.x, y: s.pull.y }
-        : { x: s.pullRelaxed.x, y: s.pullRelaxed.y };
 
-      const visualY = s.aiming ? nock.y : rp.y + 6;
+      // nock point follows finger while aiming, otherwise sits on releasePoint
+      const nock = s.aiming ? { x: s.pull.x, y: s.pull.y } : { x: rp.x, y: rp.y };
+
       const launch = computeLaunch(s, s.aiming ? s.pull : s.pullRelaxed);
 
       ctx.save();
-      ctx.globalAlpha = s.aiming ? 0.96 : 0.72;
-      ctx.translate(nock.x, visualY);
+      ctx.globalAlpha = s.aiming ? 0.98 : 0.72;
+      ctx.translate(nock.x, nock.y);
       ctx.rotate(launch.rot);
 
-      const nockOffset = ARROW_LEN * 0.38;
-      ctx.drawImage(arrow, -nockOffset, -ARROW_THICK / 2, ARROW_LEN, ARROW_THICK);
+      // Align arrow so its nock end sits exactly at origin.
+      // arrowNockRatio controls where the nock is inside the PNG width.
+      const nockPx = ARROW_LEN * arrowNockRatio;
+
+      ctx.drawImage(arrow, -nockPx, -ARROW_THICK / 2, ARROW_LEN, ARROW_THICK);
+
+      // subtle glow
+      ctx.globalAlpha = s.aiming ? 0.12 : 0.08;
+      ctx.fillStyle = "#ffcc66";
+      ctx.fillRect(-nockPx, -1, ARROW_LEN, 2);
 
       ctx.restore();
     };
@@ -855,7 +866,8 @@ export default function ArcheryGame({
         ctx.save();
         ctx.translate(a.x, a.y);
         ctx.rotate(a.rot);
-        ctx.drawImage(arrow, -a.length * 0.38, -a.thickness / 2, a.length, a.thickness);
+        const nockPx = a.length * arrowNockRatio;
+        ctx.drawImage(arrow, -nockPx, -a.thickness / 2, a.length, a.thickness);
         ctx.restore();
       }
     };
@@ -891,18 +903,12 @@ export default function ArcheryGame({
 
       update(dt);
 
-      const rect = canvas.getBoundingClientRect();
-      s.W = rect.width;
-      s.H = rect.height;
-
       ctx.clearRect(0, 0, s.W, s.H);
-
       drawVignette(s.W, s.H);
       drawCandles(s);
 
-      // Bow is SVG overlay
+      // ✅ no dotted/line trajectory (keeps it clean)
       drawNockedArrow(s);
-      drawTrajectoryPreview(s);
       drawFlyingArrows(s);
 
       drawParticles(s);
@@ -923,7 +929,19 @@ export default function ArcheryGame({
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("pointerleave", onUp);
     };
-  }, [candleCount, onComplete, reducedMotion, bowSvgReady]);
+  }, [
+    candleCount,
+    onComplete,
+    reducedMotion,
+    bowLeft,
+    bowWidth,
+    bowTop,
+    stringCurveStrength,
+    stringVibrateOnRelease,
+    arrowScale,
+    arrowNockRatio,
+    flipBow,
+  ]);
 
   return (
     <div
@@ -959,6 +977,7 @@ export default function ArcheryGame({
             backdropFilter: "blur(10px)",
           }}
         >
+          {/* Canvas for candles + arrow */}
           <canvas
             ref={canvasRef}
             style={{
@@ -969,23 +988,26 @@ export default function ArcheryGame({
             }}
           />
 
-          {/* Bow SVG overlay (moved right) */}
+          {/* Bow SVG overlay */}
           <div
             ref={bowWrapRef}
             style={{
               position: "absolute",
-              left: BOW_LEFT,
-              top: 6,
+              left: bowLeft,
+              top: bowTop,
               bottom: 10,
-              width: BOW_WIDTH,
+              width: bowWidth,
               pointerEvents: "none",
               opacity: 0.95,
               filter: "drop-shadow(0 10px 22px rgba(0,0,0,0.45))",
+              transform: flipBow ? "scaleX(-1)" : "none", // ✅ string appears on LEFT visually
+              transformOrigin: "center",
             }}
           >
             <div ref={bowSvgHostRef} style={{ width: "100%", height: "100%" }} />
           </div>
 
+          {/* top-right status */}
           <div
             style={{
               position: "absolute",
@@ -1003,11 +1025,13 @@ export default function ArcheryGame({
             {assetsReady ? "ASSETS: OK" : "ASSETS: LOADING"}
           </div>
 
+          {/* toggles */}
           <div style={{ position: "absolute", left: 10, top: 10, display: "flex", gap: 8, zIndex: 20 }}>
             <TogglePill label="Sound" value={soundOn} onChange={setSoundOn} />
             <TogglePill label="Haptics" value={hapticsOn} onChange={setHapticsOn} />
           </div>
 
+          {/* Done overlay */}
           {doneUI && (
             <div
               style={{
@@ -1034,8 +1058,10 @@ export default function ArcheryGame({
                   color: "#f2e7d1",
                 }}
               >
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Candles out. 🔥✅</div>
-                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 12 }}>Advancing…</div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Candles out. 🔥✅</div>
+                <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 12 }}>
+                  If it doesn’t auto-advance, tap Continue.
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -1061,6 +1087,7 @@ export default function ArcheryGame({
                     background: "rgba(255, 204, 102, 0.22)",
                     color: "#fff",
                     fontSize: 14,
+                    fontWeight: 800,
                     cursor: "pointer",
                   }}
                 >
