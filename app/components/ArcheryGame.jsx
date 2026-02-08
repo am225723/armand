@@ -89,6 +89,7 @@ export default function ArcheryGame({
   const bowSvgHostRef = useRef(null);
   const bowSvgElRef = useRef(null);
   const bowStringElRef = useRef(null);
+  const activePointerIdRef = useRef(null);
 
   // Keep original string geometry so we can restore.
   const stringOrigRef = useRef(null);
@@ -701,9 +702,15 @@ export default function ArcheryGame({
     const onDown = (e) => {
       const s = simRef.current;
       if (!s || s.done) return;
+      if (activePointerIdRef.current !== null) return;
 
       if (!s.startedAt) s.startedAt = performance.now();
       s.aiming = true;
+      activePointerIdRef.current = e.pointerId;
+      e.preventDefault();
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {}
 
       const r = canvas.getBoundingClientRect();
       const px = e.clientX - r.left;
@@ -719,6 +726,8 @@ export default function ArcheryGame({
     const onMove = (e) => {
       const s = simRef.current;
       if (!s || !s.aiming || s.done) return;
+      if (activePointerIdRef.current !== e.pointerId) return;
+      e.preventDefault();
 
       const r = canvas.getBoundingClientRect();
       const px = e.clientX - r.left;
@@ -729,22 +738,52 @@ export default function ArcheryGame({
       s.pull.y = p.y;
     };
 
-    const onUp = () => {
+    const onUp = (e) => {
       const s = simRef.current;
       if (!s || !s.aiming || s.done) return;
+      if (activePointerIdRef.current !== null && e?.pointerId !== activePointerIdRef.current) {
+        return;
+      }
 
       s.aiming = false;
+      activePointerIdRef.current = null;
+      if (e?.pointerId !== undefined) {
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch {}
+      }
       shoot();
 
       playTone(760, 70);
       vibrate([10, 16, 10]);
     };
 
-    canvas.addEventListener("pointerdown", onDown);
-    canvas.addEventListener("pointermove", onMove);
+    const onCancel = (e) => {
+      const s = simRef.current;
+      if (!s || !s.aiming || s.done) return;
+      if (activePointerIdRef.current !== null && e?.pointerId !== activePointerIdRef.current) {
+        return;
+      }
+
+      s.aiming = false;
+      activePointerIdRef.current = null;
+      if (e?.pointerId !== undefined) {
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch {}
+      }
+      s.pull.x = s.pullRelaxed.x;
+      s.pull.y = s.pullRelaxed.y;
+      s.pullVel.x = 0;
+      s.pullVel.y = 0;
+    };
+
+    const activeListenerOptions = { passive: false };
+    canvas.addEventListener("pointerdown", onDown, activeListenerOptions);
+    canvas.addEventListener("pointermove", onMove, activeListenerOptions);
     canvas.addEventListener("pointerup", onUp);
-    canvas.addEventListener("pointercancel", onUp);
-    canvas.addEventListener("pointerleave", onUp);
+    canvas.addEventListener("pointercancel", onCancel);
+    canvas.addEventListener("pointerleave", onCancel);
 
     /* ---------------------- deform SVG string (and bow flex) ---------------------- */
     const deformSvgString = (s, dt) => {
@@ -1144,11 +1183,11 @@ export default function ArcheryGame({
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
 
-      canvas.removeEventListener("pointerdown", onDown);
-      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerdown", onDown, activeListenerOptions);
+      canvas.removeEventListener("pointermove", onMove, activeListenerOptions);
       canvas.removeEventListener("pointerup", onUp);
-      canvas.removeEventListener("pointercancel", onUp);
-      canvas.removeEventListener("pointerleave", onUp);
+      canvas.removeEventListener("pointercancel", onCancel);
+      canvas.removeEventListener("pointerleave", onCancel);
     };
   }, [
     candleCount,
@@ -1233,6 +1272,7 @@ export default function ArcheryGame({
               height,
               display: "block",
               background: "transparent",
+              touchAction: "none",
             }}
           />
 
