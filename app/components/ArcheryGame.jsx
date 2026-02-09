@@ -36,7 +36,7 @@ const STRINGS_SELECTOR_ORDER = [
 const STRING_NOCK_Y_FRAC = 0.52;
 const ARROW_DRAW_W = 292;
 const ARROW_DRAW_H = 20;
-const ARROW_NOCK_X_FRAC = 0.105; // ~61px / 585px
+const ARROW_NOCK_X_FRAC = 0.03; // near rear notch so string follows arrow end
 const RELEASE_Y_OFFSET_PX = -60;
 
 const BOW_MIRRORED = false;
@@ -45,23 +45,23 @@ const BOW_LEFT_MIN_PX = 84;
 const BOW_LEFT_MAX_PX = 184;
 const BOW_WIDTH_CSS = "clamp(220px, 26vw, 320px)";
 
-const MAX_PULL_PX = 260;
+const MAX_PULL_PX = 325;
 const MIN_PULL_PX = 18;
 const MAX_VERTICAL_AIM_PX = 130;
 const CENTER_MAGNET_BASE = 0.18;
 const CENTER_MAGNET_PULL = 0.48;
-const COMFORT_PULL_PX = 172;
+const COMFORT_PULL_PX = 210;
 
 const STRING_VIBRATION_MS = 320;
 const COMPLETE_AUTO_DELAY_MS = 420;
 
-const CANDLE_REGION_START_PCT = 0.58;
+const CANDLE_REGION_START_PCT = 0.53;
 const CANDLE_REGION_END_PAD_PX = 28;
 
-const GRAVITY = 1500;
-const MIN_SPEED = 480;
-const MAX_SPEED = 1580;
-const ARROW_DRAG = 0.005;
+const GRAVITY = 1220;
+const MIN_SPEED = 560;
+const MAX_SPEED = 1980;
+const ARROW_DRAG = 0.0015;
 
 const ROTATE_ICON_SIZE = 56;
 
@@ -492,6 +492,8 @@ export default function ArcheryGame({
         bowAnchors: null,
         stringVibStart: 0,
         stringVibAmp: 0,
+        bowRecoil: 0,
+        bowPulse: Math.random() * Math.PI * 2,
 
         arrows: [],
         particles: [],
@@ -560,7 +562,7 @@ export default function ArcheryGame({
       return { vx, vy, rot: Math.atan2(vy, vx), pullDist: dist };
     };
 
-    const updateInjectedString = (sim, nowMs) => {
+    const updateInjectedString = (sim, nowMs, dt) => {
       const path = injectedStringRef.current;
       const anchors = sim.bowAnchors;
       if (!path || !anchors) return;
@@ -602,10 +604,25 @@ export default function ArcheryGame({
 
       const opacity = 0.78 + pullT * 0.18;
       path.setAttribute("stroke-opacity", String(opacity));
+      path.setAttribute("stroke-width", String(1.45 + pullT * 0.95));
 
       if (wrap) {
-        const flex = reducedMotion ? 0 : pullT * 0.038;
-        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${1 - flex * 0.5}, ${1 + flex})`;
+        const idle = !sim.aiming && !sim.done && !reducedMotion ? Math.sin(sim.bowPulse) * 0.06 : 0;
+        if (!sim.aiming) {
+          sim.bowRecoil = Math.max(0, sim.bowRecoil - dt * 2.7);
+          sim.bowPulse += dt * 2.1;
+        }
+
+        const recoilT = sim.bowRecoil;
+        const recoilWave = recoilT > 0 ? Math.sin((nowMs - sim.stringVibStart) * 0.06) * recoilT : 0;
+        const bendT = clamp01(pullT * 1.08 + recoilT * 0.58 + idle * 0.28);
+        const rotDeg = -3.2 * bendT + recoilWave * 1.6;
+        const skewDeg = -4.2 * bendT + recoilWave * 1.15;
+        const sx = 1 - bendT * 0.07;
+        const sy = 1 + bendT * 0.16;
+        const tx = -12 * bendT;
+        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) translateX(${tx}px) rotate(${rotDeg}deg) skewY(${skewDeg}deg) scale(${sx}, ${sy})`;
+        wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.34)) drop-shadow(0 0 ${4 + bendT * 10}px rgba(255, 214, 132, ${0.15 + bendT * 0.24}))`;
       }
     };
 
@@ -738,6 +755,8 @@ export default function ArcheryGame({
       setShotsUI(sim.shots);
       sim.stringVibStart = performance.now();
       sim.stringVibAmp = 12 + clamp01(launch.pullDist / MAX_PULL_PX) * 8;
+      sim.bowRecoil = Math.max(sim.bowRecoil, 0.88);
+      sim.bowPulse = 0;
 
       sim.pullVel.x = 780;
       sim.pullVel.y = 0;
@@ -806,7 +825,7 @@ export default function ArcheryGame({
         sim.pull.y += sim.pullVel.y * dt;
       }
 
-      updateInjectedString(sim, nowMs);
+      updateInjectedString(sim, nowMs, dt);
 
       for (const candle of sim.candles) {
         if (candle.lit) candle.flamePhase += dt * 6.4;
@@ -823,7 +842,18 @@ export default function ArcheryGame({
         arrow.y += arrow.vy * dt;
         arrow.rot = Math.atan2(arrow.vy, arrow.vx);
 
-        if (arrow.x > sim.W + 220 || arrow.y > sim.H + 280 || arrow.y < -280) {
+        if (!reducedMotion && sim.particles.length < 360) {
+          sim.particles.push({
+            x: arrow.x - Math.cos(arrow.rot) * 14 + (Math.random() - 0.5) * 3,
+            y: arrow.y - Math.sin(arrow.rot) * 14 + (Math.random() - 0.5) * 3,
+            vx: -arrow.vx * 0.08 + (Math.random() - 0.5) * 34,
+            vy: -arrow.vy * 0.08 + (Math.random() - 0.5) * 34,
+            life: 0.11 + Math.random() * 0.09,
+            color: "trail",
+          });
+        }
+
+        if (arrow.x > sim.W + 420 || arrow.y > sim.H + 340 || arrow.y < -320) {
           arrow.alive = false;
           continue;
         }
@@ -1026,13 +1056,13 @@ export default function ArcheryGame({
 
     const drawParticles = (sim) => {
       if (reducedMotion) return;
-      context.save();
-      context.fillStyle = "#ffd08a";
       for (const particle of sim.particles) {
+        context.save();
         context.globalAlpha = clamp01(particle.life);
+        context.fillStyle = particle.color === "trail" ? "#ffe8bc" : "#ffd08a";
         context.fillRect(particle.x, particle.y, 2, 2);
+        context.restore();
       }
-      context.restore();
     };
 
     const drawTrajectory = (sim) => {
