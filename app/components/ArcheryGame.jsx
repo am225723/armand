@@ -29,6 +29,7 @@ const STRINGS_SELECTOR_ORDER = [
  * - Nock height on string: STRING_NOCK_Y_FRAC
  * - Arrow nock pixel X fraction: ARROW_NOCK_X_FRAC
  * - Bow horizontal placement: BOW_LEFT_MIN_PX / BOW_LEFT_MAX_PX
+ * - Arrow resting height offset: RELEASE_Y_OFFSET_PX
  * - Max pull distance: MAX_PULL_PX
  * - Candle spacing region: CANDLE_REGION_START_PCT / CANDLE_REGION_END_PAD_PX
  */
@@ -36,6 +37,9 @@ const STRING_NOCK_Y_FRAC = 0.52;
 const ARROW_DRAW_W = 292;
 const ARROW_DRAW_H = 20;
 const ARROW_NOCK_X_FRAC = 0.105; // ~61px / 585px
+const RELEASE_Y_OFFSET_PX = -60;
+
+const BOW_MIRRORED = false;
 
 const BOW_LEFT_MIN_PX = 84;
 const BOW_LEFT_MAX_PX = 184;
@@ -57,6 +61,7 @@ const CANDLE_REGION_END_PAD_PX = 28;
 const GRAVITY = 1500;
 const MIN_SPEED = 480;
 const MAX_SPEED = 1580;
+const ARROW_DRAG = 0.005;
 
 const ROTATE_ICON_SIZE = 56;
 
@@ -278,7 +283,7 @@ export default function ArcheryGame({
     const toContainerPx = (pt) => {
       let nx = (pt.x - vbX) / vbW;
       const ny = (pt.y - vbY) / vbH;
-      nx = 1 - nx;
+      if (BOW_MIRRORED) nx = 1 - nx;
       return {
         x: wrapRect.left - containerRect.left + nx * wrapRect.width,
         y: wrapRect.top - containerRect.top + ny * wrapRect.height,
@@ -385,6 +390,7 @@ export default function ArcheryGame({
       const y = baseY - row * rowGap;
 
       candles.push({
+        id: i,
         x,
         y,
         w: candleW,
@@ -465,7 +471,10 @@ export default function ArcheryGame({
       const W = rect.width;
       const H = rect.height;
 
-      const defaultRelease = { x: Math.max(140, W * 0.24), y: H * 0.53 };
+      const defaultRelease = {
+        x: Math.max(140, W * 0.24),
+        y: H * 0.53 + RELEASE_Y_OFFSET_PX,
+      };
       const candles = buildCandleLayout(W, H, defaultRelease.x);
 
       simRef.current = {
@@ -486,6 +495,7 @@ export default function ArcheryGame({
 
         arrows: [],
         particles: [],
+        extinguishFx: [],
         candles,
         layoutW: W,
         layoutH: H,
@@ -562,7 +572,7 @@ export default function ArcheryGame({
 
       let nx = (sim.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width;
       const ny = (sim.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height;
-      nx = 1 - nx;
+      if (BOW_MIRRORED) nx = 1 - nx;
 
       const pullVB = {
         x: anchors.vbX + nx * anchors.vbW,
@@ -595,7 +605,7 @@ export default function ArcheryGame({
 
       if (wrap) {
         const flex = reducedMotion ? 0 : pullT * 0.038;
-        wrap.style.transform = `scaleX(-1) scale(${1 - flex * 0.5}, ${1 + flex})`;
+        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${1 - flex * 0.5}, ${1 + flex})`;
       }
     };
 
@@ -615,9 +625,30 @@ export default function ArcheryGame({
       }
     };
 
+    const spawnExtinguishFlame = (x, y) => {
+      const sim = simRef.current;
+      if (!sim) return;
+
+      const streaks = Array.from({ length: reducedMotion ? 3 : 6 }).map(() => ({
+        angle: (-Math.PI * 0.9) + Math.random() * (Math.PI * 0.8),
+        speed: 14 + Math.random() * 24,
+        drift: (Math.random() - 0.5) * 10,
+        size: 1.8 + Math.random() * 1.8,
+      }));
+
+      sim.extinguishFx.push({
+        x,
+        y,
+        t: 0,
+        life: reducedMotion ? 0.34 : 0.52,
+        streaks,
+      });
+    };
+
     const extinguishCandle = (sim, candle) => {
       if (!candle.lit) return;
       candle.lit = false;
+      spawnExtinguishFlame(candle.x, candle.y - candle.h * 0.94);
       spawnSparks(candle.x, candle.y - candle.h * 0.92);
       playTone(860, 68);
       vibrate([10, 16, 10]);
@@ -700,6 +731,7 @@ export default function ArcheryGame({
         vy: launch.vy,
         rot: launch.rot,
         alive: true,
+        hitIds: new Set(),
       });
 
       sim.shots += 1;
@@ -743,7 +775,7 @@ export default function ArcheryGame({
       const anchors = getStringAnchorsFromSvg();
       if (anchors) {
         sim.bowAnchors = anchors;
-        sim.release = { ...anchors.pxNock };
+        sim.release = { x: anchors.pxNock.x, y: anchors.pxNock.y + RELEASE_Y_OFFSET_PX };
         if (!sim.layoutAnchored && !sim.startedAt) {
           sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x);
           sim.layoutAnchored = true;
@@ -785,6 +817,8 @@ export default function ArcheryGame({
 
         arrow.vy += GRAVITY * dt;
         arrow.vx += sim.wind * dt * 0.16;
+        arrow.vx *= (1 - ARROW_DRAG);
+        arrow.vy *= (1 - ARROW_DRAG * 0.5);
         arrow.x += arrow.vx * dt;
         arrow.y += arrow.vy * dt;
         arrow.rot = Math.atan2(arrow.vy, arrow.vx);
@@ -801,8 +835,10 @@ export default function ArcheryGame({
           h: 20,
         };
 
+        let hits = 0;
         for (const candle of sim.candles) {
           if (!candle.lit) continue;
+          if (arrow.hitIds.has(candle.id)) continue;
           const candleBox = {
             x: candle.x - candle.w / 2,
             y: candle.y - candle.h,
@@ -811,10 +847,15 @@ export default function ArcheryGame({
           };
 
           if (rectsIntersect(arrowBox, candleBox)) {
-            arrow.alive = false;
+            arrow.hitIds.add(candle.id);
+            hits += 1;
             extinguishCandle(sim, candle);
-            break;
           }
+        }
+
+        if (hits > 0) {
+          arrow.vx *= Math.max(0.72, 1 - hits * 0.09);
+          arrow.vy *= Math.max(0.72, 1 - hits * 0.07);
         }
       }
 
@@ -824,6 +865,11 @@ export default function ArcheryGame({
         particle.x += particle.vx * dt;
         particle.y += particle.vy * dt;
         particle.life -= dt;
+      }
+
+      sim.extinguishFx = sim.extinguishFx.filter((fx) => fx.t < fx.life);
+      for (const fx of sim.extinguishFx) {
+        fx.t += dt;
       }
     };
 
@@ -895,7 +941,9 @@ export default function ArcheryGame({
       if (!arrowImg) return;
 
       const nock = sim.aiming ? sim.pull : sim.release;
-      const rot = Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x);
+      const rot = sim.aiming
+        ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x)
+        : 0;
 
       const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
 
@@ -905,6 +953,59 @@ export default function ArcheryGame({
       context.rotate(rot);
       context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
       context.restore();
+    };
+
+    const drawExtinguishFx = (sim) => {
+      for (const fx of sim.extinguishFx) {
+        const t = clamp01(fx.t / fx.life);
+        const inv = 1 - t;
+
+        context.save();
+        context.globalAlpha = 0.26 * inv;
+        context.strokeStyle = "#ffd6a0";
+        context.lineWidth = 1.4;
+        context.beginPath();
+        context.arc(fx.x, fx.y, 4 + t * 24, 0, Math.PI * 2);
+        context.stroke();
+
+        context.globalAlpha = 0.34 * inv;
+        context.fillStyle = "#fff4cf";
+        context.beginPath();
+        context.ellipse(
+          fx.x + Math.sin(t * 8) * 1.8,
+          fx.y - t * 18,
+          5 + t * 7,
+          3 + t * 6,
+          0,
+          0,
+          Math.PI * 2
+        );
+        context.fill();
+
+        context.globalAlpha = 0.18 * inv;
+        context.fillStyle = "rgba(226,226,226,1)";
+        context.beginPath();
+        context.ellipse(
+          fx.x + Math.sin(t * 4) * 4,
+          fx.y - 4 - t * 26,
+          6 + t * 12,
+          3 + t * 8,
+          0,
+          0,
+          Math.PI * 2
+        );
+        context.fill();
+
+        context.globalAlpha = 0.58 * inv;
+        context.fillStyle = "#ffcb72";
+        for (const streak of fx.streaks) {
+          const sx = fx.x + Math.cos(streak.angle) * streak.speed * t + streak.drift * t;
+          const sy = fx.y + Math.sin(streak.angle) * streak.speed * t - t * 4;
+          const size = streak.size * inv;
+          context.fillRect(sx, sy, size, size);
+        }
+        context.restore();
+      }
     };
 
     const drawFlyingArrows = (sim) => {
@@ -998,6 +1099,7 @@ export default function ArcheryGame({
       update(dt, now);
       drawBackground(sim);
       drawCandles(sim);
+      drawExtinguishFx(sim);
       drawNockedArrow(sim);
       drawTrajectory(sim);
       drawFlyingArrows(sim);
@@ -1094,7 +1196,7 @@ export default function ArcheryGame({
             top: 8,
             bottom: 8,
             width: BOW_WIDTH_CSS,
-            transform: "scaleX(-1)",
+            transform: `scaleX(${BOW_MIRRORED ? -1 : 1})`,
             transformOrigin: "50% 54%",
             pointerEvents: "none",
             opacity: 0.98,

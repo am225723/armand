@@ -2,6 +2,8 @@
 /.next/server
 /.next
 /.next
+next/
+.next/
 /node_modules
 node_mpdules/
 node_modules/.package-lock.json
