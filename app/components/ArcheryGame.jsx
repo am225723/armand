@@ -57,6 +57,9 @@ const COMPLETE_AUTO_DELAY_MS = 420;
 
 const CANDLE_REGION_START_PCT = 0.53;
 const CANDLE_REGION_END_PAD_PX = 28;
+const CANDLE_HITBOX_SCALE = 0.72;
+const CANDLE_DRIFT_SPEED_MIN = 0.75;
+const CANDLE_DRIFT_SPEED_MAX = 1.45;
 
 const GRAVITY = 1220;
 const MIN_SPEED = 560;
@@ -64,6 +67,8 @@ const MAX_SPEED = 1980;
 const ARROW_DRAG = 0.0015;
 
 const ROTATE_ICON_SIZE = 56;
+const WORLD_WIDTH_PORTRAIT_MULT = 2.25;
+const WORLD_WIDTH_LANDSCAPE_MULT = 1.45;
 
 export default function ArcheryGame({
   onComplete,
@@ -78,7 +83,8 @@ export default function ArcheryGame({
 
   const bowSvgRef = useRef(null);
   const bowStringRef = useRef(null);
-  const injectedStringRef = useRef(null);
+  const stringPrimaryRef = useRef(null);
+  const stringSecondaryRef = useRef(null);
 
   const assetsRef = useRef({ arrow: null, candle: null, ready: false });
   const simRef = useRef(null);
@@ -86,7 +92,6 @@ export default function ArcheryGame({
   const pointerIdRef = useRef(null);
   const completeOnceRef = useRef(false);
   const completeTimeoutRef = useRef(null);
-  const showRotateRef = useRef(false);
 
   const [assetsReady, setAssetsReady] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
@@ -104,7 +109,7 @@ export default function ArcheryGame({
   }, []);
 
   const isPortrait = viewport.height > viewport.width;
-  const showRotateOverlay = isCoarsePointer && isPortrait;
+  const portraitFollowMode = isCoarsePointer && isPortrait;
   const gameHeight = `clamp(260px, 62vh, ${Math.max(280, Number(height) || 420)}px)`;
 
   const soundRef = useRef(false);
