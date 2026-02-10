@@ -658,11 +658,12 @@ export default function ArcheryGame({
         const recoilT = sim.bowRecoil;
         const recoilWave = recoilT > 0 ? Math.sin((nowMs - sim.stringVibStart) * 0.06) * recoilT : 0;
         const bendT = clamp01(pullT * 1.28 + recoilT * 0.7 + idle * 0.3);
-        const rotDeg = -5.8 * bendT + recoilWave * 2.2;
-        const skewDeg = -7.2 * bendT + recoilWave * 1.5;
+        const towardCenterDir = BOW_MIRRORED ? -1 : 1;
+        const rotDeg = 5.6 * bendT * towardCenterDir + recoilWave * 2.2 * towardCenterDir;
+        const skewDeg = 7.4 * bendT * towardCenterDir + recoilWave * 1.5 * towardCenterDir;
         const sx = 1 - bendT * 0.11;
         const sy = 1 + bendT * 0.24;
-        const tx = -22 * bendT;
+        const tx = 24 * bendT * towardCenterDir;
         wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) translateX(${tx}px) rotate(${rotDeg}deg) skewY(${skewDeg}deg) scale(${sx}, ${sy})`;
         wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.34)) drop-shadow(0 0 ${4 + bendT * 10}px rgba(255, 214, 132, ${0.15 + bendT * 0.24}))`;
       }
@@ -733,6 +734,10 @@ export default function ArcheryGame({
       const sim = simRef.current;
       if (!sim || sim.done) return;
       if (pointerIdRef.current != null) return;
+      if (cameraFollowMode) {
+        const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
+        if (hasLiveArrow || sim.hasReleasedShot || sim.cameraX > 6) return;
+      }
 
       if (!sim.startedAt) {
         sim.startedAt = performance.now();
@@ -957,21 +962,22 @@ export default function ArcheryGame({
         const leadArrow = sim.arrows.filter((a) => a.alive).sort((a, b) => b.x - a.x)[0] || null;
         const maxCam = Math.max(0, sim.worldW - sim.W);
         let targetCam = 0;
-        if (leadArrow) {
+        if (sim.aiming) {
+          targetCam = 0;
+        } else if (leadArrow) {
           targetCam = clamp(leadArrow.x - sim.W * 0.34, 0, maxCam);
         } else if (sim.hasReleasedShot) {
-          const activeCandles = sim.candles.filter((c) => c.lit);
-          if (activeCandles.length > 0) {
-            const meanX =
-              activeCandles.reduce((acc, c) => acc + c.x, 0) / activeCandles.length;
-            targetCam = clamp(meanX - sim.W * 0.65, 0, maxCam);
-          } else {
-            targetCam = maxCam;
-          }
+          targetCam = 0;
         }
         const cameraDelta = targetCam - sim.cameraX;
         sim.cameraV = sim.cameraV * 0.84 + cameraDelta * dt * 10;
         sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCam);
+
+        if (!leadArrow && sim.hasReleasedShot && sim.cameraX < 1.4 && Math.abs(sim.cameraV) < 0.4) {
+          sim.hasReleasedShot = false;
+          sim.cameraX = 0;
+          sim.cameraV = 0;
+        }
       } else {
         sim.cameraX = 0;
         sim.cameraV = 0;
@@ -1059,6 +1065,12 @@ export default function ArcheryGame({
     const drawNockedArrow = (sim) => {
       const arrowImg = assetsRef.current.arrow;
       if (!arrowImg) return;
+      if (cameraFollowMode && !sim.aiming) {
+        const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
+        if (hasLiveArrow || sim.hasReleasedShot || sim.cameraX > 4) {
+          return;
+        }
+      }
 
       const nock = sim.aiming ? sim.pull : sim.release;
       const rot = sim.aiming
@@ -1301,7 +1313,7 @@ export default function ArcheryGame({
           <div style={title}>Extinguish the candles</div>
           <div style={subtitle}>
             {cameraFollowMode
-              ? "Mobile mode: static candles, pull hard, release to follow arrow flight"
+              ? "Mobile mode: pull to bend bow, release to follow arrow, then reset to bow"
               : "Draw from anywhere, release to shoot"}
           </div>
         </div>
