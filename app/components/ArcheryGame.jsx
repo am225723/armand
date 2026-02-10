@@ -629,8 +629,8 @@ export default function ArcheryGame({
 
       // Simulate limb tips bending toward the bow centerline while keeping bow position fixed.
       const towardCenterDir = BOW_MIRRORED ? -1 : 1;
-      const tipShiftX = towardCenterDir * (6 + bendT * 14);
-      const tipShiftY = 8 + bendT * 14;
+      const tipShiftX = towardCenterDir * (8 + bendT * 16);
+      const tipShiftY = 12 + bendT * 18;
       const topTip = {
         x: anchors.vbTop.x + tipShiftX * bendT,
         y: anchors.vbTop.y + tipShiftY * bendT,
@@ -665,8 +665,9 @@ export default function ArcheryGame({
 
       if (wrap) {
         // Keep bow anchored in one place; bend via scale only (no translate/rotate drift).
-        const sx = 1 - bendT * 0.055;
-        const sy = 1 + bendT * 0.12;
+        // Pull should visibly draw limb tips inward, not apart.
+        const sx = 1 + bendT * 0.04;
+        const sy = 1 - bendT * 0.12;
         wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy})`;
         wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.34)) drop-shadow(0 0 ${4 + bendT * 10}px rgba(255, 214, 132, ${0.15 + bendT * 0.24}))`;
       }
