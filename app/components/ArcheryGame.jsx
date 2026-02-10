@@ -88,6 +88,8 @@ export default function ArcheryGame({
   const bowStringRef = useRef(null);
   const stringPrimaryRef = useRef(null);
   const stringSecondaryRef = useRef(null);
+  const stringPrimarySplitRef = useRef(null);
+  const stringSecondarySplitRef = useRef(null);
 
   const assetsRef = useRef({ arrow: null, candle: null, ready: false });
   const simRef = useRef(null);
@@ -273,35 +275,10 @@ export default function ArcheryGame({
     const wrapRect = wrap.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
 
-    let vbTop = null;
-    let vbBottom = null;
-
-    // Prefer detected string bounds only when they're plausibly the full bowstring.
-    const stringEl = bowStringRef.current;
-    if (stringEl) {
-      try {
-        const bb = stringEl.getBBox();
-        const looksValid =
-          bb &&
-          bb.height >= vbH * 0.42 &&
-          bb.width <= vbW * 0.36 &&
-          bb.y >= vbY &&
-          bb.y + bb.height <= vbY + vbH;
-        if (looksValid) {
-          vbTop = { x: bb.x + bb.width * 0.5, y: bb.y };
-          vbBottom = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
-        }
-      } catch {
-        // no-op
-      }
-    }
-
-    // Fallback calibration for heavily flattened SVGs (this bow asset).
-    if (!vbTop || !vbBottom) {
-      const xFrac = BOW_MIRRORED ? 1 - BOW_STRING_X_FRAC : BOW_STRING_X_FRAC;
-      vbTop = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_TOP_Y_FRAC };
-      vbBottom = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_BOTTOM_Y_FRAC };
-    }
+    // Calibrated bow pulley/string anchors for this flattened bow SVG.
+    const xFrac = BOW_MIRRORED ? 1 - BOW_STRING_X_FRAC : BOW_STRING_X_FRAC;
+    const vbTop = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_TOP_Y_FRAC };
+    const vbBottom = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_BOTTOM_Y_FRAC };
 
     const vbNock = {
       x: vbTop.x,
@@ -336,12 +313,17 @@ export default function ArcheryGame({
     const svg = bowSvgRef.current;
     if (!svg) return;
 
-    if (!stringPrimaryRef.current || !stringSecondaryRef.current) {
+    if (
+      !stringPrimaryRef.current ||
+      !stringSecondaryRef.current ||
+      !stringPrimarySplitRef.current ||
+      !stringSecondarySplitRef.current
+    ) {
       const makePath = (role) => {
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("fill", "none");
         path.setAttribute("stroke", "rgba(44, 36, 26, 0.98)");
-        path.setAttribute("stroke-width", "1.35");
+        path.setAttribute("stroke-width", "1.2");
         path.setAttribute("stroke-linecap", "round");
         path.setAttribute("vector-effect", "non-scaling-stroke");
         path.setAttribute("data-role", role);
@@ -353,6 +335,8 @@ export default function ArcheryGame({
 
       stringPrimaryRef.current = makePath("injected-bow-string-top");
       stringSecondaryRef.current = makePath("injected-bow-string-bottom");
+      stringPrimarySplitRef.current = makePath("injected-bow-string-top-split");
+      stringSecondarySplitRef.current = makePath("injected-bow-string-bottom-split");
     }
   }, []);
 
@@ -382,7 +366,7 @@ export default function ArcheryGame({
         const stringEl = findBowStringElement(svg);
         if (stringEl) {
           bowStringRef.current = stringEl;
-          stringEl.style.opacity = "0.75";
+          stringEl.style.opacity = "0.18";
         }
 
         ensureInjectedStringPath();
@@ -617,14 +601,15 @@ export default function ArcheryGame({
     };
 
     const updateInjectedString = (sim, nowMs) => {
-      const pathTop = stringPrimaryRef.current;
-      const pathBottom = stringSecondaryRef.current;
+      const pathTopA = stringPrimaryRef.current;
+      const pathBottomA = stringSecondaryRef.current;
+      const pathTopB = stringPrimarySplitRef.current;
+      const pathBottomB = stringSecondarySplitRef.current;
       const anchors = sim.bowAnchors;
-      if (!pathTop || !pathBottom || !anchors) return;
+      if (!pathTopA || !pathBottomA || !pathTopB || !pathBottomB || !anchors) return;
 
-      const wrap = bowWrapRef.current;
       const containerRect = container.getBoundingClientRect();
-      const wrapRect = wrap?.getBoundingClientRect();
+      const wrapRect = bowWrapRef.current?.getBoundingClientRect();
       if (!wrapRect) return;
 
       const screenPullX = sim.pull.x;
@@ -672,29 +657,39 @@ export default function ArcheryGame({
       const topCtrlY = lerp(topTip.y, nockY, 0.44);
       const botCtrlX = lerp(nockX, bottomTip.x, 0.54) - 52 * pullT + vib * 0.42;
       const botCtrlY = lerp(nockY, bottomTip.y, 0.56);
-      pathTop.setAttribute(
-        "d",
-        `M ${topTip.x} ${topTip.y} Q ${topCtrlX} ${topCtrlY} ${nockX} ${nockY}`
-      );
-      pathBottom.setAttribute(
-        "d",
-        `M ${nockX} ${nockY} Q ${botCtrlX} ${botCtrlY} ${bottomTip.x} ${bottomTip.y}`
-      );
 
       const activeT = sim.aiming ? 1 : vibrationActive ? 0.6 : 0;
       const opacity = (0.7 + pullT * 0.24) * activeT;
-      pathTop.setAttribute("stroke-opacity", String(opacity));
-      pathBottom.setAttribute("stroke-opacity", String(opacity));
-      const dynamicStroke = String(1.45 + pullT * 0.9);
-      pathTop.setAttribute("stroke-width", dynamicStroke);
-      pathBottom.setAttribute("stroke-width", dynamicStroke);
+      const dynamicStroke = String(1.35 + pullT * 0.78);
+      const split = 0.58 + pullT * 0.52;
+      const splitDir = BOW_MIRRORED ? -1 : 1;
+      const ax = split * splitDir;
+      const bx = -split * splitDir;
+      const topACtrlX = topCtrlX + ax;
+      const botACtrlX = botCtrlX + ax;
+      const topBCtrlX = topCtrlX + bx;
+      const botBCtrlX = botCtrlX + bx;
 
-      if (wrap) {
-        // Hard lock bow world position; only string geometry reacts.
-        const glow = sim.aiming ? 3 + bendT * 10 : 2;
-        const glowAlpha = sim.aiming ? 0.2 + bendT * 0.22 : 0.12;
-        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1})`;
-        wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.36)) drop-shadow(0 0 ${glow}px rgba(255, 214, 132, ${glowAlpha}))`;
+      pathTopA.setAttribute(
+        "d",
+        `M ${topTip.x + ax} ${topTip.y} Q ${topACtrlX} ${topCtrlY} ${nockX + ax} ${nockY}`
+      );
+      pathBottomA.setAttribute(
+        "d",
+        `M ${nockX + ax} ${nockY} Q ${botACtrlX} ${botCtrlY} ${bottomTip.x + ax} ${bottomTip.y}`
+      );
+      pathTopB.setAttribute(
+        "d",
+        `M ${topTip.x + bx} ${topTip.y} Q ${topBCtrlX} ${topCtrlY} ${nockX + bx} ${nockY}`
+      );
+      pathBottomB.setAttribute(
+        "d",
+        `M ${nockX + bx} ${nockY} Q ${botBCtrlX} ${botCtrlY} ${bottomTip.x + bx} ${bottomTip.y}`
+      );
+
+      for (const path of [pathTopA, pathBottomA, pathTopB, pathBottomB]) {
+        path.setAttribute("stroke-opacity", String(opacity));
+        path.setAttribute("stroke-width", dynamicStroke);
       }
     };
 
