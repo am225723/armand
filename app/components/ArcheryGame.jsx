@@ -618,6 +618,7 @@ export default function ArcheryGame({
       const dx = pullVB.x - anchors.vbNock.x;
       const dy = pullVB.y - anchors.vbNock.y;
       const pullT = clamp01(Math.abs(dx) / (MAX_PULL_PX * 0.8));
+      const activeT = clamp01((sim.aiming ? 1 : 0) + sim.bowRecoil * 1.1);
 
       const vibrateProgress = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
       const vibEnv = 1 - vibrateProgress;
@@ -641,7 +642,7 @@ export default function ArcheryGame({
         `M ${nockX} ${nockY} Q ${botCtrlX} ${botCtrlY} ${anchors.vbBottom.x} ${anchors.vbBottom.y}`
       );
 
-      const opacity = 0.78 + pullT * 0.18;
+      const opacity = (0.72 + pullT * 0.2) * activeT;
       pathTop.setAttribute("stroke-opacity", String(opacity));
       pathBottom.setAttribute("stroke-opacity", String(opacity));
       const dynamicStroke = String(1.3 + pullT * 1.05);
@@ -657,13 +658,13 @@ export default function ArcheryGame({
 
         const recoilT = sim.bowRecoil;
         const recoilWave = recoilT > 0 ? Math.sin((nowMs - sim.stringVibStart) * 0.06) * recoilT : 0;
-        const bendT = clamp01(pullT * 1.28 + recoilT * 0.7 + idle * 0.3);
+        const bendT = clamp01(pullT * 1.03 + recoilT * 0.5 + idle * 0.24);
         const towardCenterDir = BOW_MIRRORED ? -1 : 1;
-        const rotDeg = 5.6 * bendT * towardCenterDir + recoilWave * 2.2 * towardCenterDir;
-        const skewDeg = 7.4 * bendT * towardCenterDir + recoilWave * 1.5 * towardCenterDir;
-        const sx = 1 - bendT * 0.11;
-        const sy = 1 + bendT * 0.24;
-        const tx = 24 * bendT * towardCenterDir;
+        const rotDeg = 3.8 * bendT * towardCenterDir + recoilWave * 1.5 * towardCenterDir;
+        const skewDeg = 5.2 * bendT * towardCenterDir + recoilWave * 1.0 * towardCenterDir;
+        const sx = 1 - bendT * 0.075;
+        const sy = 1 + bendT * 0.16;
+        const tx = 15 * bendT * towardCenterDir;
         wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) translateX(${tx}px) rotate(${rotDeg}deg) skewY(${skewDeg}deg) scale(${sx}, ${sy})`;
         wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.34)) drop-shadow(0 0 ${4 + bendT * 10}px rgba(255, 214, 132, ${0.15 + bendT * 0.24}))`;
       }
