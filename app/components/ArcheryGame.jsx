@@ -317,8 +317,8 @@ export default function ArcheryGame({
       const makePath = (role) => {
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("fill", "none");
-        path.setAttribute("stroke", "rgba(255,247,230,0.94)");
-        path.setAttribute("stroke-width", "1.5");
+        path.setAttribute("stroke", "rgba(36, 30, 24, 0.96)");
+        path.setAttribute("stroke-width", "1.25");
         path.setAttribute("stroke-linecap", "round");
         path.setAttribute("vector-effect", "non-scaling-stroke");
         path.setAttribute("data-role", role);
@@ -548,9 +548,8 @@ export default function ArcheryGame({
 
     const pointerToCanvas = (event) => {
       const rect = canvas.getBoundingClientRect();
-      const sim = simRef.current;
       return {
-        x: event.clientX - rect.left + (sim?.cameraX || 0),
+        x: event.clientX - rect.left,
         y: event.clientY - rect.top,
       };
     };
@@ -593,7 +592,7 @@ export default function ArcheryGame({
       return { vx, vy, rot: Math.atan2(vy, vx), pullDist: dist };
     };
 
-    const updateInjectedString = (sim, nowMs, dt) => {
+    const updateInjectedString = (sim, nowMs) => {
       const pathTop = stringPrimaryRef.current;
       const pathBottom = stringSecondaryRef.current;
       const anchors = sim.bowAnchors;
@@ -604,7 +603,7 @@ export default function ArcheryGame({
       const wrapRect = wrap?.getBoundingClientRect();
       if (!wrapRect) return;
 
-      const screenPullX = sim.pull.x - sim.cameraX;
+      const screenPullX = sim.pull.x;
       const screenPullY = sim.pull.y;
       let nx = (screenPullX - (wrapRect.left - containerRect.left)) / wrapRect.width;
       const ny = (screenPullY - (wrapRect.top - containerRect.top)) / wrapRect.height;
@@ -618,26 +617,20 @@ export default function ArcheryGame({
       const dx = pullVB.x - anchors.vbNock.x;
       const dy = pullVB.y - anchors.vbNock.y;
       const pullT = clamp01(Math.abs(dx) / (MAX_PULL_PX * 0.8));
-      const activeT = clamp01((sim.aiming ? 1 : 0) + sim.bowRecoil * 1.1);
-      const idle = !sim.aiming && !sim.done && !reducedMotion ? Math.sin(sim.bowPulse) * 0.06 : 0;
-      if (!sim.aiming) {
-        sim.bowRecoil = Math.max(0, sim.bowRecoil - dt * 2.7);
-        sim.bowPulse += dt * 2.1;
-      }
-      const recoilT = sim.bowRecoil;
-      const bendT = clamp01(pullT * 1.03 + recoilT * 0.5 + idle * 0.24);
+      const bendT = sim.aiming ? clamp01(pullT * 1.06) : 0;
 
       const vibrateProgress = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
       const vibEnv = 1 - vibrateProgress;
+      const vibrationActive = sim.stringVibAmp > 0 && vibrateProgress < 1;
       const vib =
-        sim.stringVibAmp > 0 && vibrateProgress < 1
+        vibrationActive
           ? Math.sin(vibrateProgress * Math.PI * 20) * sim.stringVibAmp * vibEnv
           : 0;
 
       // Simulate limb tips bending toward the bow centerline while keeping bow position fixed.
-      const towardCenterDir = BOW_MIRRORED ? 1 : -1;
-      const tipShiftX = towardCenterDir * (5 + bendT * 10);
-      const tipShiftY = 10 + bendT * 12;
+      const towardCenterDir = BOW_MIRRORED ? -1 : 1;
+      const tipShiftX = towardCenterDir * (6 + bendT * 14);
+      const tipShiftY = 8 + bendT * 14;
       const topTip = {
         x: anchors.vbTop.x + tipShiftX * bendT,
         y: anchors.vbTop.y + tipShiftY * bendT,
@@ -647,8 +640,8 @@ export default function ArcheryGame({
         y: anchors.vbBottom.y - tipShiftY * bendT,
       };
 
-      const nockX = anchors.vbNock.x + dx * 0.95 + vib;
-      const nockY = anchors.vbNock.y + dy * 0.92;
+      const nockX = anchors.vbNock.x + dx + vib;
+      const nockY = anchors.vbNock.y + dy;
       const topCtrlX = lerp(topTip.x, nockX, 0.46) - 52 * pullT + vib * 0.42;
       const topCtrlY = lerp(topTip.y, nockY, 0.44);
       const botCtrlX = lerp(nockX, bottomTip.x, 0.54) - 52 * pullT + vib * 0.42;
@@ -662,10 +655,11 @@ export default function ArcheryGame({
         `M ${nockX} ${nockY} Q ${botCtrlX} ${botCtrlY} ${bottomTip.x} ${bottomTip.y}`
       );
 
-      const opacity = (0.72 + pullT * 0.2) * activeT;
+      const activeT = sim.aiming ? 1 : vibrationActive ? 0.6 : 0;
+      const opacity = (0.7 + pullT * 0.24) * activeT;
       pathTop.setAttribute("stroke-opacity", String(opacity));
       pathBottom.setAttribute("stroke-opacity", String(opacity));
-      const dynamicStroke = String(1.3 + pullT * 1.05);
+      const dynamicStroke = String(1.45 + pullT * 0.9);
       pathTop.setAttribute("stroke-width", dynamicStroke);
       pathBottom.setAttribute("stroke-width", dynamicStroke);
 
@@ -796,7 +790,7 @@ export default function ArcheryGame({
 
       const launch = computeLaunch(sim, sim.pull);
       sim.arrows.push({
-        x: sim.release.x,
+        x: sim.release.x + sim.cameraX,
         y: sim.release.y,
         vx: launch.vx,
         vy: launch.vy,
@@ -809,7 +803,7 @@ export default function ArcheryGame({
       setShotsUI(sim.shots);
       sim.stringVibStart = performance.now();
       sim.stringVibAmp = 12 + clamp01(launch.pullDist / MAX_PULL_PX) * 8;
-      sim.bowRecoil = Math.max(sim.bowRecoil, 0.88);
+      sim.bowRecoil = 0;
       sim.bowPulse = 0;
       sim.hasReleasedShot = true;
 
@@ -850,7 +844,7 @@ export default function ArcheryGame({
       if (anchors) {
         sim.bowAnchors = anchors;
         sim.release = {
-          x: anchors.pxNock.x + sim.cameraX,
+          x: anchors.pxNock.x,
           y: anchors.pxNock.y + RELEASE_Y_OFFSET_PX,
         };
         if (!sim.layoutAnchored && !sim.startedAt) {
@@ -895,7 +889,7 @@ export default function ArcheryGame({
         sim.pull.y += sim.pullVel.y * dt;
       }
 
-      updateInjectedString(sim, nowMs, dt);
+      updateInjectedString(sim, nowMs);
 
       for (const candle of sim.candles) {
         candle.flamePhase += dt * 6.4;
@@ -1085,7 +1079,7 @@ export default function ArcheryGame({
       const rot = sim.aiming
         ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x)
         : 0;
-      const sx = nock.x - sim.cameraX;
+      const sx = nock.x;
 
       const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
 
