@@ -66,8 +66,9 @@ const MIN_SPEED = 560;
 const MAX_SPEED = 1980;
 const ARROW_DRAG = 0.0015;
 
-const WORLD_WIDTH_PORTRAIT_MULT = 2.25;
-const WORLD_WIDTH_LANDSCAPE_MULT = 1.45;
+const WORLD_WIDTH_MOBILE_PORTRAIT_MULT = 2.25;
+const WORLD_WIDTH_MOBILE_LANDSCAPE_MULT = 1.85;
+const WORLD_WIDTH_DESKTOP_MULT = 1.45;
 
 export default function ArcheryGame({
   onComplete,
@@ -108,7 +109,7 @@ export default function ArcheryGame({
   }, []);
 
   const isPortrait = viewport.height > viewport.width;
-  const portraitFollowMode = isCoarsePointer && isPortrait;
+  const cameraFollowMode = isCoarsePointer;
   const gameHeight = `clamp(260px, 62vh, ${Math.max(280, Number(height) || 420)}px)`;
 
   const soundRef = useRef(false);
@@ -357,7 +358,7 @@ export default function ArcheryGame({
         const stringEl = findBowStringElement(svg);
         if (stringEl) {
           bowStringRef.current = stringEl;
-          stringEl.style.opacity = "0.08";
+          stringEl.style.opacity = "0";
         }
 
         ensureInjectedStringPath();
@@ -487,7 +488,12 @@ export default function ArcheryGame({
       const worldW = Math.max(
         W + 260,
         Math.round(
-          W * (portraitFollowMode ? WORLD_WIDTH_PORTRAIT_MULT : WORLD_WIDTH_LANDSCAPE_MULT)
+          W *
+            (cameraFollowMode
+              ? isPortrait
+                ? WORLD_WIDTH_MOBILE_PORTRAIT_MULT
+                : WORLD_WIDTH_MOBILE_LANDSCAPE_MULT
+              : WORLD_WIDTH_DESKTOP_MULT)
         )
       );
 
@@ -517,6 +523,7 @@ export default function ArcheryGame({
         stringVibAmp: 0,
         bowRecoil: 0,
         bowPulse: Math.random() * Math.PI * 2,
+        hasReleasedShot: false,
 
         arrows: [],
         particles: [],
@@ -621,9 +628,9 @@ export default function ArcheryGame({
 
       const nockX = anchors.vbNock.x + dx * 0.95 + vib;
       const nockY = anchors.vbNock.y + dy * 0.92;
-      const topCtrlX = lerp(anchors.vbTop.x, nockX, 0.46) - 38 * pullT + vib * 0.35;
+      const topCtrlX = lerp(anchors.vbTop.x, nockX, 0.46) - 52 * pullT + vib * 0.42;
       const topCtrlY = lerp(anchors.vbTop.y, nockY, 0.44);
-      const botCtrlX = lerp(nockX, anchors.vbBottom.x, 0.54) - 38 * pullT + vib * 0.35;
+      const botCtrlX = lerp(nockX, anchors.vbBottom.x, 0.54) - 52 * pullT + vib * 0.42;
       const botCtrlY = lerp(nockY, anchors.vbBottom.y, 0.56);
       pathTop.setAttribute(
         "d",
@@ -650,12 +657,12 @@ export default function ArcheryGame({
 
         const recoilT = sim.bowRecoil;
         const recoilWave = recoilT > 0 ? Math.sin((nowMs - sim.stringVibStart) * 0.06) * recoilT : 0;
-        const bendT = clamp01(pullT * 1.08 + recoilT * 0.58 + idle * 0.28);
-        const rotDeg = -3.2 * bendT + recoilWave * 1.6;
-        const skewDeg = -4.2 * bendT + recoilWave * 1.15;
-        const sx = 1 - bendT * 0.07;
-        const sy = 1 + bendT * 0.16;
-        const tx = -12 * bendT;
+        const bendT = clamp01(pullT * 1.28 + recoilT * 0.7 + idle * 0.3);
+        const rotDeg = -5.8 * bendT + recoilWave * 2.2;
+        const skewDeg = -7.2 * bendT + recoilWave * 1.5;
+        const sx = 1 - bendT * 0.11;
+        const sy = 1 + bendT * 0.24;
+        const tx = -22 * bendT;
         wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) translateX(${tx}px) rotate(${rotDeg}deg) skewY(${skewDeg}deg) scale(${sx}, ${sy})`;
         wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.34)) drop-shadow(0 0 ${4 + bendT * 10}px rgba(255, 214, 132, ${0.15 + bendT * 0.24}))`;
       }
@@ -790,6 +797,7 @@ export default function ArcheryGame({
       sim.stringVibAmp = 12 + clamp01(launch.pullDist / MAX_PULL_PX) * 8;
       sim.bowRecoil = Math.max(sim.bowRecoil, 0.88);
       sim.bowPulse = 0;
+      sim.hasReleasedShot = true;
 
       sim.pullVel.x = 780;
       sim.pullVel.y = 0;
@@ -847,7 +855,12 @@ export default function ArcheryGame({
         sim.worldW = Math.max(
           sim.W + 260,
           Math.round(
-            sim.W * (portraitFollowMode ? WORLD_WIDTH_PORTRAIT_MULT : WORLD_WIDTH_LANDSCAPE_MULT)
+            sim.W *
+              (cameraFollowMode
+                ? isPortrait
+                  ? WORLD_WIDTH_MOBILE_PORTRAIT_MULT
+                  : WORLD_WIDTH_MOBILE_LANDSCAPE_MULT
+                : WORLD_WIDTH_DESKTOP_MULT)
           )
         );
         sim.cameraX = clamp(sim.cameraX, 0, Math.max(0, sim.worldW - sim.W));
@@ -872,10 +885,13 @@ export default function ArcheryGame({
 
       for (const candle of sim.candles) {
         candle.flamePhase += dt * 6.4;
-        if (!sim.done) {
+        if (!cameraFollowMode && !sim.done) {
           candle.driftPhase += dt * candle.driftSpeed;
           candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX;
           candle.y = candle.baseY + Math.cos(candle.driftPhase * 0.9) * candle.driftAmpY;
+        } else {
+          candle.x = candle.baseX;
+          candle.y = candle.baseY;
         }
       }
 
@@ -937,18 +953,25 @@ export default function ArcheryGame({
         }
       }
 
-      if (portraitFollowMode) {
+      if (cameraFollowMode) {
         const leadArrow = sim.arrows.filter((a) => a.alive).sort((a, b) => b.x - a.x)[0] || null;
         const maxCam = Math.max(0, sim.worldW - sim.W);
-        let targetCam = clamp(sim.release.x - sim.W * 0.26, 0, maxCam);
+        let targetCam = 0;
         if (leadArrow) {
           targetCam = clamp(leadArrow.x - sim.W * 0.34, 0, maxCam);
-        } else if (sim.done) {
-          targetCam = maxCam;
+        } else if (sim.hasReleasedShot) {
+          const activeCandles = sim.candles.filter((c) => c.lit);
+          if (activeCandles.length > 0) {
+            const meanX =
+              activeCandles.reduce((acc, c) => acc + c.x, 0) / activeCandles.length;
+            targetCam = clamp(meanX - sim.W * 0.65, 0, maxCam);
+          } else {
+            targetCam = maxCam;
+          }
         }
         const cameraDelta = targetCam - sim.cameraX;
         sim.cameraV = sim.cameraV * 0.84 + cameraDelta * dt * 10;
-        sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 42, 0, maxCam);
+        sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCam);
       } else {
         sim.cameraX = 0;
         sim.cameraV = 0;
@@ -1241,10 +1264,11 @@ export default function ArcheryGame({
   }, [
     buildCandleLayout,
     candleCount,
+    cameraFollowMode,
     completeGame,
     getStringAnchorsFromSvg,
+    isPortrait,
     playTone,
-    portraitFollowMode,
     reducedMotion,
     vibrate,
   ]);
@@ -1276,8 +1300,8 @@ export default function ArcheryGame({
         <div>
           <div style={title}>Extinguish the candles</div>
           <div style={subtitle}>
-            {portraitFollowMode
-              ? "Portrait mode: release and camera follows the arrow"
+            {cameraFollowMode
+              ? "Mobile mode: static candles, pull hard, release to follow arrow flight"
               : "Draw from anywhere, release to shoot"}
           </div>
         </div>
