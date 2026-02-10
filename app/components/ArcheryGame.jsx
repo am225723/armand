@@ -44,6 +44,9 @@ const BOW_MIRRORED = false;
 const BOW_LEFT_MIN_PX = 84;
 const BOW_LEFT_MAX_PX = 184;
 const BOW_WIDTH_CSS = "clamp(220px, 26vw, 320px)";
+const BOW_STRING_X_FRAC = 0.255;
+const BOW_STRING_TOP_Y_FRAC = 0.12;
+const BOW_STRING_BOTTOM_Y_FRAC = 0.89;
 
 const MAX_PULL_PX = 325;
 const MIN_PULL_PX = 18;
@@ -257,17 +260,9 @@ export default function ArcheryGame({
 
   const getStringAnchorsFromSvg = useCallback(() => {
     const svg = bowSvgRef.current;
-    const stringEl = bowStringRef.current;
     const wrap = bowWrapRef.current;
     const container = containerRef.current;
-    if (!svg || !stringEl || !wrap || !container) return null;
-
-    let bb;
-    try {
-      bb = stringEl.getBBox();
-    } catch {
-      return null;
-    }
+    if (!svg || !wrap || !container) return null;
 
     const vb = svg.viewBox?.baseVal;
     const vbX = vb?.x || 0;
@@ -278,11 +273,39 @@ export default function ArcheryGame({
     const wrapRect = wrap.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
 
-    const vbTop = { x: bb.x + bb.width * 0.5, y: bb.y };
-    const vbBottom = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
+    let vbTop = null;
+    let vbBottom = null;
+
+    // Prefer detected string bounds only when they're plausibly the full bowstring.
+    const stringEl = bowStringRef.current;
+    if (stringEl) {
+      try {
+        const bb = stringEl.getBBox();
+        const looksValid =
+          bb &&
+          bb.height >= vbH * 0.42 &&
+          bb.width <= vbW * 0.36 &&
+          bb.y >= vbY &&
+          bb.y + bb.height <= vbY + vbH;
+        if (looksValid) {
+          vbTop = { x: bb.x + bb.width * 0.5, y: bb.y };
+          vbBottom = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
+        }
+      } catch {
+        // no-op
+      }
+    }
+
+    // Fallback calibration for heavily flattened SVGs (this bow asset).
+    if (!vbTop || !vbBottom) {
+      const xFrac = BOW_MIRRORED ? 1 - BOW_STRING_X_FRAC : BOW_STRING_X_FRAC;
+      vbTop = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_TOP_Y_FRAC };
+      vbBottom = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_BOTTOM_Y_FRAC };
+    }
+
     const vbNock = {
       x: vbTop.x,
-      y: bb.y + bb.height * STRING_NOCK_Y_FRAC,
+      y: lerp(vbTop.y, vbBottom.y, STRING_NOCK_Y_FRAC),
     };
 
     const toContainerPx = (pt) => {
@@ -317,12 +340,13 @@ export default function ArcheryGame({
       const makePath = (role) => {
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("fill", "none");
-        path.setAttribute("stroke", "rgba(36, 30, 24, 0.96)");
-        path.setAttribute("stroke-width", "1.25");
+        path.setAttribute("stroke", "rgba(44, 36, 26, 0.98)");
+        path.setAttribute("stroke-width", "1.35");
         path.setAttribute("stroke-linecap", "round");
         path.setAttribute("vector-effect", "non-scaling-stroke");
         path.setAttribute("data-role", role);
         path.style.pointerEvents = "none";
+        path.style.mixBlendMode = "multiply";
         svg.appendChild(path);
         return path;
       };
@@ -358,7 +382,7 @@ export default function ArcheryGame({
         const stringEl = findBowStringElement(svg);
         if (stringEl) {
           bowStringRef.current = stringEl;
-          stringEl.style.opacity = "0";
+          stringEl.style.opacity = "0.75";
         }
 
         ensureInjectedStringPath();
@@ -606,7 +630,9 @@ export default function ArcheryGame({
       const screenPullX = sim.pull.x;
       const screenPullY = sim.pull.y;
       let nx = (screenPullX - (wrapRect.left - containerRect.left)) / wrapRect.width;
-      const ny = (screenPullY - (wrapRect.top - containerRect.top)) / wrapRect.height;
+      let ny = (screenPullY - (wrapRect.top - containerRect.top)) / wrapRect.height;
+      nx = clamp(nx, -0.85, 0.98);
+      ny = clamp(ny, -0.2, 1.2);
       if (BOW_MIRRORED) nx = 1 - nx;
 
       const pullVB = {
@@ -664,12 +690,11 @@ export default function ArcheryGame({
       pathBottom.setAttribute("stroke-width", dynamicStroke);
 
       if (wrap) {
-        // Keep bow anchored in one place; bend via scale only (no translate/rotate drift).
-        // Pull should visibly draw limb tips inward, not apart.
-        const sx = 1 + bendT * 0.04;
-        const sy = 1 - bendT * 0.12;
-        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy})`;
-        wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.34)) drop-shadow(0 0 ${4 + bendT * 10}px rgba(255, 214, 132, ${0.15 + bendT * 0.24}))`;
+        // Hard lock bow world position; only string geometry reacts.
+        const glow = sim.aiming ? 3 + bendT * 10 : 2;
+        const glowAlpha = sim.aiming ? 0.2 + bendT * 0.22 : 0.12;
+        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1})`;
+        wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.36)) drop-shadow(0 0 ${glow}px rgba(255, 214, 132, ${glowAlpha}))`;
       }
     };
 
@@ -1351,11 +1376,19 @@ export default function ArcheryGame({
             transform: `scaleX(${BOW_MIRRORED ? -1 : 1})`,
             transformOrigin: "50% 54%",
             pointerEvents: "none",
-            opacity: 0.98,
-            filter: "drop-shadow(0 14px 28px rgba(0,0,0,0.34))",
+            opacity: 0.99,
+            filter:
+              "drop-shadow(0 14px 28px rgba(0,0,0,0.36)) drop-shadow(0 0 2px rgba(255, 226, 170, 0.14))",
           }}
         >
-          <div ref={bowHostRef} style={{ width: "100%", height: "100%" }} />
+          <div
+            ref={bowHostRef}
+            style={{
+              width: "100%",
+              height: "100%",
+              filter: "contrast(1.1) saturate(1.12) brightness(1.04)",
+            }}
+          />
         </div>
 
         <div style={toggleWrap}>
