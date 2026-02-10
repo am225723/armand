@@ -66,7 +66,6 @@ const MIN_SPEED = 560;
 const MAX_SPEED = 1980;
 const ARROW_DRAG = 0.0015;
 
-const ROTATE_ICON_SIZE = 56;
 const WORLD_WIDTH_PORTRAIT_MULT = 2.25;
 const WORLD_WIDTH_LANDSCAPE_MULT = 1.45;
 
@@ -313,17 +312,22 @@ export default function ArcheryGame({
     const svg = bowSvgRef.current;
     if (!svg) return;
 
-    if (!injectedStringRef.current) {
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("fill", "none");
-      path.setAttribute("stroke", "rgba(255,247,230,0.92)");
-      path.setAttribute("stroke-width", "1.55");
-      path.setAttribute("stroke-linecap", "round");
-      path.setAttribute("vector-effect", "non-scaling-stroke");
-      path.setAttribute("data-role", "injected-bow-string");
-      path.style.pointerEvents = "none";
-      svg.appendChild(path);
-      injectedStringRef.current = path;
+    if (!stringPrimaryRef.current || !stringSecondaryRef.current) {
+      const makePath = (role) => {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "rgba(255,247,230,0.94)");
+        path.setAttribute("stroke-width", "1.5");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("vector-effect", "non-scaling-stroke");
+        path.setAttribute("data-role", role);
+        path.style.pointerEvents = "none";
+        svg.appendChild(path);
+        return path;
+      };
+
+      stringPrimaryRef.current = makePath("injected-bow-string-top");
+      stringSecondaryRef.current = makePath("injected-bow-string-bottom");
     }
   }, []);
 
@@ -369,39 +373,48 @@ export default function ArcheryGame({
     };
   }, [ensureInjectedStringPath, findBowStringElement]);
 
-  const buildCandleLayout = useCallback((W, H, releaseX) => {
+  const buildCandleLayout = useCallback((W, H, releaseX, worldW) => {
     const candles = [];
 
-    const regionStart = Math.max(W * CANDLE_REGION_START_PCT, releaseX + 170);
-    const regionEnd = Math.max(regionStart + 120, W - CANDLE_REGION_END_PAD_PX);
+    const regionStart = Math.max(worldW * CANDLE_REGION_START_PCT, releaseX + W * 0.86);
+    const regionEnd = Math.max(regionStart + 260, worldW - CANDLE_REGION_END_PAD_PX - 32);
     const regionWidth = Math.max(120, regionEnd - regionStart);
 
     const candleH = clamp(H * 0.24, 70, 118);
     const candleW = candleH * (546 / 1208);
 
-    const baseY = H * 0.72;
-    const maxCols = Math.max(1, Math.floor(regionWidth / 54));
-    const cols = Math.min(Math.max(1, maxCols), candleCount);
-    const rows = Math.ceil(candleCount / cols);
-    const rowGap = clamp(candleH * 0.82, 56, 84);
-
     for (let i = 0; i < candleCount; i += 1) {
-      const row = Math.floor(i / cols);
-      const col = i % cols;
-      const countInRow = Math.min(cols, candleCount - row * cols);
-      const rowW = Math.max(0, regionWidth - 20);
-      const spacing = countInRow <= 1 ? 0 : rowW / (countInRow - 1);
-      const x = clamp(regionStart + 10 + col * spacing, regionStart + 10, regionEnd - 10);
-      const y = baseY - row * rowGap;
+      const t = candleCount <= 1 ? 0 : i / (candleCount - 1);
+      const lane = i % 3;
+      const serp = Math.sin(i * 1.11) * 34;
+      const zig = (i % 2 === 0 ? -1 : 1) * 22;
+      const x = clamp(
+        lerp(regionStart + 24, regionEnd - 24, t) + serp + zig,
+        regionStart + 8,
+        regionEnd - 8
+      );
+      const y =
+        H * 0.74 -
+        lane * clamp(candleH * 0.72, 52, 78) +
+        Math.cos(i * 0.9) * 20 -
+        (i % 4 === 0 ? 16 : 0);
 
       candles.push({
         id: i,
         x,
         y,
+        baseX: x,
+        baseY: y,
         w: candleW,
         h: candleH,
         lit: true,
         flamePhase: Math.random() * Math.PI * 2,
+        driftPhase: Math.random() * Math.PI * 2,
+        driftSpeed:
+          CANDLE_DRIFT_SPEED_MIN +
+          Math.random() * (CANDLE_DRIFT_SPEED_MAX - CANDLE_DRIFT_SPEED_MIN),
+        driftAmpX: 10 + Math.random() * 20,
+        driftAmpY: 6 + Math.random() * 14,
       });
     }
 
@@ -444,10 +457,6 @@ export default function ArcheryGame({
   }, [emitComplete]);
 
   useEffect(() => {
-    showRotateRef.current = showRotateOverlay;
-  }, [showRotateOverlay]);
-
-  useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
@@ -475,16 +484,25 @@ export default function ArcheryGame({
       const rect = canvas.getBoundingClientRect();
       const W = rect.width;
       const H = rect.height;
+      const worldW = Math.max(
+        W + 260,
+        Math.round(
+          W * (portraitFollowMode ? WORLD_WIDTH_PORTRAIT_MULT : WORLD_WIDTH_LANDSCAPE_MULT)
+        )
+      );
 
       const defaultRelease = {
         x: Math.max(140, W * 0.24),
         y: H * 0.53 + RELEASE_Y_OFFSET_PX,
       };
-      const candles = buildCandleLayout(W, H, defaultRelease.x);
+      const candles = buildCandleLayout(W, H, defaultRelease.x, worldW);
 
       simRef.current = {
         W,
         H,
+        worldW,
+        cameraX: 0,
+        cameraV: 0,
         wind: reducedMotion ? 0 : (Math.random() * 2 - 1) * 22,
 
         release: defaultRelease,
@@ -523,8 +541,9 @@ export default function ArcheryGame({
 
     const pointerToCanvas = (event) => {
       const rect = canvas.getBoundingClientRect();
+      const sim = simRef.current;
       return {
-        x: event.clientX - rect.left,
+        x: event.clientX - rect.left + (sim?.cameraX || 0),
         y: event.clientY - rect.top,
       };
     };
@@ -568,17 +587,20 @@ export default function ArcheryGame({
     };
 
     const updateInjectedString = (sim, nowMs, dt) => {
-      const path = injectedStringRef.current;
+      const pathTop = stringPrimaryRef.current;
+      const pathBottom = stringSecondaryRef.current;
       const anchors = sim.bowAnchors;
-      if (!path || !anchors) return;
+      if (!pathTop || !pathBottom || !anchors) return;
 
       const wrap = bowWrapRef.current;
       const containerRect = container.getBoundingClientRect();
       const wrapRect = wrap?.getBoundingClientRect();
       if (!wrapRect) return;
 
-      let nx = (sim.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width;
-      const ny = (sim.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height;
+      const screenPullX = sim.pull.x - sim.cameraX;
+      const screenPullY = sim.pull.y;
+      let nx = (screenPullX - (wrapRect.left - containerRect.left)) / wrapRect.width;
+      const ny = (screenPullY - (wrapRect.top - containerRect.top)) / wrapRect.height;
       if (BOW_MIRRORED) nx = 1 - nx;
 
       const pullVB = {
@@ -597,19 +619,27 @@ export default function ArcheryGame({
           ? Math.sin(vibrateProgress * Math.PI * 20) * sim.stringVibAmp * vibEnv
           : 0;
 
-      const ctrl = {
-        x: anchors.vbNock.x + dx * 0.9 - 72 * pullT + vib,
-        y: anchors.vbNock.y + dy * 0.9,
-      };
-
-      path.setAttribute(
+      const nockX = anchors.vbNock.x + dx * 0.95 + vib;
+      const nockY = anchors.vbNock.y + dy * 0.92;
+      const topCtrlX = lerp(anchors.vbTop.x, nockX, 0.46) - 38 * pullT + vib * 0.35;
+      const topCtrlY = lerp(anchors.vbTop.y, nockY, 0.44);
+      const botCtrlX = lerp(nockX, anchors.vbBottom.x, 0.54) - 38 * pullT + vib * 0.35;
+      const botCtrlY = lerp(nockY, anchors.vbBottom.y, 0.56);
+      pathTop.setAttribute(
         "d",
-        `M ${anchors.vbTop.x} ${anchors.vbTop.y} Q ${ctrl.x} ${ctrl.y} ${anchors.vbBottom.x} ${anchors.vbBottom.y}`
+        `M ${anchors.vbTop.x} ${anchors.vbTop.y} Q ${topCtrlX} ${topCtrlY} ${nockX} ${nockY}`
+      );
+      pathBottom.setAttribute(
+        "d",
+        `M ${nockX} ${nockY} Q ${botCtrlX} ${botCtrlY} ${anchors.vbBottom.x} ${anchors.vbBottom.y}`
       );
 
       const opacity = 0.78 + pullT * 0.18;
-      path.setAttribute("stroke-opacity", String(opacity));
-      path.setAttribute("stroke-width", String(1.45 + pullT * 0.95));
+      pathTop.setAttribute("stroke-opacity", String(opacity));
+      pathBottom.setAttribute("stroke-opacity", String(opacity));
+      const dynamicStroke = String(1.3 + pullT * 1.05);
+      pathTop.setAttribute("stroke-width", dynamicStroke);
+      pathBottom.setAttribute("stroke-width", dynamicStroke);
 
       if (wrap) {
         const idle = !sim.aiming && !sim.done && !reducedMotion ? Math.sin(sim.bowPulse) * 0.06 : 0;
@@ -693,7 +723,6 @@ export default function ArcheryGame({
     };
 
     const onPointerDown = (event) => {
-      if (showRotateRef.current) return;
       const sim = simRef.current;
       if (!sim || sim.done) return;
       if (pointerIdRef.current != null) return;
@@ -720,7 +749,6 @@ export default function ArcheryGame({
     };
 
     const onPointerMove = (event) => {
-      if (showRotateRef.current) return;
       const sim = simRef.current;
       if (!sim || !sim.aiming || sim.done) return;
       if (pointerIdRef.current !== event.pointerId) return;
@@ -799,9 +827,12 @@ export default function ArcheryGame({
       const anchors = getStringAnchorsFromSvg();
       if (anchors) {
         sim.bowAnchors = anchors;
-        sim.release = { x: anchors.pxNock.x, y: anchors.pxNock.y + RELEASE_Y_OFFSET_PX };
+        sim.release = {
+          x: anchors.pxNock.x + sim.cameraX,
+          y: anchors.pxNock.y + RELEASE_Y_OFFSET_PX,
+        };
         if (!sim.layoutAnchored && !sim.startedAt) {
-          sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x);
+          sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x, sim.worldW);
           sim.layoutAnchored = true;
           setRemainingUI(sim.candles.filter((item) => item.lit).length);
         }
@@ -813,7 +844,14 @@ export default function ArcheryGame({
       ) {
         sim.layoutW = sim.W;
         sim.layoutH = sim.H;
-        sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x);
+        sim.worldW = Math.max(
+          sim.W + 260,
+          Math.round(
+            sim.W * (portraitFollowMode ? WORLD_WIDTH_PORTRAIT_MULT : WORLD_WIDTH_LANDSCAPE_MULT)
+          )
+        );
+        sim.cameraX = clamp(sim.cameraX, 0, Math.max(0, sim.worldW - sim.W));
+        sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x, sim.worldW);
         setRemainingUI(sim.candles.filter((item) => item.lit).length);
       }
 
@@ -833,7 +871,12 @@ export default function ArcheryGame({
       updateInjectedString(sim, nowMs, dt);
 
       for (const candle of sim.candles) {
-        if (candle.lit) candle.flamePhase += dt * 6.4;
+        candle.flamePhase += dt * 6.4;
+        if (!sim.done) {
+          candle.driftPhase += dt * candle.driftSpeed;
+          candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX;
+          candle.y = candle.baseY + Math.cos(candle.driftPhase * 0.9) * candle.driftAmpY;
+        }
       }
 
       for (const arrow of sim.arrows) {
@@ -875,9 +918,9 @@ export default function ArcheryGame({
           if (!candle.lit) continue;
           if (arrow.hitIds.has(candle.id)) continue;
           const candleBox = {
-            x: candle.x - candle.w / 2,
+            x: candle.x - (candle.w * CANDLE_HITBOX_SCALE) / 2,
             y: candle.y - candle.h,
-            w: candle.w,
+            w: candle.w * CANDLE_HITBOX_SCALE,
             h: candle.h,
           };
 
@@ -892,6 +935,23 @@ export default function ArcheryGame({
           arrow.vx *= Math.max(0.72, 1 - hits * 0.09);
           arrow.vy *= Math.max(0.72, 1 - hits * 0.07);
         }
+      }
+
+      if (portraitFollowMode) {
+        const leadArrow = sim.arrows.filter((a) => a.alive).sort((a, b) => b.x - a.x)[0] || null;
+        const maxCam = Math.max(0, sim.worldW - sim.W);
+        let targetCam = clamp(sim.release.x - sim.W * 0.26, 0, maxCam);
+        if (leadArrow) {
+          targetCam = clamp(leadArrow.x - sim.W * 0.34, 0, maxCam);
+        } else if (sim.done) {
+          targetCam = maxCam;
+        }
+        const cameraDelta = targetCam - sim.cameraX;
+        sim.cameraV = sim.cameraV * 0.84 + cameraDelta * dt * 10;
+        sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 42, 0, maxCam);
+      } else {
+        sim.cameraX = 0;
+        sim.cameraV = 0;
       }
 
       sim.particles = sim.particles.filter((particle) => particle.life > 0);
@@ -940,13 +1000,15 @@ export default function ArcheryGame({
       const candleImg = assetsRef.current.candle;
       for (const candle of sim.candles) {
         if (!candle.lit) continue;
+        const sx = candle.x - sim.cameraX;
+        if (sx < -candle.w * 1.6 || sx > sim.W + candle.w * 1.6) continue;
 
         context.save();
         context.globalAlpha = 0.2;
         context.fillStyle = "#ffcc7a";
         context.beginPath();
         context.ellipse(
-          candle.x,
+          sx,
           candle.y - candle.h * 0.92,
           candle.w * 1.22,
           candle.h * 0.24,
@@ -960,14 +1022,14 @@ export default function ArcheryGame({
         if (candleImg) {
           context.drawImage(
             candleImg,
-            candle.x - candle.w / 2,
+            sx - candle.w / 2,
             candle.y - candle.h,
             candle.w,
             candle.h
           );
         }
 
-        drawFlame(candle.x, candle.y - candle.h * 0.94, candle.w, candle.h, candle.flamePhase);
+        drawFlame(sx, candle.y - candle.h * 0.94, candle.w, candle.h, candle.flamePhase);
       }
     };
 
@@ -979,12 +1041,13 @@ export default function ArcheryGame({
       const rot = sim.aiming
         ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x)
         : 0;
+      const sx = nock.x - sim.cameraX;
 
       const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
 
       context.save();
       context.globalAlpha = sim.aiming ? 0.98 : 0.78;
-      context.translate(nock.x, nock.y);
+      context.translate(sx, nock.y);
       context.rotate(rot);
       context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
       context.restore();
@@ -994,20 +1057,21 @@ export default function ArcheryGame({
       for (const fx of sim.extinguishFx) {
         const t = clamp01(fx.t / fx.life);
         const inv = 1 - t;
+        const sx = fx.x - sim.cameraX;
 
         context.save();
         context.globalAlpha = 0.26 * inv;
         context.strokeStyle = "#ffd6a0";
         context.lineWidth = 1.4;
         context.beginPath();
-        context.arc(fx.x, fx.y, 4 + t * 24, 0, Math.PI * 2);
+        context.arc(sx, fx.y, 4 + t * 24, 0, Math.PI * 2);
         context.stroke();
 
         context.globalAlpha = 0.34 * inv;
         context.fillStyle = "#fff4cf";
         context.beginPath();
         context.ellipse(
-          fx.x + Math.sin(t * 8) * 1.8,
+          sx + Math.sin(t * 8) * 1.8,
           fx.y - t * 18,
           5 + t * 7,
           3 + t * 6,
@@ -1021,7 +1085,7 @@ export default function ArcheryGame({
         context.fillStyle = "rgba(226,226,226,1)";
         context.beginPath();
         context.ellipse(
-          fx.x + Math.sin(t * 4) * 4,
+          sx + Math.sin(t * 4) * 4,
           fx.y - 4 - t * 26,
           6 + t * 12,
           3 + t * 8,
@@ -1034,10 +1098,10 @@ export default function ArcheryGame({
         context.globalAlpha = 0.58 * inv;
         context.fillStyle = "#ffcb72";
         for (const streak of fx.streaks) {
-          const sx = fx.x + Math.cos(streak.angle) * streak.speed * t + streak.drift * t;
+          const px = sx + Math.cos(streak.angle) * streak.speed * t + streak.drift * t;
           const sy = fx.y + Math.sin(streak.angle) * streak.speed * t - t * 4;
           const size = streak.size * inv;
-          context.fillRect(sx, sy, size, size);
+          context.fillRect(px, sy, size, size);
         }
         context.restore();
       }
@@ -1051,8 +1115,10 @@ export default function ArcheryGame({
 
       for (const arrow of sim.arrows) {
         if (!arrow.alive) continue;
+        const sx = arrow.x - sim.cameraX;
+        if (sx < -ARROW_DRAW_W * 0.8 || sx > sim.W + ARROW_DRAW_W) continue;
         context.save();
-        context.translate(arrow.x, arrow.y);
+        context.translate(sx, arrow.y);
         context.rotate(arrow.rot);
         context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
         context.restore();
@@ -1062,10 +1128,12 @@ export default function ArcheryGame({
     const drawParticles = (sim) => {
       if (reducedMotion) return;
       for (const particle of sim.particles) {
+        const sx = particle.x - sim.cameraX;
+        if (sx < -6 || sx > sim.W + 6) continue;
         context.save();
         context.globalAlpha = clamp01(particle.life);
         context.fillStyle = particle.color === "trail" ? "#ffe8bc" : "#ffd08a";
-        context.fillRect(particle.x, particle.y, 2, 2);
+        context.fillRect(sx, particle.y, 2, 2);
         context.restore();
       }
     };
@@ -1088,7 +1156,7 @@ export default function ArcheryGame({
         vx += sim.wind * step * 0.16;
         x += vx * step;
         y += vy * step;
-        context.fillRect(x, y, 2, 2);
+        context.fillRect(x - sim.cameraX, y, 2, 2);
       }
       context.restore();
     };
@@ -1096,11 +1164,12 @@ export default function ArcheryGame({
     const drawBackground = (sim) => {
       context.clearRect(0, 0, sim.W, sim.H);
 
+      const camT = sim.worldW > sim.W ? clamp01(sim.cameraX / (sim.worldW - sim.W)) : 0;
       const g = context.createRadialGradient(
-        sim.W * 0.62,
+        sim.W * (0.52 + camT * 0.3),
         sim.H * 0.32,
         40,
-        sim.W * 0.62,
+        sim.W * (0.52 + camT * 0.3),
         sim.H * 0.42,
         sim.W * 0.9
       );
@@ -1109,6 +1178,19 @@ export default function ArcheryGame({
 
       context.fillStyle = g;
       context.fillRect(0, 0, sim.W, sim.H);
+
+      context.save();
+      context.globalAlpha = 0.12;
+      context.strokeStyle = "rgba(255,223,166,0.6)";
+      context.lineWidth = 1;
+      const gridOffset = (sim.cameraX * 0.2) % 34;
+      for (let x = -gridOffset; x < sim.W; x += 34) {
+        context.beginPath();
+        context.moveTo(x, 0);
+        context.lineTo(x, sim.H);
+        context.stroke();
+      }
+      context.restore();
 
       context.strokeStyle = "rgba(235, 215, 182, 0.26)";
       context.lineWidth = 1;
@@ -1162,19 +1244,10 @@ export default function ArcheryGame({
     completeGame,
     getStringAnchorsFromSvg,
     playTone,
+    portraitFollowMode,
     reducedMotion,
     vibrate,
   ]);
-
-  useEffect(() => {
-    if (showRotateOverlay) {
-      pointerIdRef.current = null;
-      const sim = simRef.current;
-      if (sim) {
-        sim.aiming = false;
-      }
-    }
-  }, [showRotateOverlay]);
 
   useEffect(() => {
     return () => {
@@ -1202,7 +1275,11 @@ export default function ArcheryGame({
       <div style={hudBar}>
         <div>
           <div style={title}>Extinguish the candles</div>
-          <div style={subtitle}>Draw from anywhere, release to shoot</div>
+          <div style={subtitle}>
+            {portraitFollowMode
+              ? "Portrait mode: release and camera follows the arrow"
+              : "Draw from anywhere, release to shoot"}
+          </div>
         </div>
 
         <div style={statusPills}>
@@ -1219,7 +1296,7 @@ export default function ArcheryGame({
             height: gameHeight,
             display: "block",
             touchAction: "none",
-            pointerEvents: showRotateOverlay ? "none" : "auto",
+            pointerEvents: "auto",
           }}
         />
 
@@ -1252,17 +1329,6 @@ export default function ArcheryGame({
           </div>
         )}
 
-        {showRotateOverlay && (
-          <div style={rotateOverlay}>
-            <div style={rotateCard}>
-              <div style={rotateIconWrap}>
-                <div style={rotateIcon} />
-              </div>
-              <div style={rotateText}>Rotate your phone to landscape to shoot 🎯</div>
-            </div>
-          </div>
-        )}
-
         {doneUI && (
           <div style={doneOverlay}>
             <div style={doneCard}>
@@ -1274,20 +1340,6 @@ export default function ArcheryGame({
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes rotateHint {
-          0% {
-            transform: rotate(0deg);
-          }
-          40% {
-            transform: rotate(90deg);
-          }
-          100% {
-            transform: rotate(90deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1378,51 +1430,6 @@ const assetBadge = {
   color: "#f6e7c6",
   fontSize: 12,
   padding: "6px 10px",
-};
-
-const rotateOverlay = {
-  position: "absolute",
-  inset: 0,
-  zIndex: 40,
-  background: "rgba(8, 6, 5, 0.84)",
-  backdropFilter: "blur(2px)",
-  display: "grid",
-  placeItems: "center",
-  padding: 16,
-};
-
-const rotateCard = {
-  width: "100%",
-  maxWidth: 420,
-  borderRadius: 16,
-  border: "1px solid rgba(246, 228, 193, 0.24)",
-  background: "linear-gradient(180deg, rgba(49,35,24,0.72), rgba(23,15,11,0.78))",
-  boxShadow: "0 16px 40px rgba(0,0,0,0.46)",
-  padding: "18px 16px",
-  textAlign: "center",
-};
-
-const rotateIconWrap = {
-  width: ROTATE_ICON_SIZE,
-  height: ROTATE_ICON_SIZE,
-  margin: "0 auto 10px",
-};
-
-const rotateIcon = {
-  width: ROTATE_ICON_SIZE,
-  height: ROTATE_ICON_SIZE,
-  borderRadius: 14,
-  border: "2px solid rgba(247, 229, 194, 0.86)",
-  position: "relative",
-  boxSizing: "border-box",
-  animation: "rotateHint 1.8s ease-in-out infinite",
-};
-
-const rotateText = {
-  color: "#f8ead0",
-  fontSize: 16,
-  lineHeight: 1.35,
-  fontWeight: 650,
 };
 
 const doneOverlay = {
