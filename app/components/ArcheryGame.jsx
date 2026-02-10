@@ -619,6 +619,13 @@ export default function ArcheryGame({
       const dy = pullVB.y - anchors.vbNock.y;
       const pullT = clamp01(Math.abs(dx) / (MAX_PULL_PX * 0.8));
       const activeT = clamp01((sim.aiming ? 1 : 0) + sim.bowRecoil * 1.1);
+      const idle = !sim.aiming && !sim.done && !reducedMotion ? Math.sin(sim.bowPulse) * 0.06 : 0;
+      if (!sim.aiming) {
+        sim.bowRecoil = Math.max(0, sim.bowRecoil - dt * 2.7);
+        sim.bowPulse += dt * 2.1;
+      }
+      const recoilT = sim.bowRecoil;
+      const bendT = clamp01(pullT * 1.03 + recoilT * 0.5 + idle * 0.24);
 
       const vibrateProgress = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
       const vibEnv = 1 - vibrateProgress;
@@ -627,19 +634,32 @@ export default function ArcheryGame({
           ? Math.sin(vibrateProgress * Math.PI * 20) * sim.stringVibAmp * vibEnv
           : 0;
 
+      // Simulate limb tips bending toward the bow centerline while keeping bow position fixed.
+      const towardCenterDir = BOW_MIRRORED ? 1 : -1;
+      const tipShiftX = towardCenterDir * (5 + bendT * 10);
+      const tipShiftY = 10 + bendT * 12;
+      const topTip = {
+        x: anchors.vbTop.x + tipShiftX * bendT,
+        y: anchors.vbTop.y + tipShiftY * bendT,
+      };
+      const bottomTip = {
+        x: anchors.vbBottom.x + tipShiftX * bendT,
+        y: anchors.vbBottom.y - tipShiftY * bendT,
+      };
+
       const nockX = anchors.vbNock.x + dx * 0.95 + vib;
       const nockY = anchors.vbNock.y + dy * 0.92;
-      const topCtrlX = lerp(anchors.vbTop.x, nockX, 0.46) - 52 * pullT + vib * 0.42;
-      const topCtrlY = lerp(anchors.vbTop.y, nockY, 0.44);
-      const botCtrlX = lerp(nockX, anchors.vbBottom.x, 0.54) - 52 * pullT + vib * 0.42;
-      const botCtrlY = lerp(nockY, anchors.vbBottom.y, 0.56);
+      const topCtrlX = lerp(topTip.x, nockX, 0.46) - 52 * pullT + vib * 0.42;
+      const topCtrlY = lerp(topTip.y, nockY, 0.44);
+      const botCtrlX = lerp(nockX, bottomTip.x, 0.54) - 52 * pullT + vib * 0.42;
+      const botCtrlY = lerp(nockY, bottomTip.y, 0.56);
       pathTop.setAttribute(
         "d",
-        `M ${anchors.vbTop.x} ${anchors.vbTop.y} Q ${topCtrlX} ${topCtrlY} ${nockX} ${nockY}`
+        `M ${topTip.x} ${topTip.y} Q ${topCtrlX} ${topCtrlY} ${nockX} ${nockY}`
       );
       pathBottom.setAttribute(
         "d",
-        `M ${nockX} ${nockY} Q ${botCtrlX} ${botCtrlY} ${anchors.vbBottom.x} ${anchors.vbBottom.y}`
+        `M ${nockX} ${nockY} Q ${botCtrlX} ${botCtrlY} ${bottomTip.x} ${bottomTip.y}`
       );
 
       const opacity = (0.72 + pullT * 0.2) * activeT;
@@ -650,22 +670,10 @@ export default function ArcheryGame({
       pathBottom.setAttribute("stroke-width", dynamicStroke);
 
       if (wrap) {
-        const idle = !sim.aiming && !sim.done && !reducedMotion ? Math.sin(sim.bowPulse) * 0.06 : 0;
-        if (!sim.aiming) {
-          sim.bowRecoil = Math.max(0, sim.bowRecoil - dt * 2.7);
-          sim.bowPulse += dt * 2.1;
-        }
-
-        const recoilT = sim.bowRecoil;
-        const recoilWave = recoilT > 0 ? Math.sin((nowMs - sim.stringVibStart) * 0.06) * recoilT : 0;
-        const bendT = clamp01(pullT * 1.03 + recoilT * 0.5 + idle * 0.24);
-        const towardCenterDir = BOW_MIRRORED ? -1 : 1;
-        const rotDeg = 3.8 * bendT * towardCenterDir + recoilWave * 1.5 * towardCenterDir;
-        const skewDeg = 5.2 * bendT * towardCenterDir + recoilWave * 1.0 * towardCenterDir;
-        const sx = 1 - bendT * 0.075;
-        const sy = 1 + bendT * 0.16;
-        const tx = 15 * bendT * towardCenterDir;
-        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) translateX(${tx}px) rotate(${rotDeg}deg) skewY(${skewDeg}deg) scale(${sx}, ${sy})`;
+        // Keep bow anchored in one place; bend via scale only (no translate/rotate drift).
+        const sx = 1 - bendT * 0.055;
+        const sy = 1 + bendT * 0.12;
+        wrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy})`;
         wrap.style.filter = `drop-shadow(0 14px 28px rgba(0,0,0,0.34)) drop-shadow(0 0 ${4 + bendT * 10}px rgba(255, 214, 132, ${0.15 + bendT * 0.24}))`;
       }
     };
