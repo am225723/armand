@@ -84,8 +84,9 @@ export default function BirthdayCard({
   // Thinner starts/ends, richer mid-line, with a slightly late peak (feels more like a flourish)
   const strokeMin = 18;   // thin
   const strokeMax = 62;   // thick
-  const peakShift = 0.07; // shift thickness peak slightly later (0..0.15-ish)
-  const pressureGamma = 0.72; // <1 broadens the thick region
+  const peakShift = 0.08; // shift thickness peak slightly later (0..0.15-ish)
+  const pressureGamma = 0.64; // <1 broadens the thick region
+  const baselineJitter = 2.6; // subtle per-line baseline drift (handwritten feel)
 
   // Ink look
   const inkFill = "rgba(255,255,255,.96)";
@@ -179,7 +180,8 @@ export default function BirthdayCard({
   }
 
   function lineCenterY(i) {
-    return startY - 10 + i * lineGap;
+    const jitter = (hash01(i + 7) - 0.5) * 2 * baselineJitter;
+    return startY - 10 + i * lineGap + jitter;
   }
 
   function svgPointToPage(svg, x, y) {
@@ -210,25 +212,35 @@ export default function BirthdayCard({
 
     // Reveal length
     const w = Math.max(0, maxRevealW * pE);
-    const x1 = startX + w;
+    const driftX = (Math.sin(pE * 3.1 + lineIndex) + Math.sin(pE * 6.2 + lineIndex * 1.9)) * 1.2;
+    const x1 = Math.max(startX, startX + w + driftX);
 
     // Per-line pressure personality
     const rand = hash01(lineIndex + 1);
+    const lineShift = (hash01(lineIndex + 13) - 0.5) * 0.08; // per-line late/early flourish
+    const midBoost = 0.12 + hash01(lineIndex + 21) * 0.16; // thicker mid-stroke personality
     const line = POEM_LINES[lineIndex] ?? "";
     const punctuationBoost = /[—–,.;:!?]$/.test(line.trim()) ? 1.06 : 1.0;
     const lengthBoost = clamp(0.92 + (line.trim().length / 45) * 0.18, 0.92, 1.12);
-    const personality = (0.94 + rand * 0.12) * punctuationBoost * lengthBoost;
+    const personality = (0.92 + rand * 0.16) * punctuationBoost * lengthBoost;
 
     // Pressure curve (thickness): thin -> thick -> thin,
     // with a slightly late peak to feel like a flourish.
-    const shifted = clamp(pE + peakShift, 0, 1);
+    const shifted = clamp(pE + peakShift + lineShift, 0, 1);
     const bell = Math.sin(Math.PI * shifted);
     const broadBell = Math.pow(Math.max(0, bell), pressureGamma); // broaden mid region
-    const t = (strokeMin + (strokeMax - strokeMin) * broadBell) * personality;
+    const midBulge = Math.exp(-Math.pow((pE - (0.55 + peakShift + lineShift)), 2) / 0.035);
+    const thick = broadBell * (1 + midBulge * midBoost);
+    const t = (strokeMin + (strokeMax - strokeMin) * thick) * personality;
 
     // Taper ends a bit more (gives a nib-like lift)
     const taper = 0.85 + 0.15 * Math.sin(Math.PI * pE);
-    const thickness = t * taper;
+    const pressureNoise =
+      1 +
+      0.065 * Math.sin(pE * 12 + lineIndex * 0.9) +
+      0.04 * Math.sin(pE * 28 + lineIndex * 1.7) +
+      0.02 * Math.sin(pE * 44 + lineIndex * 2.8);
+    const thickness = Math.max(6, t * taper * pressureNoise);
 
     const r = thickness / 2;
 
@@ -317,8 +329,8 @@ export default function BirthdayCard({
         pen.style.opacity = "1";
 
         const nibWobble = (Math.sin(pE * 9 + activeIndex) + Math.sin(pE * 19)) * 1.1;
-        const px = startX + maxRevealW * pE + 10;
-        const py = startY + activeIndex * lineGap + nibWobble;
+        const px = startX + maxRevealW * pE + 10 + Math.sin(pE * 4 + activeIndex) * 1.4;
+        const py = lineCenterY(activeIndex) + 10 + nibWobble;
 
         const page = svgPointToPage(svg, px, py);
         pen.style.transform = `translate(${page.x - 9}px, ${page.y - 9}px) rotate(${18 + Math.sin(pE * 7) * 3}deg)`;
@@ -513,13 +525,16 @@ export default function BirthdayCard({
                   position: "absolute",
                   inset: 0,
                   pointerEvents: "none",
-                  opacity: 0.18,
+                  opacity: 0.22,
                   backgroundImage:
                     "radial-gradient(circle at 20% 30%, rgba(255,255,255,.35) 0 1px, transparent 2px)," +
                     "radial-gradient(circle at 70% 60%, rgba(255,255,255,.28) 0 1px, transparent 2px)," +
-                    "radial-gradient(circle at 40% 80%, rgba(255,255,255,.22) 0 1px, transparent 2px)",
-                  backgroundSize: "120px 120px",
-                  mixBlendMode: "overlay",
+                    "radial-gradient(circle at 40% 80%, rgba(255,255,255,.22) 0 1px, transparent 2px)," +
+                    "repeating-linear-gradient(20deg, rgba(255,255,255,.08) 0 1px, transparent 1px 4px)," +
+                    "repeating-linear-gradient(110deg, rgba(0,0,0,.12) 0 1px, transparent 1px 5px)",
+                  backgroundSize: "120px 120px, 140px 140px, 160px 160px, 8px 8px, 9px 9px",
+                  mixBlendMode: "soft-light",
+                  filter: "blur(0.15px)",
                 }}
               />
 
@@ -547,7 +562,15 @@ export default function BirthdayCard({
 
                     {/* Ink bleed: blurred underlayer */}
                     <filter id="inkBleed" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="0.95" result="blur" />
+                      <feTurbulence
+                        type="fractalNoise"
+                        baseFrequency="0.9"
+                        numOctaves="1"
+                        seed="3"
+                        result="grain"
+                      />
+                      <feDisplacementMap in="SourceGraphic" in2="grain" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="warped" />
+                      <feGaussianBlur in="warped" stdDeviation="1.2" result="blur" />
                       <feColorMatrix
                         in="blur"
                         type="matrix"
@@ -555,7 +578,7 @@ export default function BirthdayCard({
                           1 0 0 0 0
                           0 1 0 0 0
                           0 0 1 0 0
-                          0 0 0 0.45 0"
+                          0 0 0 0.48 0"
                         result="bleed"
                       />
                       <feMerge>
