@@ -36,7 +36,7 @@ const STRINGS_SELECTOR_ORDER = [
 const STRING_NOCK_Y_FRAC = 0.52;
 const ARROW_DRAW_W = 292;
 const ARROW_DRAW_H = 20;
-const ARROW_NOCK_X_FRAC = 0.03; // near rear notch so string follows arrow end
+const ARROW_NOCK_X_FRAC = 0.0; // align string to far-left nock edge of arrow image
 const RELEASE_Y_OFFSET_PX = -60;
 
 const BOW_MIRRORED = false;
@@ -44,7 +44,7 @@ const BOW_MIRRORED = false;
 const BOW_LEFT_MIN_PX = 84;
 const BOW_LEFT_MAX_PX = 184;
 const BOW_WIDTH_CSS = "clamp(220px, 26vw, 320px)";
-const BOW_STRING_X_FRAC = 0.255;
+const BOW_STRING_X_FRAC = 0.205;
 const BOW_STRING_TOP_Y_FRAC = 0.12;
 const BOW_STRING_BOTTOM_Y_FRAC = 0.89;
 
@@ -72,6 +72,7 @@ const ARROW_DRAG = 0.0015;
 const WORLD_WIDTH_MOBILE_PORTRAIT_MULT = 2.25;
 const WORLD_WIDTH_MOBILE_LANDSCAPE_MULT = 1.85;
 const WORLD_WIDTH_DESKTOP_MULT = 1.45;
+const PREVIEW_PAN_START_OFFSET_PX = 30;
 
 export default function ArcheryGame({
   onComplete,
@@ -124,8 +125,13 @@ export default function ArcheryGame({
 
   const audioCtxRef = useRef(null);
 
-  const playTone = useCallback((freq, ms) => {
+  const playTone = useCallback((freq, ms, options = {}) => {
     if (!soundRef.current || typeof window === "undefined") return;
+    const {
+      toFreq = freq,
+      type = "triangle",
+      gainPeak = 0.06,
+    } = options;
     try {
       if (!audioCtxRef.current) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -137,14 +143,18 @@ export default function ArcheryGame({
       }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(
+        Math.max(40, toFreq),
+        ctx.currentTime + ms / 1000
+      );
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       const t = ctx.currentTime;
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.06, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(gainPeak, t + 0.01);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
 
       osc.start(t);
@@ -532,6 +542,10 @@ export default function ArcheryGame({
         bowRecoil: 0,
         bowPulse: Math.random() * Math.PI * 2,
         hasReleasedShot: false,
+        previewPanning: false,
+        previewStartX: 0,
+        previewStartCam: 0,
+        previewCam: 0,
 
         arrows: [],
         particles: [],
@@ -661,7 +675,7 @@ export default function ArcheryGame({
       const activeT = sim.aiming ? 1 : vibrationActive ? 0.6 : 0;
       const opacity = (0.7 + pullT * 0.24) * activeT;
       const dynamicStroke = String(1.35 + pullT * 0.78);
-      const split = 0.58 + pullT * 0.52;
+      const split = 1.8 + pullT * 1.2;
       const splitDir = BOW_MIRRORED ? -1 : 1;
       const ax = split * splitDir;
       const bx = -split * splitDir;
@@ -734,7 +748,8 @@ export default function ArcheryGame({
       candle.lit = false;
       spawnExtinguishFlame(candle.x, candle.y - candle.h * 0.94);
       spawnSparks(candle.x, candle.y - candle.h * 0.92);
-      playTone(860, 68);
+      playTone(1220, 84, { toFreq: 760, type: "triangle", gainPeak: 0.05 });
+      playTone(820, 72, { toFreq: 460, type: "sine", gainPeak: 0.038 });
       vibrate([10, 16, 10]);
 
       const left = sim.candles.filter((item) => item.lit).length;
@@ -758,17 +773,19 @@ export default function ArcheryGame({
       const sim = simRef.current;
       if (!sim || sim.done) return;
       if (pointerIdRef.current != null) return;
-      if (cameraFollowMode) {
-        const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
-        if (hasLiveArrow || sim.hasReleasedShot || sim.cameraX > 6) return;
-      }
+      const point = pointerToCanvas(event);
+      const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
+      if (cameraFollowMode && (hasLiveArrow || sim.hasReleasedShot)) return;
 
-      if (!sim.startedAt) {
-        sim.startedAt = performance.now();
-      }
+      const maxCam = Math.max(0, sim.worldW - sim.W);
+      const shouldPreviewPan =
+        cameraFollowMode &&
+        !hasLiveArrow &&
+        !sim.hasReleasedShot &&
+        maxCam > 4 &&
+        point.x > sim.release.x + PREVIEW_PAN_START_OFFSET_PX;
 
       pointerIdRef.current = event.pointerId;
-      sim.aiming = true;
 
       try {
         canvas.setPointerCapture(event.pointerId);
@@ -776,7 +793,23 @@ export default function ArcheryGame({
         // no-op
       }
 
-      const point = pointerToCanvas(event);
+      if (shouldPreviewPan) {
+        sim.previewPanning = true;
+        sim.previewStartX = point.x;
+        sim.previewStartCam = sim.cameraX;
+        event.preventDefault();
+        return;
+      }
+
+      sim.previewPanning = false;
+      sim.previewCam = 0;
+      sim.cameraX = 0;
+      sim.cameraV = 0;
+      sim.aiming = true;
+      if (!sim.startedAt) {
+        sim.startedAt = performance.now();
+      }
+
       const snapped = snapToComfortZone(sim, point.x, point.y);
       sim.pull = snapped;
       sim.pullVel = { x: 0, y: 0 };
@@ -786,8 +819,21 @@ export default function ArcheryGame({
 
     const onPointerMove = (event) => {
       const sim = simRef.current;
-      if (!sim || !sim.aiming || sim.done) return;
+      if (!sim || sim.done) return;
       if (pointerIdRef.current !== event.pointerId) return;
+
+      if (sim.previewPanning) {
+        const point = pointerToCanvas(event);
+        const maxCam = Math.max(0, sim.worldW - sim.W);
+        const dx = point.x - sim.previewStartX;
+        sim.previewCam = clamp(sim.previewStartCam - dx, 0, maxCam);
+        sim.cameraX = sim.previewCam;
+        sim.cameraV = 0;
+        event.preventDefault();
+        return;
+      }
+
+      if (!sim.aiming) return;
 
       const point = pointerToCanvas(event);
       sim.pull = constrainPull(sim, point.x, point.y);
@@ -797,8 +843,21 @@ export default function ArcheryGame({
 
     const onPointerUpLike = (event) => {
       const sim = simRef.current;
-      if (!sim || sim.done || !sim.aiming) return;
+      if (!sim || sim.done) return;
       if (pointerIdRef.current !== event.pointerId) return;
+
+      if (sim.previewPanning) {
+        pointerIdRef.current = null;
+        sim.previewPanning = false;
+        try {
+          canvas.releasePointerCapture(event.pointerId);
+        } catch {
+          // no-op
+        }
+        return;
+      }
+
+      if (!sim.aiming) return;
 
       pointerIdRef.current = null;
       sim.aiming = false;
@@ -811,7 +870,7 @@ export default function ArcheryGame({
 
       const launch = computeLaunch(sim, sim.pull);
       sim.arrows.push({
-        x: sim.release.x + sim.cameraX,
+        x: sim.release.x,
         y: sim.release.y,
         vx: launch.vx,
         vy: launch.vy,
@@ -831,8 +890,8 @@ export default function ArcheryGame({
       sim.pullVel.x = 780;
       sim.pullVel.y = 0;
 
-      playTone(530, 48);
-      playTone(760, 62);
+      playTone(190, 120, { toFreq: 112, type: "sawtooth", gainPeak: 0.042 });
+      playTone(560, 88, { toFreq: 330, type: "triangle", gainPeak: 0.034 });
       vibrate([8, 12, 8]);
     };
 
@@ -841,9 +900,26 @@ export default function ArcheryGame({
       if (!sim || pointerIdRef.current !== event.pointerId) return;
 
       pointerIdRef.current = null;
+      sim.previewPanning = false;
       sim.aiming = false;
       sim.pullVel = { x: 0, y: 0 };
       sim.pull = { ...sim.release };
+    };
+
+    const onWheel = (event) => {
+      if (!cameraFollowMode) return;
+      const sim = simRef.current;
+      if (!sim || sim.done || sim.aiming || sim.previewPanning || sim.hasReleasedShot) return;
+      if (sim.arrows.some((arrow) => arrow.alive)) return;
+
+      const maxCam = Math.max(0, sim.worldW - sim.W);
+      if (maxCam <= 4) return;
+
+      const delta = event.deltaX + event.deltaY * 0.75;
+      sim.previewCam = clamp(sim.previewCam + delta * 0.7, 0, maxCam);
+      sim.cameraX = sim.previewCam;
+      sim.cameraV = 0;
+      event.preventDefault();
     };
 
     const listenerOptions = { passive: false };
@@ -852,6 +928,7 @@ export default function ArcheryGame({
     canvas.addEventListener("pointerup", onPointerUpLike);
     canvas.addEventListener("pointercancel", onPointerCancel);
     canvas.addEventListener("pointerleave", onPointerCancel);
+    canvas.addEventListener("wheel", onWheel, listenerOptions);
 
     const update = (dt, nowMs) => {
       const sim = simRef.current;
@@ -893,6 +970,7 @@ export default function ArcheryGame({
           )
         );
         sim.cameraX = clamp(sim.cameraX, 0, Math.max(0, sim.worldW - sim.W));
+        sim.previewCam = clamp(sim.previewCam, 0, Math.max(0, sim.worldW - sim.W));
         sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x, sim.worldW);
         setRemainingUI(sim.candles.filter((item) => item.lit).length);
       }
@@ -914,10 +992,13 @@ export default function ArcheryGame({
 
       for (const candle of sim.candles) {
         candle.flamePhase += dt * 6.4;
-        if (!cameraFollowMode && !sim.done) {
-          candle.driftPhase += dt * candle.driftSpeed;
-          candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX;
-          candle.y = candle.baseY + Math.cos(candle.driftPhase * 0.9) * candle.driftAmpY;
+        if (!sim.done) {
+          const driftScale = cameraFollowMode ? 0.52 : 0.9;
+          candle.driftPhase += dt * candle.driftSpeed * 0.52;
+          candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX * 0.22 * driftScale;
+          candle.y =
+            candle.baseY +
+            Math.cos(candle.driftPhase * 0.8) * candle.driftAmpY * 0.36 * driftScale;
         } else {
           candle.x = candle.baseX;
           candle.y = candle.baseY;
@@ -985,7 +1066,7 @@ export default function ArcheryGame({
       if (cameraFollowMode) {
         const leadArrow = sim.arrows.filter((a) => a.alive).sort((a, b) => b.x - a.x)[0] || null;
         const maxCam = Math.max(0, sim.worldW - sim.W);
-        let targetCam = 0;
+        let targetCam = sim.previewCam;
         if (sim.aiming) {
           targetCam = 0;
         } else if (leadArrow) {
@@ -1001,6 +1082,7 @@ export default function ArcheryGame({
           sim.hasReleasedShot = false;
           sim.cameraX = 0;
           sim.cameraV = 0;
+          sim.previewCam = 0;
         }
       } else {
         sim.cameraX = 0;
@@ -1224,34 +1306,52 @@ export default function ArcheryGame({
       context.clearRect(0, 0, sim.W, sim.H);
 
       const camT = sim.worldW > sim.W ? clamp01(sim.cameraX / (sim.worldW - sim.W)) : 0;
-      const g = context.createRadialGradient(
-        sim.W * (0.52 + camT * 0.3),
-        sim.H * 0.32,
-        40,
-        sim.W * (0.52 + camT * 0.3),
-        sim.H * 0.42,
-        sim.W * 0.9
-      );
-      g.addColorStop(0, "rgba(255, 229, 168, 0.08)");
-      g.addColorStop(1, "rgba(20, 12, 8, 0.42)");
-
-      context.fillStyle = g;
+      const sky = context.createLinearGradient(0, 0, 0, sim.H);
+      sky.addColorStop(0, "rgba(34, 27, 19, 0.94)");
+      sky.addColorStop(0.45, "rgba(55, 43, 29, 0.9)");
+      sky.addColorStop(1, "rgba(24, 17, 12, 0.96)");
+      context.fillStyle = sky;
       context.fillRect(0, 0, sim.W, sim.H);
 
+      const glow = context.createRadialGradient(
+        sim.W * (0.28 + camT * 0.46),
+        sim.H * 0.24,
+        30,
+        sim.W * (0.28 + camT * 0.46),
+        sim.H * 0.24,
+        sim.W * 0.78
+      );
+      glow.addColorStop(0, "rgba(255, 210, 122, 0.2)");
+      glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+      context.fillStyle = glow;
+      context.fillRect(0, 0, sim.W, sim.H);
+
+      const floor = context.createLinearGradient(0, sim.H * 0.62, 0, sim.H);
+      floor.addColorStop(0, "rgba(107, 73, 40, 0.08)");
+      floor.addColorStop(1, "rgba(18, 12, 8, 0.36)");
+      context.fillStyle = floor;
+      context.fillRect(0, sim.H * 0.62, sim.W, sim.H * 0.38);
+
       context.save();
-      context.globalAlpha = 0.12;
-      context.strokeStyle = "rgba(255,223,166,0.6)";
+      context.globalAlpha = 0.08;
+      context.strokeStyle = "rgba(255, 225, 168, 0.55)";
       context.lineWidth = 1;
-      const gridOffset = (sim.cameraX * 0.2) % 34;
-      for (let x = -gridOffset; x < sim.W; x += 34) {
+      const gridOffset = (sim.cameraX * 0.18) % 36;
+      for (let x = -gridOffset; x < sim.W; x += 36) {
         context.beginPath();
         context.moveTo(x, 0);
         context.lineTo(x, sim.H);
         context.stroke();
       }
+      for (let y = 18; y < sim.H; y += 36) {
+        context.beginPath();
+        context.moveTo(0, y);
+        context.lineTo(sim.W, y);
+        context.stroke();
+      }
       context.restore();
 
-      context.strokeStyle = "rgba(235, 215, 182, 0.26)";
+      context.strokeStyle = "rgba(241, 221, 183, 0.24)";
       context.lineWidth = 1;
       context.strokeRect(10, 10, sim.W - 20, sim.H - 20);
     };
@@ -1296,6 +1396,7 @@ export default function ArcheryGame({
       canvas.removeEventListener("pointerup", onPointerUpLike);
       canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("pointerleave", onPointerCancel);
+      canvas.removeEventListener("wheel", onWheel, listenerOptions);
     };
   }, [
     buildCandleLayout,
@@ -1337,7 +1438,7 @@ export default function ArcheryGame({
           <div style={title}>Extinguish the candles</div>
           <div style={subtitle}>
             {cameraFollowMode
-              ? "Mobile mode: pull to bend bow, release to follow arrow, then reset to bow"
+              ? "Swipe right side to preview candles. Pull near bow to shoot."
               : "Draw from anywhere, release to shoot"}
           </div>
         </div>
@@ -1381,7 +1482,17 @@ export default function ArcheryGame({
             style={{
               width: "100%",
               height: "100%",
-              filter: "contrast(1.1) saturate(1.12) brightness(1.04)",
+              filter: "contrast(1.16) saturate(1.2) brightness(1.06)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              background:
+                "radial-gradient(80% 60% at 35% 48%, rgba(255,240,205,0.12), rgba(0,0,0,0) 62%), linear-gradient(120deg, rgba(255,230,180,0.08), rgba(0,0,0,0) 34%)",
+              mixBlendMode: "screen",
             }}
           />
         </div>
@@ -1475,7 +1586,7 @@ const arenaWrap = {
   border: "1px solid rgba(245, 230, 198, 0.2)",
   boxShadow: "0 20px 52px rgba(0, 0, 0, 0.42)",
   background:
-    "linear-gradient(160deg, rgba(59,41,28,0.34), rgba(17,12,8,0.54)), radial-gradient(120% 120% at 50% 10%, rgba(255,226,170,0.18), rgba(0,0,0,0.24))",
+    "linear-gradient(165deg, rgba(86,58,34,0.36), rgba(18,12,8,0.62)), radial-gradient(135% 110% at 50% 8%, rgba(255,216,145,0.2), rgba(0,0,0,0.24))",
 };
 
 const toggleWrap = {
