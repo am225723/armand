@@ -44,7 +44,8 @@ const BOW_MIRRORED = false;
 const BOW_LEFT_MIN_PX = 84;
 const BOW_LEFT_MAX_PX = 184;
 const BOW_WIDTH_CSS = "clamp(220px, 26vw, 320px)";
-const BOW_STRING_X_FRAC = 0.205;
+const BOW_LOCKED_LEFT_PX = Math.round((BOW_LEFT_MIN_PX + BOW_LEFT_MAX_PX) * 0.37);
+const BOW_STRING_X_FRAC = 0.155;
 const BOW_STRING_TOP_Y_FRAC = 0.12;
 const BOW_STRING_BOTTOM_Y_FRAC = 0.89;
 
@@ -675,7 +676,7 @@ export default function ArcheryGame({
       const activeT = sim.aiming ? 1 : vibrationActive ? 0.6 : 0;
       const opacity = (0.7 + pullT * 0.24) * activeT;
       const dynamicStroke = String(1.35 + pullT * 0.78);
-      const split = 1.8 + pullT * 1.2;
+      const split = 2.9 + pullT * 1.8;
       const splitDir = BOW_MIRRORED ? -1 : 1;
       const ax = split * splitDir;
       const bx = -split * splitDir;
@@ -748,8 +749,8 @@ export default function ArcheryGame({
       candle.lit = false;
       spawnExtinguishFlame(candle.x, candle.y - candle.h * 0.94);
       spawnSparks(candle.x, candle.y - candle.h * 0.92);
-      playTone(1220, 84, { toFreq: 760, type: "triangle", gainPeak: 0.05 });
-      playTone(820, 72, { toFreq: 460, type: "sine", gainPeak: 0.038 });
+      playTone(1120, 92, { toFreq: 690, type: "triangle", gainPeak: 0.044 });
+      playTone(740, 110, { toFreq: 420, type: "sine", gainPeak: 0.03 });
       vibrate([10, 16, 10]);
 
       const left = sim.candles.filter((item) => item.lit).length;
@@ -890,8 +891,8 @@ export default function ArcheryGame({
       sim.pullVel.x = 780;
       sim.pullVel.y = 0;
 
-      playTone(190, 120, { toFreq: 112, type: "sawtooth", gainPeak: 0.042 });
-      playTone(560, 88, { toFreq: 330, type: "triangle", gainPeak: 0.034 });
+      playTone(240, 140, { toFreq: 132, type: "triangle", gainPeak: 0.032 });
+      playTone(640, 120, { toFreq: 360, type: "sine", gainPeak: 0.024 });
       vibrate([8, 12, 8]);
     };
 
@@ -994,11 +995,11 @@ export default function ArcheryGame({
         candle.flamePhase += dt * 6.4;
         if (!sim.done) {
           const driftScale = cameraFollowMode ? 0.52 : 0.9;
-          candle.driftPhase += dt * candle.driftSpeed * 0.52;
-          candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX * 0.22 * driftScale;
+          candle.driftPhase += dt * candle.driftSpeed * 0.34;
+          candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX * 0.08 * driftScale;
           candle.y =
             candle.baseY +
-            Math.cos(candle.driftPhase * 0.8) * candle.driftAmpY * 0.36 * driftScale;
+            Math.cos(candle.driftPhase * 0.72) * candle.driftAmpY * 0.58 * driftScale;
         } else {
           candle.x = candle.baseX;
           candle.y = candle.baseY;
@@ -1313,15 +1314,16 @@ export default function ArcheryGame({
       context.fillStyle = sky;
       context.fillRect(0, 0, sim.W, sim.H);
 
-      const glow = context.createRadialGradient(
-        sim.W * (0.28 + camT * 0.46),
-        sim.H * 0.24,
-        30,
-        sim.W * (0.28 + camT * 0.46),
-        sim.H * 0.24,
-        sim.W * 0.78
+        const glow = context.createRadialGradient(
+        sim.W * (0.26 + camT * 0.48),
+        sim.H * 0.22,
+        24,
+        sim.W * (0.26 + camT * 0.48),
+        sim.H * 0.22,
+        sim.W * 0.82
       );
-      glow.addColorStop(0, "rgba(255, 210, 122, 0.2)");
+      glow.addColorStop(0, "rgba(255, 218, 150, 0.24)");
+      glow.addColorStop(0.35, "rgba(214, 166, 98, 0.12)");
       glow.addColorStop(1, "rgba(0, 0, 0, 0)");
       context.fillStyle = glow;
       context.fillRect(0, 0, sim.W, sim.H);
@@ -1465,7 +1467,7 @@ export default function ArcheryGame({
           ref={bowWrapRef}
           style={{
             position: "absolute",
-            left: `clamp(${BOW_LEFT_MIN_PX}px, 17vw, ${BOW_LEFT_MAX_PX}px)`,
+            left: `${BOW_LOCKED_LEFT_PX}px`,
             top: 8,
             bottom: 8,
             width: BOW_WIDTH_CSS,
