@@ -18,7 +18,7 @@ function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-const STRINGS_SELECTOR_ORDER = [
+const STRING_SELECTOR_ORDER = [
   "#bow-string",
   ".bow-string",
   '[data-role="bow-string"]',
@@ -26,54 +26,51 @@ const STRINGS_SELECTOR_ORDER = [
 
 /**
  * Calibration notes:
- * - Nock height on string: STRING_NOCK_Y_FRAC
- * - Arrow nock pixel X fraction: ARROW_NOCK_X_FRAC
- * - Bow horizontal placement: BOW_LEFT_MIN_PX / BOW_LEFT_MAX_PX
- * - Arrow resting height offset: RELEASE_Y_OFFSET_PX
- * - Max pull distance: MAX_PULL_PX
- * - Candle spacing region: CANDLE_REGION_START_PCT / CANDLE_REGION_END_PAD_PX
+ * - nock height on string: STRING_NOCK_Y_FRAC
+ * - arrow nock X fraction: ARROW_NOCK_X_FRAC
+ * - bow horizontal position: BOW_LEFT_PX
+ * - max pull distance: MAX_PULL_PX
+ * - candle spacing region: CANDLE_REGION_START_PCT / CANDLE_REGION_END_PAD_PX
  */
 const STRING_NOCK_Y_FRAC = 0.52;
 const ARROW_DRAW_W = 292;
 const ARROW_DRAW_H = 20;
-const ARROW_NOCK_X_FRAC = 0.0; // align string to far-left nock edge of arrow image
-const RELEASE_Y_OFFSET_PX = -60;
+const ARROW_NOCK_X_FRAC = 0.0;
+const RELEASE_Y_OFFSET_PX = -58;
 
 const BOW_MIRRORED = false;
-
-const BOW_LEFT_MIN_PX = 84;
-const BOW_LEFT_MAX_PX = 184;
+const BOW_LEFT_PX = 96;
 const BOW_WIDTH_CSS = "clamp(220px, 26vw, 320px)";
-const BOW_LOCKED_LEFT_PX = Math.round((BOW_LEFT_MIN_PX + BOW_LEFT_MAX_PX) * 0.37);
+
 const BOW_STRING_X_FRAC = 0.155;
 const BOW_STRING_TOP_Y_FRAC = 0.12;
 const BOW_STRING_BOTTOM_Y_FRAC = 0.89;
 
-const MAX_PULL_PX = 325;
+const MAX_PULL_PX = 330;
 const MIN_PULL_PX = 18;
-const MAX_VERTICAL_AIM_PX = 130;
-const CENTER_MAGNET_BASE = 0.18;
-const CENTER_MAGNET_PULL = 0.48;
+const MAX_VERTICAL_AIM_PX = 132;
 const COMFORT_PULL_PX = 210;
+const CENTER_MAGNET_BASE = 0.2;
+const CENTER_MAGNET_PULL = 0.45;
 
-const STRING_VIBRATION_MS = 320;
+const STRING_VIBRATION_MS = 340;
 const COMPLETE_AUTO_DELAY_MS = 420;
 
-const CANDLE_REGION_START_PCT = 0.53;
+const CANDLE_REGION_START_PCT = 0.55;
 const CANDLE_REGION_END_PAD_PX = 28;
 const CANDLE_HITBOX_SCALE = 0.72;
-const CANDLE_DRIFT_SPEED_MIN = 0.75;
-const CANDLE_DRIFT_SPEED_MAX = 1.45;
 
 const GRAVITY = 1220;
 const MIN_SPEED = 560;
 const MAX_SPEED = 1980;
 const ARROW_DRAG = 0.0015;
 
-const WORLD_WIDTH_MOBILE_PORTRAIT_MULT = 2.25;
-const WORLD_WIDTH_MOBILE_LANDSCAPE_MULT = 1.85;
-const WORLD_WIDTH_DESKTOP_MULT = 1.45;
+const WORLD_WIDTH_PORTRAIT_MULT = 2.28;
+const WORLD_WIDTH_LANDSCAPE_MULT = 1.9;
+const WORLD_WIDTH_DESKTOP_MULT = 1.55;
+
 const PREVIEW_PAN_START_OFFSET_PX = 30;
+const PREVIEW_WHEEL_GAIN = 0.72;
 
 export default function ArcheryGame({
   onComplete,
@@ -87,11 +84,11 @@ export default function ArcheryGame({
   const bowHostRef = useRef(null);
 
   const bowSvgRef = useRef(null);
-  const bowStringRef = useRef(null);
-  const stringPrimaryRef = useRef(null);
-  const stringSecondaryRef = useRef(null);
-  const stringPrimarySplitRef = useRef(null);
-  const stringSecondarySplitRef = useRef(null);
+  const nativeStringRef = useRef(null);
+  const stringTopARef = useRef(null);
+  const stringTopBRef = useRef(null);
+  const stringBotARef = useRef(null);
+  const stringBotBRef = useRef(null);
 
   const assetsRef = useRef({ arrow: null, candle: null, ready: false });
   const simRef = useRef(null);
@@ -116,40 +113,41 @@ export default function ArcheryGame({
   }, []);
 
   const isPortrait = viewport.height > viewport.width;
-  const cameraFollowMode = isCoarsePointer;
+  const mobileLike = isCoarsePointer;
   const gameHeight = `clamp(260px, 62vh, ${Math.max(280, Number(height) || 420)}px)`;
 
   const soundRef = useRef(false);
   const hapticRef = useRef(false);
-  useEffect(() => void (soundRef.current = soundOn), [soundOn]);
-  useEffect(() => void (hapticRef.current = hapticsOn), [hapticsOn]);
-
   const audioCtxRef = useRef(null);
+
+  useEffect(() => {
+    soundRef.current = soundOn;
+  }, [soundOn]);
+
+  useEffect(() => {
+    hapticRef.current = hapticsOn;
+  }, [hapticsOn]);
 
   const playTone = useCallback((freq, ms, options = {}) => {
     if (!soundRef.current || typeof window === "undefined") return;
-    const {
-      toFreq = freq,
-      type = "triangle",
-      gainPeak = 0.06,
-    } = options;
+    const { toFreq = freq, type = "triangle", gainPeak = 0.04 } = options;
+
     try {
       if (!audioCtxRef.current) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
         audioCtxRef.current = new Ctx();
       }
+
       const ctx = audioCtxRef.current;
       if (ctx.state === "suspended") {
         ctx.resume();
       }
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        Math.max(40, toFreq),
-        ctx.currentTime + ms / 1000
-      );
+      osc.frequency.exponentialRampToValueAtTime(Math.max(44, toFreq), ctx.currentTime + ms / 1000);
       osc.connect(gain);
       gain.connect(ctx.destination);
 
@@ -223,8 +221,8 @@ export default function ArcheryGame({
     };
   }, []);
 
-  const findBowStringElement = useCallback((svg) => {
-    for (const selector of STRINGS_SELECTOR_ORDER) {
+  const findNativeStringElement = useCallback((svg) => {
+    for (const selector of STRING_SELECTOR_ORDER) {
       const found = svg.querySelector(selector);
       if (found) return found;
     }
@@ -244,34 +242,51 @@ export default function ArcheryGame({
         continue;
       }
 
-      if (!bb || bb.height <= vbH * 0.22) continue;
-
-      const stroke = element.getAttribute("stroke");
-      const fill = element.getAttribute("fill");
-      const strokeWidth = parseFloat(element.getAttribute("stroke-width") || "1");
+      if (!bb || bb.height <= vbH * 0.4) continue;
 
       const aspect = bb.height / Math.max(1, bb.width);
-      const narrow = 1 - clamp01(bb.width / Math.max(1, vb?.width || 1));
-      const tall = clamp01(bb.height / vbH);
-
-      let score = 0;
-      score += aspect * 2.4;
-      score += narrow * 2.2;
-      score += tall * 2.0;
-      if (stroke && stroke !== "none") score += 1.5;
-      if (!fill || fill === "none") score += 1.0;
-      if (strokeWidth <= 3) score += 0.6;
-
+      const score = aspect + (1 - clamp01(bb.width / Math.max(1, vb?.width || 1))) * 2;
       if (score > bestScore) {
-        best = element;
         bestScore = score;
+        best = element;
       }
     }
 
     return best;
   }, []);
 
-  const getStringAnchorsFromSvg = useCallback(() => {
+  const ensureInjectedStringPaths = useCallback(() => {
+    const svg = bowSvgRef.current;
+    if (!svg) return;
+
+    if (
+      !stringTopARef.current ||
+      !stringTopBRef.current ||
+      !stringBotARef.current ||
+      !stringBotBRef.current
+    ) {
+      const makePath = (role) => {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", "rgba(48, 39, 28, 0.98)");
+        path.setAttribute("stroke-width", "1.25");
+        path.setAttribute("stroke-linecap", "round");
+        path.setAttribute("vector-effect", "non-scaling-stroke");
+        path.setAttribute("data-role", role);
+        path.style.pointerEvents = "none";
+        path.style.mixBlendMode = "multiply";
+        svg.appendChild(path);
+        return path;
+      };
+
+      stringTopARef.current = makePath("injected-string-top-a");
+      stringTopBRef.current = makePath("injected-string-top-b");
+      stringBotARef.current = makePath("injected-string-bottom-a");
+      stringBotBRef.current = makePath("injected-string-bottom-b");
+    }
+  }, []);
+
+  const getBowAnchors = useCallback(() => {
     const svg = bowSvgRef.current;
     const wrap = bowWrapRef.current;
     const container = containerRef.current;
@@ -286,11 +301,9 @@ export default function ArcheryGame({
     const wrapRect = wrap.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
 
-    // Calibrated bow pulley/string anchors for this flattened bow SVG.
     const xFrac = BOW_MIRRORED ? 1 - BOW_STRING_X_FRAC : BOW_STRING_X_FRAC;
     const vbTop = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_TOP_Y_FRAC };
     const vbBottom = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_BOTTOM_Y_FRAC };
-
     const vbNock = {
       x: vbTop.x,
       y: lerp(vbTop.y, vbBottom.y, STRING_NOCK_Y_FRAC),
@@ -320,41 +333,10 @@ export default function ArcheryGame({
     };
   }, []);
 
-  const ensureInjectedStringPath = useCallback(() => {
-    const svg = bowSvgRef.current;
-    if (!svg) return;
-
-    if (
-      !stringPrimaryRef.current ||
-      !stringSecondaryRef.current ||
-      !stringPrimarySplitRef.current ||
-      !stringSecondarySplitRef.current
-    ) {
-      const makePath = (role) => {
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("fill", "none");
-        path.setAttribute("stroke", "rgba(44, 36, 26, 0.98)");
-        path.setAttribute("stroke-width", "1.2");
-        path.setAttribute("stroke-linecap", "round");
-        path.setAttribute("vector-effect", "non-scaling-stroke");
-        path.setAttribute("data-role", role);
-        path.style.pointerEvents = "none";
-        path.style.mixBlendMode = "multiply";
-        svg.appendChild(path);
-        return path;
-      };
-
-      stringPrimaryRef.current = makePath("injected-bow-string-top");
-      stringSecondaryRef.current = makePath("injected-bow-string-bottom");
-      stringPrimarySplitRef.current = makePath("injected-bow-string-top-split");
-      stringSecondarySplitRef.current = makePath("injected-bow-string-bottom-split");
-    }
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
 
-    const loadBow = async () => {
+    const loadBowSvg = async () => {
       try {
         const response = await fetch("/game/bow.svg", { cache: "no-store" });
         const raw = await response.text();
@@ -362,7 +344,6 @@ export default function ArcheryGame({
 
         const host = bowHostRef.current;
         if (!host) return;
-
         host.innerHTML = raw;
 
         const svg = host.querySelector("svg");
@@ -374,88 +355,88 @@ export default function ArcheryGame({
         svg.style.display = "block";
         svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-        const stringEl = findBowStringElement(svg);
-        if (stringEl) {
-          bowStringRef.current = stringEl;
-          stringEl.style.opacity = "0.18";
+        const nativeString = findNativeStringElement(svg);
+        if (nativeString) {
+          nativeStringRef.current = nativeString;
+          nativeString.style.opacity = "0.2";
         }
 
-        ensureInjectedStringPath();
+        ensureInjectedStringPaths();
       } catch {
         // no-op
       }
     };
 
-    loadBow();
+    loadBowSvg();
 
     return () => {
       cancelled = true;
     };
-  }, [ensureInjectedStringPath, findBowStringElement]);
+  }, [ensureInjectedStringPaths, findNativeStringElement]);
 
-  const buildCandleLayout = useCallback((W, H, releaseX, worldW) => {
-    const candles = [];
+  const buildCandleLayout = useCallback(
+    (W, H, releaseX, worldW) => {
+      const candles = [];
 
-    const regionStart = Math.max(worldW * CANDLE_REGION_START_PCT, releaseX + W * 0.86);
-    const regionEnd = Math.max(regionStart + 260, worldW - CANDLE_REGION_END_PAD_PX - 32);
-    const regionWidth = Math.max(120, regionEnd - regionStart);
+      const regionStart = Math.max(worldW * CANDLE_REGION_START_PCT, releaseX + W * 0.88);
+      const regionEnd = Math.max(regionStart + 280, worldW - CANDLE_REGION_END_PAD_PX - 32);
 
-    const candleH = clamp(H * 0.24, 70, 118);
-    const candleW = candleH * (546 / 1208);
+      const candleH = clamp(H * 0.24, 70, 118);
+      const candleW = candleH * (546 / 1208);
 
-    for (let i = 0; i < candleCount; i += 1) {
-      const t = candleCount <= 1 ? 0 : i / (candleCount - 1);
-      const lane = i % 3;
-      const serp = Math.sin(i * 1.11) * 34;
-      const zig = (i % 2 === 0 ? -1 : 1) * 22;
-      const x = clamp(
-        lerp(regionStart + 24, regionEnd - 24, t) + serp + zig,
-        regionStart + 8,
-        regionEnd - 8
-      );
-      const y =
-        H * 0.74 -
-        lane * clamp(candleH * 0.72, 52, 78) +
-        Math.cos(i * 0.9) * 20 -
-        (i % 4 === 0 ? 16 : 0);
+      for (let i = 0; i < candleCount; i += 1) {
+        const t = candleCount <= 1 ? 0 : i / (candleCount - 1);
+        const lane = i % 3;
+        const serp = Math.sin(i * 1.1) * 26;
+        const zig = (i % 2 === 0 ? -1 : 1) * 14;
 
-      candles.push({
-        id: i,
-        x,
-        y,
-        baseX: x,
-        baseY: y,
-        w: candleW,
-        h: candleH,
-        lit: true,
-        flamePhase: Math.random() * Math.PI * 2,
-        driftPhase: Math.random() * Math.PI * 2,
-        driftSpeed:
-          CANDLE_DRIFT_SPEED_MIN +
-          Math.random() * (CANDLE_DRIFT_SPEED_MAX - CANDLE_DRIFT_SPEED_MIN),
-        driftAmpX: 10 + Math.random() * 20,
-        driftAmpY: 6 + Math.random() * 14,
-      });
-    }
+        const x = clamp(lerp(regionStart + 20, regionEnd - 20, t) + serp + zig, regionStart + 8, regionEnd - 8);
+        const y =
+          H * 0.74 -
+          lane * clamp(candleH * 0.7, 50, 76) +
+          Math.cos(i * 0.9) * 18 -
+          (i % 4 === 0 ? 10 : 0);
 
-    return candles;
-  }, [candleCount]);
+        candles.push({
+          id: i,
+          x,
+          y,
+          baseX: x,
+          baseY: y,
+          w: candleW,
+          h: candleH,
+          lit: true,
+          flamePhase: Math.random() * Math.PI * 2,
+          driftPhase: Math.random() * Math.PI * 2,
+          driftSpeed: 0.6 + Math.random() * 0.45,
+          driftAmpX: 8 + Math.random() * 8,
+          driftAmpY: 8 + Math.random() * 16,
+        });
+      }
 
-  const emitComplete = useCallback((payload) => {
-    if (typeof onComplete === "function") {
+      return candles;
+    },
+    [candleCount]
+  );
+
+  const emitComplete = useCallback(
+    (payload) => {
+      if (typeof onComplete === "function") {
+        try {
+          onComplete(payload);
+        } catch {
+          // no-op
+        }
+      }
+
       try {
-        onComplete(payload);
+        window.dispatchEvent(new CustomEvent("archery:complete", { detail: payload }));
       } catch {
         // no-op
       }
-    }
-
-    try {
-      window.dispatchEvent(new CustomEvent("archery:complete", { detail: payload }));
-    } catch {
-      // no-op
-    }
-  }, [onComplete]);
+    },
+    [onComplete]
+  );
 
   const completeGame = useCallback(() => {
     const sim = simRef.current;
@@ -500,27 +481,27 @@ export default function ArcheryGame({
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
+    const computeWorldW = (W) => {
+      const mult = mobileLike
+        ? isPortrait
+          ? WORLD_WIDTH_PORTRAIT_MULT
+          : WORLD_WIDTH_LANDSCAPE_MULT
+        : WORLD_WIDTH_DESKTOP_MULT;
+      return Math.max(W + 280, Math.round(W * mult));
+    };
+
     const initSim = () => {
       const rect = canvas.getBoundingClientRect();
       const W = rect.width;
       const H = rect.height;
-      const worldW = Math.max(
-        W + 260,
-        Math.round(
-          W *
-            (cameraFollowMode
-              ? isPortrait
-                ? WORLD_WIDTH_MOBILE_PORTRAIT_MULT
-                : WORLD_WIDTH_MOBILE_LANDSCAPE_MULT
-              : WORLD_WIDTH_DESKTOP_MULT)
-        )
-      );
+      const worldW = computeWorldW(W);
 
-      const defaultRelease = {
+      const release = {
         x: Math.max(140, W * 0.24),
-        y: H * 0.53 + RELEASE_Y_OFFSET_PX,
+        y: H * 0.54 + RELEASE_Y_OFFSET_PX,
       };
-      const candles = buildCandleLayout(W, H, defaultRelease.x, worldW);
+
+      const candles = buildCandleLayout(W, H, release.x, worldW);
 
       simRef.current = {
         W,
@@ -528,30 +509,30 @@ export default function ArcheryGame({
         worldW,
         cameraX: 0,
         cameraV: 0,
-        wind: reducedMotion ? 0 : (Math.random() * 2 - 1) * 22,
+        previewCam: 0,
+        previewPanning: false,
+        previewStartX: 0,
+        previewStartCam: 0,
 
-        release: defaultRelease,
-        pull: { ...defaultRelease },
+        release,
+        pull: { ...release },
         pullVel: { x: 0, y: 0 },
+
+        wind: reducedMotion ? 0 : (Math.random() * 2 - 1) * 18,
 
         aiming: false,
         done: false,
+        hasReleasedShot: false,
 
         bowAnchors: null,
         stringVibStart: 0,
         stringVibAmp: 0,
-        bowRecoil: 0,
-        bowPulse: Math.random() * Math.PI * 2,
-        hasReleasedShot: false,
-        previewPanning: false,
-        previewStartX: 0,
-        previewStartCam: 0,
-        previewCam: 0,
 
         arrows: [],
         particles: [],
         extinguishFx: [],
         candles,
+
         layoutW: W,
         layoutH: H,
         layoutAnchored: false,
@@ -586,6 +567,7 @@ export default function ArcheryGame({
 
       const dist = Math.hypot(dx, dy) || 1;
       const scale = dist > MAX_PULL_PX ? MAX_PULL_PX / dist : 1;
+
       let nextX = sim.release.x + dx * scale;
       let nextY = sim.release.y + dy * scale;
 
@@ -605,6 +587,7 @@ export default function ArcheryGame({
       const dx = pullPoint.x - sim.release.x;
       const dy = pullPoint.y - sim.release.y;
       const dist = Math.hypot(dx, dy);
+
       const t = clamp01((dist - MIN_PULL_PX) / (MAX_PULL_PX - MIN_PULL_PX));
       const eased = 1 - Math.pow(1 - t, 2.1);
       const speed = lerp(MIN_SPEED, MAX_SPEED, eased);
@@ -612,25 +595,24 @@ export default function ArcheryGame({
       let vx = (-dx / (dist || 1)) * speed;
       let vy = (-dy / (dist || 1)) * speed;
       if (vx < 160) vx = 160;
+
       return { vx, vy, rot: Math.atan2(vy, vx), pullDist: dist };
     };
 
-    const updateInjectedString = (sim, nowMs) => {
-      const pathTopA = stringPrimaryRef.current;
-      const pathBottomA = stringSecondaryRef.current;
-      const pathTopB = stringPrimarySplitRef.current;
-      const pathBottomB = stringSecondarySplitRef.current;
+    const updateStrings = (sim, nowMs) => {
+      const topA = stringTopARef.current;
+      const topB = stringTopBRef.current;
+      const botA = stringBotARef.current;
+      const botB = stringBotBRef.current;
       const anchors = sim.bowAnchors;
-      if (!pathTopA || !pathBottomA || !pathTopB || !pathBottomB || !anchors) return;
+      if (!topA || !topB || !botA || !botB || !anchors) return;
 
-      const containerRect = container.getBoundingClientRect();
       const wrapRect = bowWrapRef.current?.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
       if (!wrapRect) return;
 
-      const screenPullX = sim.pull.x;
-      const screenPullY = sim.pull.y;
-      let nx = (screenPullX - (wrapRect.left - containerRect.left)) / wrapRect.width;
-      let ny = (screenPullY - (wrapRect.top - containerRect.top)) / wrapRect.height;
+      let nx = (sim.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width;
+      let ny = (sim.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height;
       nx = clamp(nx, -0.85, 0.98);
       ny = clamp(ny, -0.2, 1.2);
       if (BOW_MIRRORED) nx = 1 - nx;
@@ -643,68 +625,48 @@ export default function ArcheryGame({
       const dx = pullVB.x - anchors.vbNock.x;
       const dy = pullVB.y - anchors.vbNock.y;
       const pullT = clamp01(Math.abs(dx) / (MAX_PULL_PX * 0.8));
-      const bendT = sim.aiming ? clamp01(pullT * 1.06) : 0;
 
-      const vibrateProgress = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
-      const vibEnv = 1 - vibrateProgress;
-      const vibrationActive = sim.stringVibAmp > 0 && vibrateProgress < 1;
-      const vib =
-        vibrationActive
-          ? Math.sin(vibrateProgress * Math.PI * 20) * sim.stringVibAmp * vibEnv
-          : 0;
+      const vibProgress = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
+      const vibEnv = 1 - vibProgress;
+      const vibActive = sim.stringVibAmp > 0 && vibProgress < 1;
+      const vib = vibActive ? Math.sin(vibProgress * Math.PI * 20) * sim.stringVibAmp * vibEnv : 0;
 
-      // Simulate limb tips bending toward the bow centerline while keeping bow position fixed.
-      const towardCenterDir = BOW_MIRRORED ? -1 : 1;
-      const tipShiftX = towardCenterDir * (8 + bendT * 16);
-      const tipShiftY = 12 + bendT * 18;
+      const bendT = sim.aiming ? clamp01(pullT * 1.08) : 0;
+      const centerDir = BOW_MIRRORED ? -1 : 1;
+
       const topTip = {
-        x: anchors.vbTop.x + tipShiftX * bendT,
-        y: anchors.vbTop.y + tipShiftY * bendT,
+        x: anchors.vbTop.x + centerDir * (8 + bendT * 14) * bendT,
+        y: anchors.vbTop.y + (12 + bendT * 18) * bendT,
       };
       const bottomTip = {
-        x: anchors.vbBottom.x + tipShiftX * bendT,
-        y: anchors.vbBottom.y - tipShiftY * bendT,
+        x: anchors.vbBottom.x + centerDir * (8 + bendT * 14) * bendT,
+        y: anchors.vbBottom.y - (12 + bendT * 18) * bendT,
       };
 
       const nockX = anchors.vbNock.x + dx + vib;
       const nockY = anchors.vbNock.y + dy;
+
       const topCtrlX = lerp(topTip.x, nockX, 0.46) - 52 * pullT + vib * 0.42;
       const topCtrlY = lerp(topTip.y, nockY, 0.44);
       const botCtrlX = lerp(nockX, bottomTip.x, 0.54) - 52 * pullT + vib * 0.42;
       const botCtrlY = lerp(nockY, bottomTip.y, 0.56);
 
-      const activeT = sim.aiming ? 1 : vibrationActive ? 0.6 : 0;
-      const opacity = (0.7 + pullT * 0.24) * activeT;
-      const dynamicStroke = String(1.35 + pullT * 0.78);
       const split = 2.9 + pullT * 1.8;
       const splitDir = BOW_MIRRORED ? -1 : 1;
       const ax = split * splitDir;
       const bx = -split * splitDir;
-      const topACtrlX = topCtrlX + ax;
-      const botACtrlX = botCtrlX + ax;
-      const topBCtrlX = topCtrlX + bx;
-      const botBCtrlX = botCtrlX + bx;
 
-      pathTopA.setAttribute(
-        "d",
-        `M ${topTip.x + ax} ${topTip.y} Q ${topACtrlX} ${topCtrlY} ${nockX + ax} ${nockY}`
-      );
-      pathBottomA.setAttribute(
-        "d",
-        `M ${nockX + ax} ${nockY} Q ${botACtrlX} ${botCtrlY} ${bottomTip.x + ax} ${bottomTip.y}`
-      );
-      pathTopB.setAttribute(
-        "d",
-        `M ${topTip.x + bx} ${topTip.y} Q ${topBCtrlX} ${topCtrlY} ${nockX + bx} ${nockY}`
-      );
-      pathBottomB.setAttribute(
-        "d",
-        `M ${nockX + bx} ${nockY} Q ${botBCtrlX} ${botCtrlY} ${bottomTip.x + bx} ${bottomTip.y}`
-      );
+      topA.setAttribute("d", `M ${topTip.x + ax} ${topTip.y} Q ${topCtrlX + ax} ${topCtrlY} ${nockX + ax} ${nockY}`);
+      topB.setAttribute("d", `M ${topTip.x + bx} ${topTip.y} Q ${topCtrlX + bx} ${topCtrlY} ${nockX + bx} ${nockY}`);
+      botA.setAttribute("d", `M ${nockX + ax} ${nockY} Q ${botCtrlX + ax} ${botCtrlY} ${bottomTip.x + ax} ${bottomTip.y}`);
+      botB.setAttribute("d", `M ${nockX + bx} ${nockY} Q ${botCtrlX + bx} ${botCtrlY} ${bottomTip.x + bx} ${bottomTip.y}`);
 
-      for (const path of [pathTopA, pathBottomA, pathTopB, pathBottomB]) {
+      const activeT = sim.aiming ? 1 : vibActive ? 0.65 : 0;
+      const opacity = (0.68 + pullT * 0.26) * activeT;
+      const strokeW = String(1.35 + pullT * 0.78);
+      for (const path of [topA, topB, botA, botB]) {
         path.setAttribute("stroke-opacity", String(opacity));
-        path.setAttribute("stroke-width", dynamicStroke);
+        path.setAttribute("stroke-width", strokeW);
       }
     };
 
@@ -729,7 +691,7 @@ export default function ArcheryGame({
       if (!sim) return;
 
       const streaks = Array.from({ length: reducedMotion ? 3 : 6 }).map(() => ({
-        angle: (-Math.PI * 0.9) + Math.random() * (Math.PI * 0.8),
+        angle: -Math.PI * 0.9 + Math.random() * (Math.PI * 0.8),
         speed: 14 + Math.random() * 24,
         drift: (Math.random() - 0.5) * 10,
         size: 1.8 + Math.random() * 1.8,
@@ -747,6 +709,7 @@ export default function ArcheryGame({
     const extinguishCandle = (sim, candle) => {
       if (!candle.lit) return;
       candle.lit = false;
+
       spawnExtinguishFlame(candle.x, candle.y - candle.h * 0.94);
       spawnSparks(candle.x, candle.y - candle.h * 0.92);
       playTone(1120, 92, { toFreq: 690, type: "triangle", gainPeak: 0.044 });
@@ -774,20 +737,19 @@ export default function ArcheryGame({
       const sim = simRef.current;
       if (!sim || sim.done) return;
       if (pointerIdRef.current != null) return;
+
       const point = pointerToCanvas(event);
       const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
-      if (cameraFollowMode && (hasLiveArrow || sim.hasReleasedShot)) return;
+      if (mobileLike && (hasLiveArrow || sim.hasReleasedShot)) return;
 
       const maxCam = Math.max(0, sim.worldW - sim.W);
       const shouldPreviewPan =
-        cameraFollowMode &&
         !hasLiveArrow &&
         !sim.hasReleasedShot &&
         maxCam > 4 &&
         point.x > sim.release.x + PREVIEW_PAN_START_OFFSET_PX;
 
       pointerIdRef.current = event.pointerId;
-
       try {
         canvas.setPointerCapture(event.pointerId);
       } catch {
@@ -806,13 +768,13 @@ export default function ArcheryGame({
       sim.previewCam = 0;
       sim.cameraX = 0;
       sim.cameraV = 0;
+
       sim.aiming = true;
       if (!sim.startedAt) {
         sim.startedAt = performance.now();
       }
 
-      const snapped = snapToComfortZone(sim, point.x, point.y);
-      sim.pull = snapped;
+      sim.pull = snapToComfortZone(sim, point.x, point.y);
       sim.pullVel = { x: 0, y: 0 };
 
       event.preventDefault();
@@ -835,10 +797,8 @@ export default function ArcheryGame({
       }
 
       if (!sim.aiming) return;
-
       const point = pointerToCanvas(event);
       sim.pull = constrainPull(sim, point.x, point.y);
-
       event.preventDefault();
     };
 
@@ -862,7 +822,6 @@ export default function ArcheryGame({
 
       pointerIdRef.current = null;
       sim.aiming = false;
-
       try {
         canvas.releasePointerCapture(event.pointerId);
       } catch {
@@ -884,11 +843,9 @@ export default function ArcheryGame({
       setShotsUI(sim.shots);
       sim.stringVibStart = performance.now();
       sim.stringVibAmp = 12 + clamp01(launch.pullDist / MAX_PULL_PX) * 8;
-      sim.bowRecoil = 0;
-      sim.bowPulse = 0;
       sim.hasReleasedShot = true;
 
-      sim.pullVel.x = 780;
+      sim.pullVel.x = 760;
       sim.pullVel.y = 0;
 
       playTone(240, 140, { toFreq: 132, type: "triangle", gainPeak: 0.032 });
@@ -908,7 +865,6 @@ export default function ArcheryGame({
     };
 
     const onWheel = (event) => {
-      if (!cameraFollowMode) return;
       const sim = simRef.current;
       if (!sim || sim.done || sim.aiming || sim.previewPanning || sim.hasReleasedShot) return;
       if (sim.arrows.some((arrow) => arrow.alive)) return;
@@ -917,7 +873,7 @@ export default function ArcheryGame({
       if (maxCam <= 4) return;
 
       const delta = event.deltaX + event.deltaY * 0.75;
-      sim.previewCam = clamp(sim.previewCam + delta * 0.7, 0, maxCam);
+      sim.previewCam = clamp(sim.previewCam + delta * PREVIEW_WHEEL_GAIN, 0, maxCam);
       sim.cameraX = sim.previewCam;
       sim.cameraV = 0;
       event.preventDefault();
@@ -939,13 +895,14 @@ export default function ArcheryGame({
       sim.W = rect.width;
       sim.H = rect.height;
 
-      const anchors = getStringAnchorsFromSvg();
+      const anchors = getBowAnchors();
       if (anchors) {
         sim.bowAnchors = anchors;
         sim.release = {
           x: anchors.pxNock.x,
           y: anchors.pxNock.y + RELEASE_Y_OFFSET_PX,
         };
+
         if (!sim.layoutAnchored && !sim.startedAt) {
           sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x, sim.worldW);
           sim.layoutAnchored = true;
@@ -959,29 +916,22 @@ export default function ArcheryGame({
       ) {
         sim.layoutW = sim.W;
         sim.layoutH = sim.H;
-        sim.worldW = Math.max(
-          sim.W + 260,
-          Math.round(
-            sim.W *
-              (cameraFollowMode
-                ? isPortrait
-                  ? WORLD_WIDTH_MOBILE_PORTRAIT_MULT
-                  : WORLD_WIDTH_MOBILE_LANDSCAPE_MULT
-                : WORLD_WIDTH_DESKTOP_MULT)
-          )
-        );
-        sim.cameraX = clamp(sim.cameraX, 0, Math.max(0, sim.worldW - sim.W));
-        sim.previewCam = clamp(sim.previewCam, 0, Math.max(0, sim.worldW - sim.W));
+        sim.worldW = computeWorldW(sim.W);
+
+        const maxCam = Math.max(0, sim.worldW - sim.W);
+        sim.cameraX = clamp(sim.cameraX, 0, maxCam);
+        sim.previewCam = clamp(sim.previewCam, 0, maxCam);
+
         sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x, sim.worldW);
         setRemainingUI(sim.candles.filter((item) => item.lit).length);
       }
 
-      if (!sim.aiming) {
+      if (!sim.aiming && !sim.previewPanning) {
         const tx = sim.release.x;
         const ty = sim.release.y;
 
-        const ax = -92 * (sim.pull.x - tx) - 14 * sim.pullVel.x;
-        const ay = -88 * (sim.pull.y - ty) - 13 * sim.pullVel.y;
+        const ax = -90 * (sim.pull.x - tx) - 14 * sim.pullVel.x;
+        const ay = -86 * (sim.pull.y - ty) - 13 * sim.pullVel.y;
 
         sim.pullVel.x += ax * dt;
         sim.pullVel.y += ay * dt;
@@ -989,17 +939,16 @@ export default function ArcheryGame({
         sim.pull.y += sim.pullVel.y * dt;
       }
 
-      updateInjectedString(sim, nowMs);
+      updateStrings(sim, nowMs);
 
       for (const candle of sim.candles) {
         candle.flamePhase += dt * 6.4;
         if (!sim.done) {
-          const driftScale = cameraFollowMode ? 0.52 : 0.9;
+          const driftScale = mobileLike ? 0.52 : 0.9;
           candle.driftPhase += dt * candle.driftSpeed * 0.34;
           candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX * 0.08 * driftScale;
           candle.y =
-            candle.baseY +
-            Math.cos(candle.driftPhase * 0.72) * candle.driftAmpY * 0.58 * driftScale;
+            candle.baseY + Math.cos(candle.driftPhase * 0.72) * candle.driftAmpY * 0.58 * driftScale;
         } else {
           candle.x = candle.baseX;
           candle.y = candle.baseY;
@@ -1011,8 +960,8 @@ export default function ArcheryGame({
 
         arrow.vy += GRAVITY * dt;
         arrow.vx += sim.wind * dt * 0.16;
-        arrow.vx *= (1 - ARROW_DRAG);
-        arrow.vy *= (1 - ARROW_DRAG * 0.5);
+        arrow.vx *= 1 - ARROW_DRAG;
+        arrow.vy *= 1 - ARROW_DRAG * 0.5;
         arrow.x += arrow.vx * dt;
         arrow.y += arrow.vy * dt;
         arrow.rot = Math.atan2(arrow.vy, arrow.vx);
@@ -1028,7 +977,7 @@ export default function ArcheryGame({
           });
         }
 
-        if (arrow.x > sim.W + 420 || arrow.y > sim.H + 340 || arrow.y < -320) {
+        if (arrow.x > sim.worldW + 420 || arrow.y > sim.H + 340 || arrow.y < -320) {
           arrow.alive = false;
           continue;
         }
@@ -1042,8 +991,8 @@ export default function ArcheryGame({
 
         let hits = 0;
         for (const candle of sim.candles) {
-          if (!candle.lit) continue;
-          if (arrow.hitIds.has(candle.id)) continue;
+          if (!candle.lit || arrow.hitIds.has(candle.id)) continue;
+
           const candleBox = {
             x: candle.x - (candle.w * CANDLE_HITBOX_SCALE) / 2,
             y: candle.y - candle.h,
@@ -1064,30 +1013,34 @@ export default function ArcheryGame({
         }
       }
 
-      if (cameraFollowMode) {
-        const leadArrow = sim.arrows.filter((a) => a.alive).sort((a, b) => b.x - a.x)[0] || null;
-        const maxCam = Math.max(0, sim.worldW - sim.W);
-        let targetCam = sim.previewCam;
-        if (sim.aiming) {
-          targetCam = 0;
-        } else if (leadArrow) {
-          targetCam = clamp(leadArrow.x - sim.W * 0.34, 0, maxCam);
-        } else if (sim.hasReleasedShot) {
-          targetCam = 0;
-        }
-        const cameraDelta = targetCam - sim.cameraX;
+      const maxCam = Math.max(0, sim.worldW - sim.W);
+      const leadArrow = sim.arrows.filter((item) => item.alive).sort((a, b) => b.x - a.x)[0] || null;
+
+      let targetCam = sim.previewCam;
+      if (sim.aiming) {
+        targetCam = 0;
+      } else if (sim.previewPanning) {
+        targetCam = sim.previewCam;
+      } else if (leadArrow) {
+        targetCam = clamp(leadArrow.x - sim.W * 0.34, 0, maxCam);
+      } else if (sim.hasReleasedShot) {
+        targetCam = 0;
+      }
+
+      const cameraDelta = targetCam - sim.cameraX;
+      if (sim.previewPanning) {
+        sim.cameraX = targetCam;
+        sim.cameraV = 0;
+      } else {
         sim.cameraV = sim.cameraV * 0.84 + cameraDelta * dt * 10;
         sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCam);
+      }
 
-        if (!leadArrow && sim.hasReleasedShot && sim.cameraX < 1.4 && Math.abs(sim.cameraV) < 0.4) {
-          sim.hasReleasedShot = false;
-          sim.cameraX = 0;
-          sim.cameraV = 0;
-          sim.previewCam = 0;
-        }
-      } else {
+      if (!leadArrow && sim.hasReleasedShot && sim.cameraX < 1.4 && Math.abs(sim.cameraV) < 0.4) {
+        sim.hasReleasedShot = false;
         sim.cameraX = 0;
         sim.cameraV = 0;
+        sim.previewCam = 0;
       }
 
       sim.particles = sim.particles.filter((particle) => particle.life > 0);
@@ -1132,177 +1085,6 @@ export default function ArcheryGame({
       context.restore();
     };
 
-    const drawCandles = (sim) => {
-      const candleImg = assetsRef.current.candle;
-      for (const candle of sim.candles) {
-        if (!candle.lit) continue;
-        const sx = candle.x - sim.cameraX;
-        if (sx < -candle.w * 1.6 || sx > sim.W + candle.w * 1.6) continue;
-
-        context.save();
-        context.globalAlpha = 0.2;
-        context.fillStyle = "#ffcc7a";
-        context.beginPath();
-        context.ellipse(
-          sx,
-          candle.y - candle.h * 0.92,
-          candle.w * 1.22,
-          candle.h * 0.24,
-          0,
-          0,
-          Math.PI * 2
-        );
-        context.fill();
-        context.restore();
-
-        if (candleImg) {
-          context.drawImage(
-            candleImg,
-            sx - candle.w / 2,
-            candle.y - candle.h,
-            candle.w,
-            candle.h
-          );
-        }
-
-        drawFlame(sx, candle.y - candle.h * 0.94, candle.w, candle.h, candle.flamePhase);
-      }
-    };
-
-    const drawNockedArrow = (sim) => {
-      const arrowImg = assetsRef.current.arrow;
-      if (!arrowImg) return;
-      if (cameraFollowMode && !sim.aiming) {
-        const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
-        if (hasLiveArrow || sim.hasReleasedShot || sim.cameraX > 4) {
-          return;
-        }
-      }
-
-      const nock = sim.aiming ? sim.pull : sim.release;
-      const rot = sim.aiming
-        ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x)
-        : 0;
-      const sx = nock.x;
-
-      const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
-
-      context.save();
-      context.globalAlpha = sim.aiming ? 0.98 : 0.78;
-      context.translate(sx, nock.y);
-      context.rotate(rot);
-      context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
-      context.restore();
-    };
-
-    const drawExtinguishFx = (sim) => {
-      for (const fx of sim.extinguishFx) {
-        const t = clamp01(fx.t / fx.life);
-        const inv = 1 - t;
-        const sx = fx.x - sim.cameraX;
-
-        context.save();
-        context.globalAlpha = 0.26 * inv;
-        context.strokeStyle = "#ffd6a0";
-        context.lineWidth = 1.4;
-        context.beginPath();
-        context.arc(sx, fx.y, 4 + t * 24, 0, Math.PI * 2);
-        context.stroke();
-
-        context.globalAlpha = 0.34 * inv;
-        context.fillStyle = "#fff4cf";
-        context.beginPath();
-        context.ellipse(
-          sx + Math.sin(t * 8) * 1.8,
-          fx.y - t * 18,
-          5 + t * 7,
-          3 + t * 6,
-          0,
-          0,
-          Math.PI * 2
-        );
-        context.fill();
-
-        context.globalAlpha = 0.18 * inv;
-        context.fillStyle = "rgba(226,226,226,1)";
-        context.beginPath();
-        context.ellipse(
-          sx + Math.sin(t * 4) * 4,
-          fx.y - 4 - t * 26,
-          6 + t * 12,
-          3 + t * 8,
-          0,
-          0,
-          Math.PI * 2
-        );
-        context.fill();
-
-        context.globalAlpha = 0.58 * inv;
-        context.fillStyle = "#ffcb72";
-        for (const streak of fx.streaks) {
-          const px = sx + Math.cos(streak.angle) * streak.speed * t + streak.drift * t;
-          const sy = fx.y + Math.sin(streak.angle) * streak.speed * t - t * 4;
-          const size = streak.size * inv;
-          context.fillRect(px, sy, size, size);
-        }
-        context.restore();
-      }
-    };
-
-    const drawFlyingArrows = (sim) => {
-      const arrowImg = assetsRef.current.arrow;
-      if (!arrowImg) return;
-
-      const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
-
-      for (const arrow of sim.arrows) {
-        if (!arrow.alive) continue;
-        const sx = arrow.x - sim.cameraX;
-        if (sx < -ARROW_DRAW_W * 0.8 || sx > sim.W + ARROW_DRAW_W) continue;
-        context.save();
-        context.translate(sx, arrow.y);
-        context.rotate(arrow.rot);
-        context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
-        context.restore();
-      }
-    };
-
-    const drawParticles = (sim) => {
-      if (reducedMotion) return;
-      for (const particle of sim.particles) {
-        const sx = particle.x - sim.cameraX;
-        if (sx < -6 || sx > sim.W + 6) continue;
-        context.save();
-        context.globalAlpha = clamp01(particle.life);
-        context.fillStyle = particle.color === "trail" ? "#ffe8bc" : "#ffd08a";
-        context.fillRect(sx, particle.y, 2, 2);
-        context.restore();
-      }
-    };
-
-    const drawTrajectory = (sim) => {
-      if (!sim.aiming) return;
-
-      const launch = computeLaunch(sim, sim.pull);
-      let x = sim.release.x;
-      let y = sim.release.y;
-      let vx = launch.vx;
-      let vy = launch.vy;
-
-      context.save();
-      context.globalAlpha = 0.2;
-      context.fillStyle = "rgba(246, 232, 206, 0.9)";
-      for (let i = 0; i < 22; i += 1) {
-        const step = 0.016;
-        vy += GRAVITY * step;
-        vx += sim.wind * step * 0.16;
-        x += vx * step;
-        y += vy * step;
-        context.fillRect(x - sim.cameraX, y, 2, 2);
-      }
-      context.restore();
-    };
-
     const drawBackground = (sim) => {
       context.clearRect(0, 0, sim.W, sim.H);
 
@@ -1314,7 +1096,7 @@ export default function ArcheryGame({
       context.fillStyle = sky;
       context.fillRect(0, 0, sim.W, sim.H);
 
-        const glow = context.createRadialGradient(
+      const glow = context.createRadialGradient(
         sim.W * (0.26 + camT * 0.48),
         sim.H * 0.22,
         24,
@@ -1356,6 +1138,149 @@ export default function ArcheryGame({
       context.strokeStyle = "rgba(241, 221, 183, 0.24)";
       context.lineWidth = 1;
       context.strokeRect(10, 10, sim.W - 20, sim.H - 20);
+    };
+
+    const drawCandles = (sim) => {
+      const candleImg = assetsRef.current.candle;
+      for (const candle of sim.candles) {
+        if (!candle.lit) continue;
+
+        const sx = candle.x - sim.cameraX;
+        if (sx < -candle.w * 1.6 || sx > sim.W + candle.w * 1.6) continue;
+
+        context.save();
+        context.globalAlpha = 0.2;
+        context.fillStyle = "#ffcc7a";
+        context.beginPath();
+        context.ellipse(sx, candle.y - candle.h * 0.92, candle.w * 1.22, candle.h * 0.24, 0, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+
+        if (candleImg) {
+          context.drawImage(candleImg, sx - candle.w / 2, candle.y - candle.h, candle.w, candle.h);
+        }
+
+        drawFlame(sx, candle.y - candle.h * 0.94, candle.w, candle.h, candle.flamePhase);
+      }
+    };
+
+    const drawNockedArrow = (sim) => {
+      const arrowImg = assetsRef.current.arrow;
+      if (!arrowImg) return;
+
+      if (!sim.aiming) {
+        const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
+        if (hasLiveArrow || sim.hasReleasedShot || sim.cameraX > 4) return;
+      }
+
+      const nock = sim.aiming ? sim.pull : sim.release;
+      const rot = sim.aiming
+        ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x)
+        : 0;
+
+      const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
+
+      context.save();
+      context.globalAlpha = sim.aiming ? 0.98 : 0.8;
+      context.translate(nock.x, nock.y);
+      context.rotate(rot);
+      context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
+      context.restore();
+    };
+
+    const drawTrajectory = (sim) => {
+      if (!sim.aiming) return;
+
+      const launch = computeLaunch(sim, sim.pull);
+      let x = sim.release.x;
+      let y = sim.release.y;
+      let vx = launch.vx;
+      let vy = launch.vy;
+
+      context.save();
+      context.globalAlpha = 0.18;
+      context.fillStyle = "rgba(246, 232, 206, 0.9)";
+      for (let i = 0; i < 22; i += 1) {
+        const step = 0.016;
+        vy += GRAVITY * step;
+        vx += sim.wind * step * 0.16;
+        x += vx * step;
+        y += vy * step;
+        context.fillRect(x - sim.cameraX, y, 2, 2);
+      }
+      context.restore();
+    };
+
+    const drawFlyingArrows = (sim) => {
+      const arrowImg = assetsRef.current.arrow;
+      if (!arrowImg) return;
+
+      const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
+      for (const arrow of sim.arrows) {
+        if (!arrow.alive) continue;
+
+        const sx = arrow.x - sim.cameraX;
+        if (sx < -ARROW_DRAW_W * 0.8 || sx > sim.W + ARROW_DRAW_W) continue;
+
+        context.save();
+        context.translate(sx, arrow.y);
+        context.rotate(arrow.rot);
+        context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
+        context.restore();
+      }
+    };
+
+    const drawExtinguishFx = (sim) => {
+      for (const fx of sim.extinguishFx) {
+        const t = clamp01(fx.t / fx.life);
+        const inv = 1 - t;
+        const sx = fx.x - sim.cameraX;
+
+        context.save();
+        context.globalAlpha = 0.26 * inv;
+        context.strokeStyle = "#ffd6a0";
+        context.lineWidth = 1.4;
+        context.beginPath();
+        context.arc(sx, fx.y, 4 + t * 24, 0, Math.PI * 2);
+        context.stroke();
+
+        context.globalAlpha = 0.34 * inv;
+        context.fillStyle = "#fff4cf";
+        context.beginPath();
+        context.ellipse(sx + Math.sin(t * 8) * 1.8, fx.y - t * 18, 5 + t * 7, 3 + t * 6, 0, 0, Math.PI * 2);
+        context.fill();
+
+        context.globalAlpha = 0.18 * inv;
+        context.fillStyle = "rgba(226,226,226,1)";
+        context.beginPath();
+        context.ellipse(sx + Math.sin(t * 4) * 4, fx.y - 4 - t * 26, 6 + t * 12, 3 + t * 8, 0, 0, Math.PI * 2);
+        context.fill();
+
+        context.globalAlpha = 0.58 * inv;
+        context.fillStyle = "#ffcb72";
+        for (const streak of fx.streaks) {
+          const px = sx + Math.cos(streak.angle) * streak.speed * t + streak.drift * t;
+          const sy = fx.y + Math.sin(streak.angle) * streak.speed * t - t * 4;
+          const size = streak.size * inv;
+          context.fillRect(px, sy, size, size);
+        }
+
+        context.restore();
+      }
+    };
+
+    const drawParticles = (sim) => {
+      if (reducedMotion) return;
+      for (const particle of sim.particles) {
+        const sx = particle.x - sim.cameraX;
+        if (sx < -6 || sx > sim.W + 6) continue;
+
+        context.save();
+        context.globalAlpha = clamp01(particle.life);
+        context.fillStyle = particle.color === "trail" ? "#ffe8bc" : "#ffd08a";
+        context.fillRect(sx, particle.y, 2, 2);
+        context.restore();
+      }
     };
 
     const drawHud = (sim) => {
@@ -1403,10 +1328,10 @@ export default function ArcheryGame({
   }, [
     buildCandleLayout,
     candleCount,
-    cameraFollowMode,
     completeGame,
-    getStringAnchorsFromSvg,
+    getBowAnchors,
     isPortrait,
+    mobileLike,
     playTone,
     reducedMotion,
     vibrate,
@@ -1438,11 +1363,7 @@ export default function ArcheryGame({
       <div style={hudBar}>
         <div>
           <div style={title}>Extinguish the candles</div>
-          <div style={subtitle}>
-            {cameraFollowMode
-              ? "Swipe right side to preview candles. Pull near bow to shoot."
-              : "Draw from anywhere, release to shoot"}
-          </div>
+          <div style={subtitle}>Swipe right side to preview candles. Pull near bow to shoot.</div>
         </div>
 
         <div style={statusPills}>
@@ -1467,7 +1388,7 @@ export default function ArcheryGame({
           ref={bowWrapRef}
           style={{
             position: "absolute",
-            left: `${BOW_LOCKED_LEFT_PX}px`,
+            left: `${BOW_LEFT_PX}px`,
             top: 8,
             bottom: 8,
             width: BOW_WIDTH_CSS,
