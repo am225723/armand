@@ -52,6 +52,8 @@ const MAX_VERTICAL_AIM_PX = 132;
 const COMFORT_PULL_PX = 210;
 const CENTER_MAGNET_BASE = 0.2;
 const CENTER_MAGNET_PULL = 0.45;
+const DRAW_REACH_BOOST_X = 2.25;
+const DRAW_REACH_BOOST_Y = 1.08;
 
 const STRING_VIBRATION_MS = 340;
 const COMPLETE_AUTO_DELAY_MS = 420;
@@ -62,7 +64,7 @@ const CANDLE_HITBOX_SCALE = 0.72;
 
 const GRAVITY = 1220;
 const MIN_SPEED = 560;
-const MAX_SPEED = 1980;
+const MAX_SPEED = 2420;
 const ARROW_DRAG = 0.0015;
 
 const WORLD_WIDTH_PORTRAIT_MULT = 2.28;
@@ -562,8 +564,11 @@ export default function ArcheryGame({
       const dxRaw = x - sim.release.x;
       const dyRaw = y - sim.release.y;
 
-      const dx = Math.min(dxRaw, -MIN_PULL_PX);
-      const dy = clamp(dyRaw, -MAX_VERTICAL_AIM_PX, MAX_VERTICAL_AIM_PX);
+      const boostedDx = dxRaw * DRAW_REACH_BOOST_X;
+      const boostedDy = dyRaw * DRAW_REACH_BOOST_Y;
+
+      const dx = Math.min(boostedDx, -MIN_PULL_PX);
+      const dy = clamp(boostedDy, -MAX_VERTICAL_AIM_PX, MAX_VERTICAL_AIM_PX);
 
       const dist = Math.hypot(dx, dy) || 1;
       const scale = dist > MAX_PULL_PX ? MAX_PULL_PX / dist : 1;
@@ -668,6 +673,15 @@ export default function ArcheryGame({
         path.setAttribute("stroke-opacity", String(opacity));
         path.setAttribute("stroke-width", strokeW);
       }
+
+      const bowWrap = bowWrapRef.current;
+      if (bowWrap) {
+        // Limb flex follows string pull; anchored bow (no world translation).
+        const bendScale = sim.aiming ? bendT : vibActive ? 0.16 * vibEnv : 0;
+        const sx = 1 + bendScale * 0.035;
+        const sy = 1 - bendScale * 0.11;
+        bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy})`;
+      }
     };
 
     const spawnSparks = (x, y) => {
@@ -712,8 +726,22 @@ export default function ArcheryGame({
 
       spawnExtinguishFlame(candle.x, candle.y - candle.h * 0.94);
       spawnSparks(candle.x, candle.y - candle.h * 0.92);
-      playTone(1120, 92, { toFreq: 690, type: "triangle", gainPeak: 0.044 });
-      playTone(740, 110, { toFreq: 420, type: "sine", gainPeak: 0.03 });
+      const typeCycle = ["triangle", "sine", "square"];
+      const typeA = typeCycle[candle.id % typeCycle.length];
+      const typeB = typeCycle[(candle.id + 1) % typeCycle.length];
+      const semitone = (candle.id % 12) - 6;
+      const base = 780 * Math.pow(2, semitone / 24);
+      const jitter = 0.97 + Math.random() * 0.06;
+      playTone(base * 1.3 * jitter, 88, {
+        toFreq: base * 0.86,
+        type: typeA,
+        gainPeak: 0.04,
+      });
+      playTone(base * 0.94 * jitter, 112, {
+        toFreq: base * 0.54,
+        type: typeB,
+        gainPeak: 0.028,
+      });
       vibrate([10, 16, 10]);
 
       const left = sim.candles.filter((item) => item.lit).length;
@@ -1041,6 +1069,14 @@ export default function ArcheryGame({
         sim.cameraX = 0;
         sim.cameraV = 0;
         sim.previewCam = 0;
+      }
+
+      const bowWrap = bowWrapRef.current;
+      if (bowWrap) {
+        const followActive = Boolean(leadArrow) || (sim.hasReleasedShot && !sim.aiming);
+        const targetOpacity = followActive ? 0 : 0.99;
+        const currentOpacity = Number.parseFloat(bowWrap.style.opacity || "0.99");
+        bowWrap.style.opacity = String(lerp(currentOpacity, targetOpacity, followActive ? 0.28 : 0.18));
       }
 
       sim.particles = sim.particles.filter((particle) => particle.life > 0);
