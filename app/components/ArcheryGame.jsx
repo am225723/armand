@@ -65,6 +65,11 @@ const GRAVITY = 1180;
 const MIN_SHOT_SPEED = 560;
 const MAX_SHOT_SPEED = 2600;
 const ARROW_DRAG = 0.0014;
+const WORLD_WIDTH_MULTIPLIER = 1.95;
+const WORLD_MIN_EXTRA_PX = 520;
+const CAMERA_LEAD_FRACTION = 0.34;
+const CAMERA_STIFFNESS = 10;
+const CAMERA_DAMPING = 0.84;
 
 const CANDLE_DEFAULT_COUNT = 14;
 const MAX_CANDLES_PER_ARROW = 2;
@@ -809,10 +814,10 @@ export default function ArcheryGame({
   }, [ensureStringPaths, findStringElement]);
 
   const buildCandleLayout = useCallback(
-    (W, H, releaseX) => {
+    (W, H, releaseX, worldW) => {
       const list = [];
       const regionStart = Math.max(W * CANDLE_REGION_START_PCT, releaseX + CANDLE_BOW_CLEARANCE_PX);
-      const regionEnd = W - CANDLE_REGION_END_PAD_PX;
+      const regionEnd = worldW - CANDLE_REGION_END_PAD_PX;
 
       const candleH = clamp(H * 0.12, 34, 52);
       const candleW = candleH * (546 / 1208);
@@ -879,13 +884,17 @@ export default function ArcheryGame({
       const rect = canvas.getBoundingClientRect();
       const W = rect.width;
       const H = rect.height;
+      const worldW = Math.max(W + WORLD_MIN_EXTRA_PX, Math.round(W * WORLD_WIDTH_MULTIPLIER));
 
       const release = { x: Math.max(130, W * 0.23), y: H * 0.52 + RELEASE_Y_OFFSET_PX };
-      const candles = buildCandleLayout(W, H, release.x);
+      const candles = buildCandleLayout(W, H, release.x, worldW);
 
       simRef.current = {
         W,
         H,
+        worldW,
+        cameraX: 0,
+        cameraV: 0,
 
         release,
         pull: { ...release },
@@ -928,6 +937,14 @@ export default function ArcheryGame({
     const pointerToLocal = (event) => {
       const rect = canvas.getBoundingClientRect();
       return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
+
+    const pointerToWorld = (event, sim) => {
+      const local = pointerToLocal(event);
+      return {
+        x: local.x + sim.cameraX,
+        y: local.y,
+      };
     };
 
     const constrainPull = (sim, x, y) => {
@@ -1074,8 +1091,10 @@ export default function ArcheryGame({
       const containerRect = container.getBoundingClientRect();
       if (!wrapRect) return;
 
-      let nx = (sim.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width;
-      let ny = (sim.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height;
+      const localPullX = sim.pull.x - sim.cameraX;
+      const localPullY = sim.pull.y;
+      let nx = (localPullX - (wrapRect.left - containerRect.left)) / wrapRect.width;
+      let ny = (localPullY - (wrapRect.top - containerRect.top)) / wrapRect.height;
       nx = clamp(nx, -0.8, 1.2);
       ny = clamp(ny, -0.3, 1.3);
       if (BOW_MIRRORED) nx = 1 - nx;
@@ -1177,7 +1196,7 @@ export default function ArcheryGame({
         canvas.setPointerCapture(event.pointerId);
       } catch {}
 
-      const point = pointerToLocal(event);
+      const point = pointerToWorld(event, sim);
       sim.aiming = true;
       sim.pull = snapToComfortZone(sim, point.x, point.y);
       sim.pullVel = { x: 0, y: 0 };
@@ -1193,7 +1212,7 @@ export default function ArcheryGame({
       if (pointerIdRef.current !== event.pointerId) return;
       if (!sim.aiming) return;
 
-      const point = pointerToLocal(event);
+      const point = pointerToWorld(event, sim);
       sim.pull = constrainPull(sim, point.x, point.y);
       event.preventDefault();
     };
@@ -1270,7 +1289,7 @@ export default function ArcheryGame({
       if (anchors) {
         sim.bowAnchors = anchors;
         sim.release = {
-          x: anchors.nockPX.x,
+          x: anchors.nockPX.x + sim.cameraX,
           y: anchors.nockPX.y + RELEASE_Y_OFFSET_PX,
         };
       }
@@ -1326,7 +1345,7 @@ export default function ArcheryGame({
           });
         }
 
-        if (arrow.x > sim.W + 400 || arrow.y > sim.H + 260 || arrow.y < -300) {
+        if (arrow.x > sim.worldW + 420 || arrow.y > sim.H + 260 || arrow.y < -300) {
           arrow.alive = false;
           continue;
         }
@@ -1358,6 +1377,27 @@ export default function ArcheryGame({
       }
 
       sim.arrows = sim.arrows.filter((arrow) => arrow.alive);
+
+      const maxCamera = Math.max(0, sim.worldW - sim.W);
+      if (!sim.aiming) {
+        const leadArrow =
+          sim.arrows.length > 0
+            ? sim.arrows.reduce((best, arrow) => (best == null || arrow.x > best.x ? arrow : best), null)
+            : null;
+        const targetCamera = leadArrow
+          ? clamp(leadArrow.x - sim.W * CAMERA_LEAD_FRACTION, 0, maxCamera)
+          : 0;
+        const dx = targetCamera - sim.cameraX;
+        sim.cameraV = sim.cameraV * CAMERA_DAMPING + dx * dt * CAMERA_STIFFNESS;
+        sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCamera);
+
+        if (!leadArrow && Math.abs(dx) < 0.5 && Math.abs(sim.cameraV) < 0.2) {
+          sim.cameraX = 0;
+          sim.cameraV = 0;
+        }
+      } else {
+        sim.cameraV *= 0.72;
+      }
 
       sim.particles = sim.particles.filter((p) => p.life > 0);
       for (const p of sim.particles) {
@@ -1415,6 +1455,8 @@ export default function ArcheryGame({
 
     const drawBackground = (sim) => {
       ctx.clearRect(0, 0, sim.W, sim.H);
+      const travel = Math.max(1, sim.worldW - sim.W);
+      const camT = clamp01(sim.cameraX / travel);
 
       const base = ctx.createLinearGradient(0, 0, 0, sim.H);
       base.addColorStop(0, "rgba(39,30,21,0.96)");
@@ -1423,7 +1465,8 @@ export default function ArcheryGame({
       ctx.fillStyle = base;
       ctx.fillRect(0, 0, sim.W, sim.H);
 
-      const glow = ctx.createRadialGradient(sim.W * 0.54, sim.H * 0.22, 32, sim.W * 0.54, sim.H * 0.34, sim.W * 0.88);
+      const glowX = sim.W * (0.54 + camT * 0.16);
+      const glow = ctx.createRadialGradient(glowX, sim.H * 0.22, 32, glowX, sim.H * 0.34, sim.W * 0.88);
       glow.addColorStop(0, "rgba(255,220,154,0.22)");
       glow.addColorStop(0.34, "rgba(227,178,105,0.1)");
       glow.addColorStop(1, "rgba(0,0,0,0)");
@@ -1434,7 +1477,8 @@ export default function ArcheryGame({
       ctx.globalAlpha = 0.08;
       ctx.strokeStyle = "rgba(251,231,190,0.68)";
       ctx.lineWidth = 1;
-      for (let x = 14; x < sim.W; x += 34) {
+      const xOffset = sim.cameraX % 34;
+      for (let x = 14 - xOffset; x < sim.W; x += 34) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, sim.H);
@@ -1457,8 +1501,10 @@ export default function ArcheryGame({
       const candleImg = assetsRef.current.candle;
       for (const candle of sim.candles) {
         if (candle.state === "out") continue;
+        const sx = candle.x - sim.cameraX;
+        if (sx < -candle.w * 2 || sx > sim.W + candle.w * 2) continue;
 
-        const flameX = candle.x;
+        const flameX = sx;
         const flameY = candle.y - candle.h * 0.94;
 
         ctx.save();
@@ -1470,7 +1516,7 @@ export default function ArcheryGame({
         ctx.restore();
 
         if (candleImg) {
-          ctx.drawImage(candleImg, candle.x - candle.w / 2, candle.y - candle.h, candle.w, candle.h);
+          ctx.drawImage(candleImg, sx - candle.w / 2, candle.y - candle.h, candle.w, candle.h);
         }
 
         let flameAlpha = 1;
@@ -1489,15 +1535,17 @@ export default function ArcheryGame({
         const t = clamp01(pulse.t / pulse.life);
         const inv = 1 - t;
         const radius = 12 + t * 34;
+        const sx = pulse.x - sim.cameraX;
+        if (sx < -radius || sx > sim.W + radius) continue;
 
         ctx.save();
         ctx.globalAlpha = 0.24 * inv;
-        const grad = ctx.createRadialGradient(pulse.x, pulse.y, 2, pulse.x, pulse.y, radius);
+        const grad = ctx.createRadialGradient(sx, pulse.y, 2, sx, pulse.y, radius);
         grad.addColorStop(0, "rgba(255, 224, 164, 0.95)");
         grad.addColorStop(1, "rgba(255, 224, 164, 0)");
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
+        ctx.arc(sx, pulse.y, radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -1510,6 +1558,7 @@ export default function ArcheryGame({
       if (!sim.aiming && sim.arrows.length > 0) return;
 
       const nock = sim.aiming ? sim.pull : sim.release;
+      const screenX = nock.x - sim.cameraX;
 
       // While aiming: point arrow from pull->release (forward)
       const rot = sim.aiming ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x) : 0;
@@ -1519,7 +1568,7 @@ export default function ArcheryGame({
 
       ctx.save();
       ctx.globalAlpha = sim.aiming ? 0.99 : 0.9;
-      ctx.translate(nock.x, nock.y);
+      ctx.translate(screenX, nock.y);
       ctx.rotate(rot);
       ctx.drawImage(arrowImg, drawX, drawY, ARROW_DRAW_W, ARROW_DRAW_H);
       ctx.restore();
@@ -1544,7 +1593,7 @@ export default function ArcheryGame({
         vy *= 1 - ARROW_DRAG * 0.4;
         x += vx * step;
         y += vy * step;
-        ctx.fillRect(x, y, 2, 2);
+        ctx.fillRect(x - sim.cameraX, y, 2, 2);
       }
       ctx.restore();
     };
@@ -1557,8 +1606,10 @@ export default function ArcheryGame({
       const drawY = -ARROW_DRAW_H * ARROW_NOCK_Y_FRAC;
 
       for (const arrow of sim.arrows) {
+        const sx = arrow.x - sim.cameraX;
+        if (sx < -ARROW_DRAW_W || sx > sim.W + ARROW_DRAW_W) continue;
         ctx.save();
-        ctx.translate(arrow.x, arrow.y);
+        ctx.translate(sx, arrow.y);
         ctx.rotate(arrow.rot);
         ctx.drawImage(arrowImg, drawX, drawY, ARROW_DRAW_W, ARROW_DRAW_H);
         ctx.restore();
@@ -1568,10 +1619,12 @@ export default function ArcheryGame({
     const drawParticles = (sim) => {
       if (reducedMotion) return;
       for (const p of sim.particles) {
+        const sx = p.x - sim.cameraX;
+        if (sx < -6 || sx > sim.W + 6) continue;
         ctx.save();
         ctx.globalAlpha = clamp01(p.life);
         ctx.fillStyle = p.kind === "trail" ? "#ffe8bd" : "#ffd18f";
-        ctx.fillRect(p.x, p.y, 2, 2);
+        ctx.fillRect(sx, p.y, 2, 2);
         ctx.restore();
       }
     };
