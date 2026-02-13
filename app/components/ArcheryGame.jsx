@@ -18,11 +18,7 @@ function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-const STRING_SELECTOR_ORDER = [
-  "#bow-string",
-  ".bow-string",
-  '[data-role="bow-string"]',
-];
+const STRING_SELECTOR_ORDER = ["#bow-string", ".bow-string", '[data-role="bow-string"]'];
 
 /**
  * Calibration notes:
@@ -39,6 +35,8 @@ const ARROW_NOCK_X_FRAC = 0.04;
 const ARROW_NOCK_Y_FRAC = 0.5;
 const RELEASE_Y_OFFSET_PX = -60;
 
+// IMPORTANT: you want string on LEFT visually. If your bow.svg is reversed,
+// keep BOW_MIRRORED true (it flips the svg so string appears left).
 const BOW_MIRRORED = true;
 const BOW_LEFT_PX = "clamp(20px, 7vw, 88px)";
 const BOW_WIDTH = "clamp(220px, 26vw, 320px)";
@@ -87,6 +85,13 @@ const COMPLETE_AUTO_ADVANCE_MS = 520;
 const ROTATE_OVERLAY_BREAKPOINT = 900;
 const FORCE_LANDSCAPE_ON_MOBILE = false;
 
+// Voice assets (Tier 1)
+const VOICE_MIDPOINT_SRC = "/audio/archery-midpoint.mp3";
+const VOICE_COMPLETE_SRC = "/audio/archery-complete.mp3";
+
+// Duck amount for SFX while voice plays
+const DUCK_WHILE_VOICE = 0.42;
+
 export default function ArcheryGame({
   onComplete,
   candleCount = CANDLE_DEFAULT_COUNT,
@@ -126,8 +131,15 @@ export default function ArcheryGame({
   const hapticRef = useRef(false);
   const rotateBlockedRef = useRef(false);
 
+  // WebAudio (SFX)
   const audioCtxRef = useRef(null);
   const cueNodesRef = useRef([]);
+
+  // Voice (Tier 1)
+  const voiceElRef = useRef(null);
+  const voiceUnlockedRef = useRef(false);
+  const sfxDuckRef = useRef(1); // 1 = full, <1 = ducked
+  const voiceIsPlayingRef = useRef(false);
 
   const calloutTimerRef = useRef(null);
   const hitFlashTimerRef = useRef(null);
@@ -173,7 +185,6 @@ export default function ArcheryGame({
     };
   }, []);
 
-  // Landscape is not forced on mobile.
   const showRotateOverlay =
     FORCE_LANDSCAPE_ON_MOBILE &&
     isCoarsePointer &&
@@ -187,18 +198,111 @@ export default function ArcheryGame({
 
   const gameHeight = `clamp(260px, 62vh, ${Math.max(280, Number(height) || 420)}px)`;
 
+  // -------------------------
+  // VOICE: init + unlock
+  // -------------------------
+  const ensureVoiceEl = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    if (!voiceElRef.current) {
+      const el = new Audio();
+      el.preload = "auto";
+      el.crossOrigin = "anonymous";
+      el.volume = 0.92;
+      voiceElRef.current = el;
+
+      el.addEventListener("ended", () => {
+        voiceIsPlayingRef.current = false;
+        sfxDuckRef.current = 1;
+      });
+      el.addEventListener("pause", () => {
+        // pause can happen on stop/reset too
+        voiceIsPlayingRef.current = false;
+        sfxDuckRef.current = 1;
+      });
+    }
+    return voiceElRef.current;
+  }, []);
+
+  const stopVoice = useCallback(() => {
+    const el = ensureVoiceEl();
+    if (!el) return;
+    try {
+      el.pause();
+      el.currentTime = 0;
+    } catch {
+      // no-op
+    }
+    voiceIsPlayingRef.current = false;
+    sfxDuckRef.current = 1;
+  }, [ensureVoiceEl]);
+
+  // iOS/mobile autoplay unlock:
+  // call from first pointerdown OR when toggling sound on.
+  const unlockVoicePlayback = useCallback(async () => {
+    if (voiceUnlockedRef.current) return true;
+    const el = ensureVoiceEl();
+    if (!el) return false;
+
+    try {
+      // A tiny silent play/pause “unlocks” in many mobile browsers.
+      // Not all browsers need it; harmless when it does nothing.
+      el.src = VOICE_MIDPOINT_SRC;
+      el.muted = true;
+      await el.play();
+      el.pause();
+      el.currentTime = 0;
+      el.muted = false;
+      voiceUnlockedRef.current = true;
+      return true;
+    } catch {
+      // If this fails, it can still succeed later once the browser is satisfied.
+      el.muted = false;
+      return false;
+    }
+  }, [ensureVoiceEl]);
+
+  const playVoice = useCallback(
+    async (src) => {
+      if (!soundRef.current) return false;
+      const el = ensureVoiceEl();
+      if (!el) return false;
+
+      // Don’t overlap: voice always wins.
+      stopVoice();
+
+      // Best effort unlock
+      await unlockVoicePlayback();
+
+      try {
+        el.src = src;
+        el.currentTime = 0;
+        // duck SFX while voice plays
+        sfxDuckRef.current = DUCK_WHILE_VOICE;
+        voiceIsPlayingRef.current = true;
+
+        await el.play();
+        return true;
+      } catch {
+        // failed (blocked or missing)
+        voiceIsPlayingRef.current = false;
+        sfxDuckRef.current = 1;
+        return false;
+      }
+    },
+    [ensureVoiceEl, stopVoice, unlockVoicePlayback]
+  );
+
+  // -------------------------
+  // WEB AUDIO (SFX)
+  // -------------------------
   const cleanupAudioNodes = useCallback(() => {
     for (const node of cueNodesRef.current) {
       try {
         node.stop?.();
-      } catch {
-        // no-op
-      }
+      } catch {}
       try {
         node.disconnect?.();
-      } catch {
-        // no-op
-      }
+      } catch {}
     }
     cueNodesRef.current = [];
   }, []);
@@ -221,9 +325,7 @@ export default function ArcheryGame({
     const ctx = getAudioContext();
     if (!ctx) return;
     if (ctx.state === "suspended") {
-      ctx.resume().catch(() => {
-        // no-op
-      });
+      ctx.resume().catch(() => {});
     }
   }, [getAudioContext]);
 
@@ -231,11 +333,10 @@ export default function ArcheryGame({
     if (!hapticRef.current) return;
     try {
       navigator?.vibrate?.(pattern);
-    } catch {
-      // no-op
-    }
+    } catch {}
   }, []);
 
+  // NOTE: all SFX respect sfxDuckRef.current
   const playSynthCue = useCallback(
     ({ root = 340, gain = 0.04, decay = 0.5, noise = 0.016, slower = false }) => {
       if (!soundRef.current) return;
@@ -244,28 +345,30 @@ export default function ArcheryGame({
 
       cleanupAudioNodes();
 
+      const duck = sfxDuckRef.current || 1;
       const now = ctx.currentTime;
 
       const master = ctx.createGain();
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.linearRampToValueAtTime(gain, now + 0.012);
+      master.gain.linearRampToValueAtTime(gain * duck, now + 0.012);
       master.gain.exponentialRampToValueAtTime(0.0001, now + decay);
       master.connect(ctx.destination);
 
       const noiseBuffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * noise)), ctx.sampleRate);
       const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < data.length; i += 1) {
-        data[i] = (Math.random() * 2 - 1) * 0.38;
-      }
+      for (let i = 0; i < data.length; i += 1) data[i] = (Math.random() * 2 - 1) * 0.38;
+
       const noiseSource = ctx.createBufferSource();
       noiseSource.buffer = noiseBuffer;
+
       const bandpass = ctx.createBiquadFilter();
       bandpass.type = "bandpass";
       bandpass.frequency.value = slower ? 720 : 880;
       bandpass.Q.value = 1.3;
+
       const noiseGain = ctx.createGain();
       noiseGain.gain.setValueAtTime(0.0001, now);
-      noiseGain.gain.linearRampToValueAtTime(gain * 0.32, now + 0.004);
+      noiseGain.gain.linearRampToValueAtTime(gain * duck * 0.32, now + 0.004);
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + noise + 0.03);
 
       noiseSource.connect(bandpass);
@@ -281,7 +384,7 @@ export default function ArcheryGame({
 
       const chordGain = ctx.createGain();
       chordGain.gain.setValueAtTime(0.0001, now);
-      chordGain.gain.linearRampToValueAtTime(gain * (slower ? 0.62 : 0.48), now + 0.02);
+      chordGain.gain.linearRampToValueAtTime(gain * duck * (slower ? 0.62 : 0.48), now + 0.02);
       chordGain.gain.exponentialRampToValueAtTime(0.0001, now + decay + (slower ? 0.22 : 0.1));
 
       oscA.connect(chordGain);
@@ -313,17 +416,23 @@ export default function ArcheryGame({
     const ctx = getAudioContext();
     if (!ctx) return;
 
+    const duck = sfxDuckRef.current || 1;
     const now = ctx.currentTime;
+
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+
     osc.type = "triangle";
     osc.frequency.setValueAtTime(630, now);
     osc.frequency.exponentialRampToValueAtTime(210, now + 0.09);
+
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.028, now + 0.008);
+    gain.gain.linearRampToValueAtTime(0.028 * duck, now + 0.008);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+
     osc.connect(gain);
     gain.connect(ctx.destination);
+
     osc.start(now);
     osc.stop(now + 0.12);
   }, [getAudioContext]);
@@ -334,9 +443,12 @@ export default function ArcheryGame({
       const ctx = getAudioContext();
       if (!ctx) return;
 
+      const duck = sfxDuckRef.current || 1;
       const now = ctx.currentTime;
+
       const semitone = (candleId % 9) - 4;
       const root = 650 * Math.pow(2, semitone / 24);
+
       const oscA = ctx.createOscillator();
       const oscB = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -350,7 +462,7 @@ export default function ArcheryGame({
       oscB.frequency.exponentialRampToValueAtTime(root * 0.88, now + 0.17);
 
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.linearRampToValueAtTime(0.034, now + 0.008);
+      gain.gain.linearRampToValueAtTime(0.034 * duck, now + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
 
       oscA.connect(gain);
@@ -365,49 +477,38 @@ export default function ArcheryGame({
     [getAudioContext]
   );
 
+  // -------------------------
+  // TIERED “VOICE OR FALLBACK”
+  // -------------------------
   const speakOrFallback = useCallback(
-    (text, kind) => {
+    async (text, kind) => {
       if (!soundRef.current || typeof window === "undefined") return;
 
-      cleanupAudioNodes();
+      // 1) Try recorded voice first
+      const ok = await playVoice(kind === "completion" ? VOICE_COMPLETE_SRC : VOICE_MIDPOINT_SRC);
+      if (ok) return;
 
+      // 2) Speech synthesis fallback (best-effort)
+      cleanupAudioNodes();
       const synth = window.speechSynthesis;
       const hasSpeech = synth && typeof window.SpeechSynthesisUtterance !== "undefined";
       if (hasSpeech) {
         try {
           synth.cancel();
           const voices = synth.getVoices?.() || [];
-          const maleHints = [
-            /david/i,
-            /mark/i,
-            /alex/i,
-            /daniel/i,
-            /matthew/i,
-            /george/i,
-            /fred/i,
-            /tom/i,
-            /james/i,
-            /guy/i,
-            /male/i,
-            /man/i,
-          ];
-          const maleVoice =
-            voices.find((voice) =>
-              maleHints.some((pattern) =>
-                pattern.test(`${voice.name || ""} ${voice.voiceURI || ""}`)
-              )
-            ) ||
-            voices.find((voice) => /^en(-|_)/i.test(voice.lang || "")) ||
-            voices[0] ||
-            null;
+
+          // Choose a high-quality English voice if available
+          const preferred = voices.find((v) => /natural|enhanced|premium|google|siri/i.test(`${v.name} ${v.voiceURI}`));
+          const enVoice = preferred || voices.find((v) => /^en(-|_)/i.test(v.lang || "")) || voices[0] || null;
 
           const utter = new window.SpeechSynthesisUtterance(text);
-          if (maleVoice) {
-            utter.voice = maleVoice;
-          }
-          utter.rate = kind === "completion" ? 0.72 : 0.8;
-          utter.pitch = 0.85;
-          utter.volume = 0.9;
+          if (enVoice) utter.voice = enVoice;
+
+          // “seductive-ish” pacing (still PG)
+          utter.rate = kind === "completion" ? 0.74 : 0.82;
+          utter.pitch = 0.9;
+          utter.volume = 0.95;
+
           synth.speak(utter);
           return;
         } catch {
@@ -415,35 +516,25 @@ export default function ArcheryGame({
         }
       }
 
-      if (kind === "completion") {
-        playCompletionCue();
-      } else {
-        playMidpointCue();
-      }
+      // 3) WebAudio cue fallback
+      if (kind === "completion") playCompletionCue();
+      else playMidpointCue();
     },
-    [cleanupAudioNodes, playCompletionCue, playMidpointCue]
+    [cleanupAudioNodes, playCompletionCue, playMidpointCue, playVoice]
   );
 
   const showCallout = useCallback((text, durationMs = 1700) => {
-    if (calloutTimerRef.current) {
-      clearTimeout(calloutTimerRef.current);
-    }
+    if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current);
 
     setCallout({ key: `${Date.now()}-${Math.random()}`, text, durationMs });
-    calloutTimerRef.current = setTimeout(() => {
-      setCallout(null);
-    }, durationMs);
+    calloutTimerRef.current = setTimeout(() => setCallout(null), durationMs);
   }, []);
 
   const showHitFlash = useCallback(() => {
-    if (hitFlashTimerRef.current) {
-      clearTimeout(hitFlashTimerRef.current);
-    }
+    if (hitFlashTimerRef.current) clearTimeout(hitFlashTimerRef.current);
     const text = HIT_FLASH_TEXTS[Math.floor(Math.random() * HIT_FLASH_TEXTS.length)];
     setHitFlash({ key: `${Date.now()}-${Math.random()}`, text });
-    hitFlashTimerRef.current = setTimeout(() => {
-      setHitFlash(null);
-    }, 760);
+    hitFlashTimerRef.current = setTimeout(() => setHitFlash(null), 760);
   }, []);
 
   const emitComplete = useCallback(
@@ -454,16 +545,12 @@ export default function ArcheryGame({
       if (typeof onComplete === "function") {
         try {
           onComplete(payload);
-        } catch {
-          // no-op
-        }
+        } catch {}
       }
 
       try {
         window.dispatchEvent(new CustomEvent("archery:complete", { detail: payload }));
-      } catch {
-        // no-op
-      }
+      } catch {}
     },
     [onComplete]
   );
@@ -478,6 +565,9 @@ export default function ArcheryGame({
     });
   }, [emitComplete]);
 
+  // -------------------------
+  // LOAD IMAGES
+  // -------------------------
   useEffect(() => {
     let cancelled = false;
 
@@ -535,6 +625,7 @@ export default function ArcheryGame({
         bb.height / Math.max(1, bb.width) +
         (1 - clamp01(bb.width / vbW)) * 2 +
         clamp01((vbW * 0.7 - bb.x) / vbW);
+
       if (score > bestScore) {
         bestScore = score;
         best = el;
@@ -589,21 +680,13 @@ export default function ArcheryGame({
         const bb = stringEl.getBBox();
         top = { x: bb.x + bb.width * 0.5, y: bb.y };
         bottom = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
-      } catch {
-        // ignore and fallback
-      }
+      } catch {}
     }
 
     if (!top || !bottom) {
       const xFrac = BOW_MIRRORED ? 1 - FALLBACK_STRING_X_FRAC : FALLBACK_STRING_X_FRAC;
-      top = {
-        x: vbX + vbW * xFrac,
-        y: vbY + vbH * FALLBACK_STRING_TOP_Y_FRAC,
-      };
-      bottom = {
-        x: vbX + vbW * xFrac,
-        y: vbY + vbH * FALLBACK_STRING_BOTTOM_Y_FRAC,
-      };
+      top = { x: vbX + vbW * xFrac, y: vbY + vbH * FALLBACK_STRING_TOP_Y_FRAC };
+      bottom = { x: vbX + vbW * xFrac, y: vbY + vbH * FALLBACK_STRING_BOTTOM_Y_FRAC };
     }
 
     const nockVB = {
@@ -638,6 +721,7 @@ export default function ArcheryGame({
     };
   }, []);
 
+  // Load bow.svg inline
   useEffect(() => {
     let cancelled = false;
 
@@ -668,55 +752,58 @@ export default function ArcheryGame({
         }
 
         ensureStringPaths();
-      } catch {
-        // no-op
-      }
+      } catch {}
     };
 
     loadBow();
-
     return () => {
       cancelled = true;
     };
   }, [ensureStringPaths, findStringElement]);
 
-  const buildCandleLayout = useCallback((W, H, releaseX) => {
-    const list = [];
-    const regionStart = Math.max(W * CANDLE_REGION_START_PCT, releaseX + CANDLE_BOW_CLEARANCE_PX);
-    const regionEnd = W - CANDLE_REGION_END_PAD_PX;
+  const buildCandleLayout = useCallback(
+    (W, H, releaseX) => {
+      const list = [];
+      const regionStart = Math.max(W * CANDLE_REGION_START_PCT, releaseX + CANDLE_BOW_CLEARANCE_PX);
+      const regionEnd = W - CANDLE_REGION_END_PAD_PX;
 
-    const candleH = clamp(H * 0.12, 34, 52);
-    const candleW = candleH * (546 / 1208);
+      const candleH = clamp(H * 0.12, 34, 52);
+      const candleW = candleH * (546 / 1208);
 
-    const rowAnchors = [0.28, 0.43, 0.58, 0.73];
+      const rowAnchors = [0.28, 0.43, 0.58, 0.73];
 
-    for (let i = 0; i < candleCount; i += 1) {
-      const t = candleCount <= 1 ? 0 : i / (candleCount - 1);
-      const row = i % rowAnchors.length;
-      const wave = Math.sin(i * 1.26) * 24;
-      const zig = (i % 2 === 0 ? -1 : 1) * 16;
+      for (let i = 0; i < candleCount; i += 1) {
+        const t = candleCount <= 1 ? 0 : i / (candleCount - 1);
+        const row = i % rowAnchors.length;
+        const wave = Math.sin(i * 1.26) * 24;
+        const zig = (i % 2 === 0 ? -1 : 1) * 16;
 
-      const x = clamp(lerp(regionStart, regionEnd, t) + wave + zig, regionStart + 10, regionEnd - 10);
-      const y = clamp(H * rowAnchors[row] + Math.cos(i * 0.82) * 13, candleH + 20, H - 26);
+        const x = clamp(lerp(regionStart, regionEnd, t) + wave + zig, regionStart + 10, regionEnd - 10);
+        const y = clamp(H * rowAnchors[row] + Math.cos(i * 0.82) * 13, candleH + 20, H - 26);
 
-      list.push({
-        id: i,
-        x,
-        y,
-        baseX: x,
-        baseY: y,
-        w: candleW,
-        h: candleH,
-        state: "lit",
-        fadeT: 0,
-        flamePhase: Math.random() * Math.PI * 2,
-        floatPhase: Math.random() * Math.PI * 2,
-      });
-    }
+        list.push({
+          id: i,
+          x,
+          y,
+          baseX: x,
+          baseY: y,
+          w: candleW,
+          h: candleH,
+          state: "lit",
+          fadeT: 0,
+          flamePhase: Math.random() * Math.PI * 2,
+          floatPhase: Math.random() * Math.PI * 2,
+        });
+      }
 
-    return list;
-  }, [candleCount]);
+      return list;
+    },
+    [candleCount]
+  );
 
+  // -------------------------
+  // MAIN SIM LOOP
+  // -------------------------
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -793,10 +880,7 @@ export default function ArcheryGame({
 
     const pointerToLocal = (event) => {
       const rect = canvas.getBoundingClientRect();
-      return {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-      };
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     };
 
     const constrainPull = (sim, x, y) => {
@@ -882,6 +966,7 @@ export default function ArcheryGame({
 
       midpointTriggeredRef.current = true;
       showCallout(MIDPOINT_TEXT, 1800);
+      // Voice clip preferred (then synth fallback then cue)
       speakOrFallback(MIDPOINT_TEXT, "midpoint");
     };
 
@@ -891,9 +976,7 @@ export default function ArcheryGame({
       sim.done = true;
       sim.finishedAt = performance.now();
 
-      if (completionTimerRef.current) {
-        clearTimeout(completionTimerRef.current);
-      }
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
 
       completionTimerRef.current = setTimeout(() => {
         showCallout(COMPLETION_TEXT, 1900);
@@ -902,9 +985,7 @@ export default function ArcheryGame({
         spawnConfetti(sim);
         setDoneUI(true);
 
-        if (autoCompleteTimerRef.current) {
-          clearTimeout(autoCompleteTimerRef.current);
-        }
+        if (autoCompleteTimerRef.current) clearTimeout(autoCompleteTimerRef.current);
         autoCompleteTimerRef.current = setTimeout(() => {
           finalizeCompletion();
         }, COMPLETE_AUTO_ADVANCE_MS);
@@ -924,7 +1005,12 @@ export default function ArcheryGame({
       setRemainingUI(Math.max(0, candleCount - sim.extinguished));
 
       spawnHitSparks(sim, candle.x, candle.y - candle.h * 0.92);
-      sim.glowPulses.push({ x: candle.x, y: candle.y - candle.h * 0.92, t: 0, life: reducedMotion ? 0.24 : 0.4 });
+      sim.glowPulses.push({
+        x: candle.x,
+        y: candle.y - candle.h * 0.92,
+        t: 0,
+        life: reducedMotion ? 0.24 : 0.4,
+      });
 
       showHitFlash();
       playHitTone(candle.id);
@@ -1026,23 +1112,21 @@ export default function ArcheryGame({
       if (pointerIdRef.current != null) return;
       if (sim.arrows.some((arrow) => arrow.alive)) return;
 
+      // Audio unlock moments
       resumeAudioContext();
+      unlockVoicePlayback();
 
       pointerIdRef.current = event.pointerId;
       try {
         canvas.setPointerCapture(event.pointerId);
-      } catch {
-        // no-op
-      }
+      } catch {}
 
       const point = pointerToLocal(event);
       sim.aiming = true;
       sim.pull = snapToComfortZone(sim, point.x, point.y);
       sim.pullVel = { x: 0, y: 0 };
 
-      if (!sim.startedAt) {
-        sim.startedAt = performance.now();
-      }
+      if (!sim.startedAt) sim.startedAt = performance.now();
 
       event.preventDefault();
     };
@@ -1067,9 +1151,7 @@ export default function ArcheryGame({
 
       try {
         canvas.releasePointerCapture(event.pointerId);
-      } catch {
-        // no-op
-      }
+      } catch {}
 
       if (!sim.aiming) return;
       sim.aiming = false;
@@ -1110,9 +1192,7 @@ export default function ArcheryGame({
       sim.pullVel = { x: 0, y: 0 };
       try {
         canvas.releasePointerCapture(event.pointerId);
-      } catch {
-        // no-op
-      }
+      } catch {}
     };
 
     const options = { passive: false };
@@ -1195,16 +1275,9 @@ export default function ArcheryGame({
           continue;
         }
 
-        if (arrow.hits >= MAX_CANDLES_PER_ARROW) {
-          continue;
-        }
+        if (arrow.hits >= MAX_CANDLES_PER_ARROW) continue;
 
-        const arrowBox = {
-          x: arrow.x - 18,
-          y: arrow.y - 9,
-          w: 74,
-          h: 18,
-        };
+        const arrowBox = { x: arrow.x - 18, y: arrow.y - 9, w: 74, h: 18 };
 
         for (const candle of sim.candles) {
           if (arrow.hits >= MAX_CANDLES_PER_ARROW) break;
@@ -1222,7 +1295,6 @@ export default function ArcheryGame({
             arrow.hitIds.add(candle.id);
             arrow.hits += 1;
             extinguishCandle(sim, candle);
-
             arrow.vx *= 0.84;
             arrow.vy *= 0.9;
           }
@@ -1240,9 +1312,7 @@ export default function ArcheryGame({
       }
 
       sim.glowPulses = sim.glowPulses.filter((pulse) => pulse.t < pulse.life);
-      for (const pulse of sim.glowPulses) {
-        pulse.t += dt;
-      }
+      for (const pulse of sim.glowPulses) pulse.t += dt;
 
       for (const bit of sim.confetti) {
         bit.drift += dt * 1.1;
@@ -1384,9 +1454,9 @@ export default function ArcheryGame({
       if (!sim.aiming && sim.arrows.length > 0) return;
 
       const nock = sim.aiming ? sim.pull : sim.release;
-      const rot = sim.aiming
-        ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x)
-        : 0;
+
+      // While aiming: point arrow from pull->release (forward)
+      const rot = sim.aiming ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x) : 0;
 
       const drawX = -ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
       const drawY = -ARROW_DRAW_H * ARROW_NOCK_Y_FRAC;
@@ -1516,30 +1586,46 @@ export default function ArcheryGame({
     showCallout,
     showHitFlash,
     speakOrFallback,
+    unlockVoicePlayback,
     vibrate,
   ]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current);
       if (hitFlashTimerRef.current) clearTimeout(hitFlashTimerRef.current);
       if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
       if (autoCompleteTimerRef.current) clearTimeout(autoCompleteTimerRef.current);
+
       cleanupAudioNodes();
+      stopVoice();
 
       if (typeof window !== "undefined" && window.speechSynthesis) {
         try {
           window.speechSynthesis.cancel();
-        } catch {
-          // no-op
-        }
+        } catch {}
       }
     };
-  }, [cleanupAudioNodes]);
+  }, [cleanupAudioNodes, stopVoice]);
 
   const onContinue = useCallback(() => {
     finalizeCompletion();
   }, [finalizeCompletion]);
+
+  // Also unlock voice when user flips Sound ON (gesture is the click)
+  const onToggleSound = useCallback(
+    async (next) => {
+      setSoundOn(next);
+      if (next) {
+        resumeAudioContext();
+        await unlockVoicePlayback();
+      } else {
+        stopVoice();
+      }
+    },
+    [resumeAudioContext, stopVoice, unlockVoicePlayback]
+  );
 
   return (
     <div
@@ -1607,43 +1693,21 @@ export default function ArcheryGame({
         }
 
         @keyframes archeryCallout {
-          0% {
-            opacity: 0;
-            transform: translateY(12px) scale(0.98);
-          }
-          18%,
-          70% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-8px) scale(1.01);
-          }
+          0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+          18%, 70% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-8px) scale(1.01); }
         }
 
         @keyframes archeryHitFlash {
-          0% {
-            opacity: 0;
-            transform: translateY(8px) scale(0.96);
-          }
-          22%,
-          58% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-6px) scale(1.02);
-          }
+          0% { opacity: 0; transform: translateY(8px) scale(0.96); }
+          22%, 58% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-6px) scale(1.02); }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .archery-rotate-icon,
           .archery-callout,
-          .archery-hit-flash {
-            animation: none !important;
-          }
+          .archery-hit-flash { animation: none !important; }
         }
       `}</style>
 
@@ -1709,7 +1773,7 @@ export default function ArcheryGame({
         </div>
 
         <div style={toggleWrap}>
-          <TogglePill label="Sound" value={soundOn} onChange={setSoundOn} />
+          <TogglePill label="Sound" value={soundOn} onChange={onToggleSound} />
           <TogglePill label="Haptics" value={hapticsOn} onChange={setHapticsOn} />
         </div>
 
@@ -1797,21 +1861,10 @@ const hudBar = {
   color: "#f4e7ce",
 };
 
-const title = {
-  fontSize: 15,
-  fontWeight: 700,
-};
+const title = { fontSize: 15, fontWeight: 700 };
+const subtitle = { fontSize: 12, opacity: 0.84 };
 
-const subtitle = {
-  fontSize: 12,
-  opacity: 0.84,
-};
-
-const statusPills = {
-  display: "flex",
-  gap: 8,
-  alignItems: "center",
-};
+const statusPills = { display: "flex", gap: 8, alignItems: "center" };
 
 const pill = {
   borderRadius: 999,
@@ -1880,11 +1933,7 @@ const rotateCard = {
   color: "#f8ead1",
 };
 
-const rotateText = {
-  fontSize: 17,
-  lineHeight: 1.35,
-  fontWeight: 650,
-};
+const rotateText = { fontSize: 17, lineHeight: 1.35, fontWeight: 650 };
 
 const hitFlashWrap = {
   position: "absolute",
@@ -1954,11 +2003,7 @@ const doneCard = {
   color: "#f8ead0",
 };
 
-const doneTitle = {
-  fontSize: 19,
-  marginBottom: 12,
-  fontWeight: 700,
-};
+const doneTitle = { fontSize: 19, marginBottom: 12, fontWeight: 700 };
 
 const continueBtn = {
   width: "100%",
