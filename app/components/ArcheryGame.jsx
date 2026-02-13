@@ -81,10 +81,11 @@ const MIDPOINT_TEXT = "Are you gonna be a good boy?";
 const COMPLETION_TEXT = "Good boy.";
 const HIT_FLASH_TEXTS = ["Good.", "Again.", "Perfect form.", "That\u2019s it."];
 
-const COMPLETE_MICRO_PAUSE_MS = 300;
+const COMPLETE_MICRO_PAUSE_MS = 700;
 const COMPLETE_AUTO_ADVANCE_MS = 520;
 
 const ROTATE_OVERLAY_BREAKPOINT = 900;
+const FORCE_LANDSCAPE_ON_MOBILE = false;
 
 export default function ArcheryGame({
   onComplete,
@@ -172,7 +173,9 @@ export default function ArcheryGame({
     };
   }, []);
 
+  // Landscape is not forced on mobile.
   const showRotateOverlay =
+    FORCE_LANDSCAPE_ON_MOBILE &&
     isCoarsePointer &&
     viewport.width > 0 &&
     viewport.width <= ROTATE_OVERLAY_BREAKPOINT &&
@@ -373,9 +376,37 @@ export default function ArcheryGame({
       if (hasSpeech) {
         try {
           synth.cancel();
+          const voices = synth.getVoices?.() || [];
+          const maleHints = [
+            /david/i,
+            /mark/i,
+            /alex/i,
+            /daniel/i,
+            /matthew/i,
+            /george/i,
+            /fred/i,
+            /tom/i,
+            /james/i,
+            /guy/i,
+            /male/i,
+            /man/i,
+          ];
+          const maleVoice =
+            voices.find((voice) =>
+              maleHints.some((pattern) =>
+                pattern.test(`${voice.name || ""} ${voice.voiceURI || ""}`)
+              )
+            ) ||
+            voices.find((voice) => /^en(-|_)/i.test(voice.lang || "")) ||
+            voices[0] ||
+            null;
+
           const utter = new window.SpeechSynthesisUtterance(text);
-          utter.rate = kind === "completion" ? 0.85 : 0.95;
-          utter.pitch = kind === "completion" ? 0.9 : 1.0;
+          if (maleVoice) {
+            utter.voice = maleVoice;
+          }
+          utter.rate = kind === "completion" ? 0.72 : 0.8;
+          utter.pitch = 0.85;
           utter.volume = 0.9;
           synth.speak(utter);
           return;
