@@ -35,48 +35,60 @@ const STRING_SELECTOR_ORDER = [
 const STRING_NOCK_Y_FRAC = 0.52;
 const ARROW_DRAW_W = 292;
 const ARROW_DRAW_H = 20;
-const ARROW_NOCK_X_FRAC = 0.0;
-const RELEASE_Y_OFFSET_PX = -58;
+const ARROW_NOCK_X_FRAC = 0.04;
+const ARROW_NOCK_Y_FRAC = 0.5;
+const RELEASE_Y_OFFSET_PX = -60;
 
-const BOW_MIRRORED = false;
-const BOW_LEFT_PX = 96;
-const BOW_WIDTH_CSS = "clamp(220px, 26vw, 320px)";
+const BOW_MIRRORED = true;
+const BOW_LEFT_PX = "clamp(20px, 7vw, 88px)";
+const BOW_WIDTH = "clamp(220px, 26vw, 320px)";
 
-const BOW_STRING_X_FRAC = 0.155;
-const BOW_STRING_TOP_Y_FRAC = 0.12;
-const BOW_STRING_BOTTOM_Y_FRAC = 0.89;
+const FALLBACK_STRING_X_FRAC = 0.155;
+const FALLBACK_STRING_TOP_Y_FRAC = 0.11;
+const FALLBACK_STRING_BOTTOM_Y_FRAC = 0.9;
 
-const MAX_PULL_PX = 330;
-const MIN_PULL_PX = 18;
-const MAX_VERTICAL_AIM_PX = 132;
-const COMFORT_PULL_PX = 210;
-const CENTER_MAGNET_BASE = 0.2;
-const CENTER_MAGNET_PULL = 0.45;
-const DRAW_REACH_BOOST_X = 2.25;
-const DRAW_REACH_BOOST_Y = 1.08;
+const MAX_PULL_PX = 430;
+const MIN_PULL_PX = 20;
+const COMFORT_PULL_PX = 230;
+const MAX_VERTICAL_AIM_PX = 142;
+const CENTERLINE_MAGNET_BASE = 0.18;
+const CENTERLINE_MAGNET_PULL = 0.45;
+
+const SPRING_STIFFNESS = 90;
+const SPRING_DAMPING = 13.5;
 
 const STRING_VIBRATION_MS = 340;
-const COMPLETE_AUTO_DELAY_MS = 420;
+const STRING_CURVE_STRENGTH = 0.38;
+const STRING_GAP = 1.9;
+const BOW_INWARD_BEND_X = 11;
+const BOW_INWARD_BEND_Y = 14;
 
-const CANDLE_REGION_START_PCT = 0.55;
+const GRAVITY = 1180;
+const MIN_SHOT_SPEED = 560;
+const MAX_SHOT_SPEED = 2600;
+const ARROW_DRAG = 0.0014;
+
+const CANDLE_DEFAULT_COUNT = 14;
+const MAX_CANDLES_PER_ARROW = 2;
+const CANDLE_REGION_START_PCT = 0.54;
 const CANDLE_REGION_END_PAD_PX = 28;
-const CANDLE_HITBOX_SCALE = 0.72;
+const CANDLE_BOW_CLEARANCE_PX = 320;
 
-const GRAVITY = 1220;
-const MIN_SPEED = 560;
-const MAX_SPEED = 2420;
-const ARROW_DRAG = 0.0015;
+const CANDLE_FLICKER_OUT_MS = 220;
+const CANDLE_HITBOX_SCALE = 0.62;
 
-const WORLD_WIDTH_PORTRAIT_MULT = 2.28;
-const WORLD_WIDTH_LANDSCAPE_MULT = 1.9;
-const WORLD_WIDTH_DESKTOP_MULT = 1.55;
+const MIDPOINT_TEXT = "Are you gonna be a good boy?";
+const COMPLETION_TEXT = "Good boy.";
+const HIT_FLASH_TEXTS = ["Good.", "Again.", "Perfect form.", "That\u2019s it."];
 
-const PREVIEW_PAN_START_OFFSET_PX = 30;
-const PREVIEW_WHEEL_GAIN = 0.72;
+const COMPLETE_MICRO_PAUSE_MS = 300;
+const COMPLETE_AUTO_ADVANCE_MS = 520;
+
+const ROTATE_OVERLAY_BREAKPOINT = 900;
 
 export default function ArcheryGame({
   onComplete,
-  candleCount = 7,
+  candleCount = CANDLE_DEFAULT_COUNT,
   width = "100%",
   height = 420,
 }) {
@@ -86,18 +98,16 @@ export default function ArcheryGame({
   const bowHostRef = useRef(null);
 
   const bowSvgRef = useRef(null);
-  const nativeStringRef = useRef(null);
-  const stringTopARef = useRef(null);
-  const stringTopBRef = useRef(null);
-  const stringBotARef = useRef(null);
-  const stringBotBRef = useRef(null);
+  const detectedStringRef = useRef(null);
+  const stringARef = useRef(null);
+  const stringBRef = useRef(null);
 
-  const assetsRef = useRef({ arrow: null, candle: null, ready: false });
   const simRef = useRef(null);
+  const assetsRef = useRef({ arrow: null, candle: null, ready: false });
 
   const pointerIdRef = useRef(null);
-  const completeOnceRef = useRef(false);
-  const completeTimeoutRef = useRef(null);
+  const completeLockedRef = useRef(false);
+  const midpointTriggeredRef = useRef(false);
 
   const [assetsReady, setAssetsReady] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
@@ -105,22 +115,28 @@ export default function ArcheryGame({
   const [shotsUI, setShotsUI] = useState(0);
   const [remainingUI, setRemainingUI] = useState(candleCount);
   const [doneUI, setDoneUI] = useState(false);
+  const [hitFlash, setHitFlash] = useState(null);
+  const [callout, setCallout] = useState(null);
 
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+
+  const soundRef = useRef(false);
+  const hapticRef = useRef(false);
+  const rotateBlockedRef = useRef(false);
+
+  const audioCtxRef = useRef(null);
+  const cueNodesRef = useRef([]);
+
+  const calloutTimerRef = useRef(null);
+  const hitFlashTimerRef = useRef(null);
+  const completionTimerRef = useRef(null);
+  const autoCompleteTimerRef = useRef(null);
 
   const reducedMotion = useMemo(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
   }, []);
-
-  const isPortrait = viewport.height > viewport.width;
-  const mobileLike = isCoarsePointer;
-  const gameHeight = `clamp(260px, 62vh, ${Math.max(280, Number(height) || 420)}px)`;
-
-  const soundRef = useRef(false);
-  const hapticRef = useRef(false);
-  const audioCtxRef = useRef(null);
 
   useEffect(() => {
     soundRef.current = soundOn;
@@ -130,40 +146,83 @@ export default function ArcheryGame({
     hapticRef.current = hapticsOn;
   }, [hapticsOn]);
 
-  const playTone = useCallback((freq, ms, options = {}) => {
-    if (!soundRef.current || typeof window === "undefined") return;
-    const { toFreq = freq, type = "triangle", gainPeak = 0.04 } = options;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
+    const updateViewport = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    };
+
+    const coarseMql = window.matchMedia?.("(pointer: coarse)");
+    setIsCoarsePointer(coarseMql?.matches ?? false);
+
+    const onCoarseChange = (event) => {
+      setIsCoarsePointer(event.matches);
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    window.addEventListener("orientationchange", updateViewport);
+    coarseMql?.addEventListener?.("change", onCoarseChange);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
+      coarseMql?.removeEventListener?.("change", onCoarseChange);
+    };
+  }, []);
+
+  const showRotateOverlay =
+    isCoarsePointer &&
+    viewport.width > 0 &&
+    viewport.width <= ROTATE_OVERLAY_BREAKPOINT &&
+    viewport.height > viewport.width;
+
+  useEffect(() => {
+    rotateBlockedRef.current = showRotateOverlay;
+  }, [showRotateOverlay]);
+
+  const gameHeight = `clamp(260px, 62vh, ${Math.max(280, Number(height) || 420)}px)`;
+
+  const cleanupAudioNodes = useCallback(() => {
+    for (const node of cueNodesRef.current) {
+      try {
+        node.stop?.();
+      } catch {
+        // no-op
+      }
+      try {
+        node.disconnect?.();
+      } catch {
+        // no-op
+      }
+    }
+    cueNodesRef.current = [];
+  }, []);
+
+  const getAudioContext = useCallback(() => {
+    if (typeof window === "undefined") return null;
     try {
       if (!audioCtxRef.current) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
         audioCtxRef.current = new Ctx();
       }
-
-      const ctx = audioCtxRef.current;
-      if (ctx.state === "suspended") {
-        ctx.resume();
-      }
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(44, toFreq), ctx.currentTime + ms / 1000);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      const t = ctx.currentTime;
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(gainPeak, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
-
-      osc.start(t);
-      osc.stop(t + ms / 1000 + 0.01);
+      return audioCtxRef.current;
     } catch {
-      // no-op
+      return null;
     }
   }, []);
+
+  const resumeAudioContext = useCallback(() => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {
+        // no-op
+      });
+    }
+  }, [getAudioContext]);
 
   const vibrate = useCallback((pattern) => {
     if (!hapticRef.current) return;
@@ -174,35 +233,226 @@ export default function ArcheryGame({
     }
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  const playSynthCue = useCallback(
+    ({ root = 340, gain = 0.04, decay = 0.5, noise = 0.016, slower = false }) => {
+      if (!soundRef.current) return;
+      const ctx = getAudioContext();
+      if (!ctx) return;
 
-    const updateViewport = () => {
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
-    };
+      cleanupAudioNodes();
 
-    const coarse = window.matchMedia?.("(pointer: coarse)");
-    setIsCoarsePointer(coarse?.matches ?? false);
-    updateViewport();
+      const now = ctx.currentTime;
 
-    const onCoarseChange = (event) => setIsCoarsePointer(event.matches);
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.linearRampToValueAtTime(gain, now + 0.012);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+      master.connect(ctx.destination);
 
-    window.addEventListener("resize", updateViewport);
-    window.addEventListener("orientationchange", updateViewport);
-    coarse?.addEventListener?.("change", onCoarseChange);
+      const noiseBuffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * noise)), ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] = (Math.random() * 2 - 1) * 0.38;
+      }
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = "bandpass";
+      bandpass.frequency.value = slower ? 720 : 880;
+      bandpass.Q.value = 1.3;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, now);
+      noiseGain.gain.linearRampToValueAtTime(gain * 0.32, now + 0.004);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + noise + 0.03);
 
-    return () => {
-      window.removeEventListener("resize", updateViewport);
-      window.removeEventListener("orientationchange", updateViewport);
-      coarse?.removeEventListener?.("change", onCoarseChange);
-    };
+      noiseSource.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(master);
+
+      const oscA = ctx.createOscillator();
+      const oscB = ctx.createOscillator();
+      oscA.type = "triangle";
+      oscB.type = "sine";
+      oscA.frequency.setValueAtTime(root, now);
+      oscB.frequency.setValueAtTime(root * 1.5, now);
+
+      const chordGain = ctx.createGain();
+      chordGain.gain.setValueAtTime(0.0001, now);
+      chordGain.gain.linearRampToValueAtTime(gain * (slower ? 0.62 : 0.48), now + 0.02);
+      chordGain.gain.exponentialRampToValueAtTime(0.0001, now + decay + (slower ? 0.22 : 0.1));
+
+      oscA.connect(chordGain);
+      oscB.connect(chordGain);
+      chordGain.connect(master);
+
+      noiseSource.start(now);
+      noiseSource.stop(now + noise + 0.06);
+      oscA.start(now);
+      oscB.start(now);
+      oscA.stop(now + decay + (slower ? 0.22 : 0.1));
+      oscB.stop(now + decay + (slower ? 0.22 : 0.1));
+
+      cueNodesRef.current = [noiseSource, oscA, oscB, bandpass, noiseGain, chordGain, master];
+    },
+    [cleanupAudioNodes, getAudioContext]
+  );
+
+  const playMidpointCue = useCallback(() => {
+    playSynthCue({ root: 386, gain: 0.032, decay: 0.38, noise: 0.012, slower: false });
+  }, [playSynthCue]);
+
+  const playCompletionCue = useCallback(() => {
+    playSynthCue({ root: 286, gain: 0.042, decay: 0.62, noise: 0.016, slower: true });
+  }, [playSynthCue]);
+
+  const playReleaseSnap = useCallback(() => {
+    if (!soundRef.current) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(630, now);
+    osc.frequency.exponentialRampToValueAtTime(210, now + 0.09);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.028, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }, [getAudioContext]);
+
+  const playHitTone = useCallback(
+    (candleId) => {
+      if (!soundRef.current) return;
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+      const semitone = (candleId % 9) - 4;
+      const root = 650 * Math.pow(2, semitone / 24);
+      const oscA = ctx.createOscillator();
+      const oscB = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscA.type = candleId % 2 === 0 ? "triangle" : "sine";
+      oscB.type = candleId % 3 === 0 ? "sine" : "triangle";
+
+      oscA.frequency.setValueAtTime(root, now);
+      oscB.frequency.setValueAtTime(root * (1.45 + (candleId % 4) * 0.02), now);
+      oscA.frequency.exponentialRampToValueAtTime(root * 0.64, now + 0.14);
+      oscB.frequency.exponentialRampToValueAtTime(root * 0.88, now + 0.17);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.034, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+      oscA.connect(gain);
+      oscB.connect(gain);
+      gain.connect(ctx.destination);
+
+      oscA.start(now);
+      oscB.start(now);
+      oscA.stop(now + 0.2);
+      oscB.stop(now + 0.2);
+    },
+    [getAudioContext]
+  );
+
+  const speakOrFallback = useCallback(
+    (text, kind) => {
+      if (!soundRef.current || typeof window === "undefined") return;
+
+      cleanupAudioNodes();
+
+      const synth = window.speechSynthesis;
+      const hasSpeech = synth && typeof window.SpeechSynthesisUtterance !== "undefined";
+      if (hasSpeech) {
+        try {
+          synth.cancel();
+          const utter = new window.SpeechSynthesisUtterance(text);
+          utter.rate = kind === "completion" ? 0.85 : 0.95;
+          utter.pitch = kind === "completion" ? 0.9 : 1.0;
+          utter.volume = 0.9;
+          synth.speak(utter);
+          return;
+        } catch {
+          // fall through to cue
+        }
+      }
+
+      if (kind === "completion") {
+        playCompletionCue();
+      } else {
+        playMidpointCue();
+      }
+    },
+    [cleanupAudioNodes, playCompletionCue, playMidpointCue]
+  );
+
+  const showCallout = useCallback((text, durationMs = 1700) => {
+    if (calloutTimerRef.current) {
+      clearTimeout(calloutTimerRef.current);
+    }
+
+    setCallout({ key: `${Date.now()}-${Math.random()}`, text, durationMs });
+    calloutTimerRef.current = setTimeout(() => {
+      setCallout(null);
+    }, durationMs);
   }, []);
+
+  const showHitFlash = useCallback(() => {
+    if (hitFlashTimerRef.current) {
+      clearTimeout(hitFlashTimerRef.current);
+    }
+    const text = HIT_FLASH_TEXTS[Math.floor(Math.random() * HIT_FLASH_TEXTS.length)];
+    setHitFlash({ key: `${Date.now()}-${Math.random()}`, text });
+    hitFlashTimerRef.current = setTimeout(() => {
+      setHitFlash(null);
+    }, 760);
+  }, []);
+
+  const emitComplete = useCallback(
+    (payload) => {
+      if (completeLockedRef.current) return;
+      completeLockedRef.current = true;
+
+      if (typeof onComplete === "function") {
+        try {
+          onComplete(payload);
+        } catch {
+          // no-op
+        }
+      }
+
+      try {
+        window.dispatchEvent(new CustomEvent("archery:complete", { detail: payload }));
+      } catch {
+        // no-op
+      }
+    },
+    [onComplete]
+  );
+
+  const finalizeCompletion = useCallback(() => {
+    const sim = simRef.current;
+    if (!sim) return;
+
+    emitComplete({
+      shots: sim.shots,
+      timeMs: sim.startedAt && sim.finishedAt ? Math.max(0, sim.finishedAt - sim.startedAt) : null,
+    });
+  }, [emitComplete]);
 
   useEffect(() => {
     let cancelled = false;
 
     const arrow = new Image();
     const candle = new Image();
+
     arrow.src = "/game/arrow.png";
     candle.src = "/game/candle.png";
 
@@ -223,7 +473,7 @@ export default function ArcheryGame({
     };
   }, []);
 
-  const findNativeStringElement = useCallback((svg) => {
+  const findStringElement = useCallback((svg) => {
     for (const selector of STRING_SELECTOR_ORDER) {
       const found = svg.querySelector(selector);
       if (found) return found;
@@ -231,61 +481,60 @@ export default function ArcheryGame({
 
     const vb = svg.viewBox?.baseVal;
     const vbH = vb?.height || 1;
-    const candidates = Array.from(svg.querySelectorAll("path,line,polyline,rect"));
+    const vbW = vb?.width || 1;
 
+    const candidates = Array.from(svg.querySelectorAll("path,line,polyline,rect"));
     let best = null;
     let bestScore = -Infinity;
 
-    for (const element of candidates) {
+    for (const el of candidates) {
       let bb;
       try {
-        bb = element.getBBox();
+        bb = el.getBBox();
       } catch {
         continue;
       }
+      if (!bb) continue;
 
-      if (!bb || bb.height <= vbH * 0.4) continue;
+      const stroke = el.getAttribute("stroke");
+      if (!stroke || stroke === "none") continue;
+      if (bb.height < vbH * 0.45) continue;
 
-      const aspect = bb.height / Math.max(1, bb.width);
-      const score = aspect + (1 - clamp01(bb.width / Math.max(1, vb?.width || 1))) * 2;
+      const score =
+        bb.height / Math.max(1, bb.width) +
+        (1 - clamp01(bb.width / vbW)) * 2 +
+        clamp01((vbW * 0.7 - bb.x) / vbW);
       if (score > bestScore) {
         bestScore = score;
-        best = element;
+        best = el;
       }
     }
 
     return best;
   }, []);
 
-  const ensureInjectedStringPaths = useCallback(() => {
+  const ensureStringPaths = useCallback(() => {
     const svg = bowSvgRef.current;
     if (!svg) return;
 
-    if (
-      !stringTopARef.current ||
-      !stringTopBRef.current ||
-      !stringBotARef.current ||
-      !stringBotBRef.current
-    ) {
-      const makePath = (role) => {
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("fill", "none");
-        path.setAttribute("stroke", "rgba(48, 39, 28, 0.98)");
-        path.setAttribute("stroke-width", "1.25");
-        path.setAttribute("stroke-linecap", "round");
-        path.setAttribute("vector-effect", "non-scaling-stroke");
-        path.setAttribute("data-role", role);
-        path.style.pointerEvents = "none";
-        path.style.mixBlendMode = "multiply";
-        svg.appendChild(path);
-        return path;
-      };
+    const ensurePath = (existing, role) => {
+      if (existing) return existing;
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "rgba(44, 34, 25, 0.96)");
+      path.setAttribute("stroke-width", "1.45");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      path.setAttribute("data-role", role);
+      path.style.pointerEvents = "none";
+      path.style.mixBlendMode = "multiply";
+      svg.appendChild(path);
+      return path;
+    };
 
-      stringTopARef.current = makePath("injected-string-top-a");
-      stringTopBRef.current = makePath("injected-string-top-b");
-      stringBotARef.current = makePath("injected-string-bottom-a");
-      stringBotBRef.current = makePath("injected-string-bottom-b");
-    }
+    stringARef.current = ensurePath(stringARef.current, "sim-string-a");
+    stringBRef.current = ensurePath(stringBRef.current, "sim-string-b");
   }, []);
 
   const getBowAnchors = useCallback(() => {
@@ -300,20 +549,43 @@ export default function ArcheryGame({
     const vbW = vb?.width || 1;
     const vbH = vb?.height || 1;
 
+    let top;
+    let bottom;
+
+    const stringEl = detectedStringRef.current;
+    if (stringEl) {
+      try {
+        const bb = stringEl.getBBox();
+        top = { x: bb.x + bb.width * 0.5, y: bb.y };
+        bottom = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
+      } catch {
+        // ignore and fallback
+      }
+    }
+
+    if (!top || !bottom) {
+      const xFrac = BOW_MIRRORED ? 1 - FALLBACK_STRING_X_FRAC : FALLBACK_STRING_X_FRAC;
+      top = {
+        x: vbX + vbW * xFrac,
+        y: vbY + vbH * FALLBACK_STRING_TOP_Y_FRAC,
+      };
+      bottom = {
+        x: vbX + vbW * xFrac,
+        y: vbY + vbH * FALLBACK_STRING_BOTTOM_Y_FRAC,
+      };
+    }
+
+    const nockVB = {
+      x: lerp(top.x, bottom.x, 0.5),
+      y: lerp(top.y, bottom.y, STRING_NOCK_Y_FRAC),
+    };
+
     const wrapRect = wrap.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
 
-    const xFrac = BOW_MIRRORED ? 1 - BOW_STRING_X_FRAC : BOW_STRING_X_FRAC;
-    const vbTop = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_TOP_Y_FRAC };
-    const vbBottom = { x: vbX + vbW * xFrac, y: vbY + vbH * BOW_STRING_BOTTOM_Y_FRAC };
-    const vbNock = {
-      x: vbTop.x,
-      y: lerp(vbTop.y, vbBottom.y, STRING_NOCK_Y_FRAC),
-    };
-
-    const toContainerPx = (pt) => {
-      let nx = (pt.x - vbX) / vbW;
-      const ny = (pt.y - vbY) / vbH;
+    const vbToContainer = (point) => {
+      let nx = (point.x - vbX) / vbW;
+      const ny = (point.y - vbY) / vbH;
       if (BOW_MIRRORED) nx = 1 - nx;
       return {
         x: wrapRect.left - containerRect.left + nx * wrapRect.width,
@@ -326,27 +598,28 @@ export default function ArcheryGame({
       vbY,
       vbW,
       vbH,
-      vbTop,
-      vbBottom,
-      vbNock,
-      pxTop: toContainerPx(vbTop),
-      pxBottom: toContainerPx(vbBottom),
-      pxNock: toContainerPx(vbNock),
+      topVB: top,
+      bottomVB: bottom,
+      nockVB,
+      topPX: vbToContainer(top),
+      bottomPX: vbToContainer(bottom),
+      nockPX: vbToContainer(nockVB),
     };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadBowSvg = async () => {
+    const loadBow = async () => {
       try {
         const response = await fetch("/game/bow.svg", { cache: "no-store" });
-        const raw = await response.text();
+        const markup = await response.text();
         if (cancelled) return;
 
         const host = bowHostRef.current;
         if (!host) return;
-        host.innerHTML = raw;
+
+        host.innerHTML = markup;
 
         const svg = host.querySelector("svg");
         if (!svg) return;
@@ -357,174 +630,105 @@ export default function ArcheryGame({
         svg.style.display = "block";
         svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-        const nativeString = findNativeStringElement(svg);
-        if (nativeString) {
-          nativeStringRef.current = nativeString;
-          nativeString.style.opacity = "0.2";
+        const detected = findStringElement(svg);
+        if (detected) {
+          detectedStringRef.current = detected;
+          detected.style.opacity = "0.12";
         }
 
-        ensureInjectedStringPaths();
+        ensureStringPaths();
       } catch {
         // no-op
       }
     };
 
-    loadBowSvg();
+    loadBow();
 
     return () => {
       cancelled = true;
     };
-  }, [ensureInjectedStringPaths, findNativeStringElement]);
+  }, [ensureStringPaths, findStringElement]);
 
-  const buildCandleLayout = useCallback(
-    (W, H, releaseX, worldW) => {
-      const candles = [];
+  const buildCandleLayout = useCallback((W, H, releaseX) => {
+    const list = [];
+    const regionStart = Math.max(W * CANDLE_REGION_START_PCT, releaseX + CANDLE_BOW_CLEARANCE_PX);
+    const regionEnd = W - CANDLE_REGION_END_PAD_PX;
 
-      const regionStart = Math.max(worldW * CANDLE_REGION_START_PCT, releaseX + W * 0.88);
-      const regionEnd = Math.max(regionStart + 280, worldW - CANDLE_REGION_END_PAD_PX - 32);
+    const candleH = clamp(H * 0.12, 34, 52);
+    const candleW = candleH * (546 / 1208);
 
-      const candleH = clamp(H * 0.24, 70, 118);
-      const candleW = candleH * (546 / 1208);
+    const rowAnchors = [0.28, 0.43, 0.58, 0.73];
 
-      for (let i = 0; i < candleCount; i += 1) {
-        const t = candleCount <= 1 ? 0 : i / (candleCount - 1);
-        const lane = i % 3;
-        const serp = Math.sin(i * 1.1) * 26;
-        const zig = (i % 2 === 0 ? -1 : 1) * 14;
+    for (let i = 0; i < candleCount; i += 1) {
+      const t = candleCount <= 1 ? 0 : i / (candleCount - 1);
+      const row = i % rowAnchors.length;
+      const wave = Math.sin(i * 1.26) * 24;
+      const zig = (i % 2 === 0 ? -1 : 1) * 16;
 
-        const x = clamp(lerp(regionStart + 20, regionEnd - 20, t) + serp + zig, regionStart + 8, regionEnd - 8);
-        const y =
-          H * 0.74 -
-          lane * clamp(candleH * 0.7, 50, 76) +
-          Math.cos(i * 0.9) * 18 -
-          (i % 4 === 0 ? 10 : 0);
+      const x = clamp(lerp(regionStart, regionEnd, t) + wave + zig, regionStart + 10, regionEnd - 10);
+      const y = clamp(H * rowAnchors[row] + Math.cos(i * 0.82) * 13, candleH + 20, H - 26);
 
-        candles.push({
-          id: i,
-          x,
-          y,
-          baseX: x,
-          baseY: y,
-          w: candleW,
-          h: candleH,
-          lit: true,
-          flamePhase: Math.random() * Math.PI * 2,
-          driftPhase: Math.random() * Math.PI * 2,
-          driftSpeed: 0.6 + Math.random() * 0.45,
-          driftAmpX: 8 + Math.random() * 8,
-          driftAmpY: 8 + Math.random() * 16,
-        });
-      }
+      list.push({
+        id: i,
+        x,
+        y,
+        baseX: x,
+        baseY: y,
+        w: candleW,
+        h: candleH,
+        state: "lit",
+        fadeT: 0,
+        flamePhase: Math.random() * Math.PI * 2,
+        floatPhase: Math.random() * Math.PI * 2,
+      });
+    }
 
-      return candles;
-    },
-    [candleCount]
-  );
-
-  const emitComplete = useCallback(
-    (payload) => {
-      if (typeof onComplete === "function") {
-        try {
-          onComplete(payload);
-        } catch {
-          // no-op
-        }
-      }
-
-      try {
-        window.dispatchEvent(new CustomEvent("archery:complete", { detail: payload }));
-      } catch {
-        // no-op
-      }
-    },
-    [onComplete]
-  );
-
-  const completeGame = useCallback(() => {
-    const sim = simRef.current;
-    if (!sim || completeOnceRef.current) return;
-    completeOnceRef.current = true;
-
-    sim.done = true;
-    sim.finishedAt = performance.now();
-
-    const payload = {
-      shots: sim.shots,
-      timeMs:
-        sim.startedAt && sim.finishedAt
-          ? Math.max(0, sim.finishedAt - sim.startedAt)
-          : null,
-    };
-
-    emitComplete(payload);
-  }, [emitComplete]);
+    return list;
+  }, [candleCount]);
 
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
 
-    const context = canvas.getContext("2d", { alpha: true });
-    if (!context) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
 
-    let raf = 0;
-    let lastTime = performance.now();
+    let rafId = 0;
+    let last = performance.now();
 
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.max(1, window.devicePixelRatio || 1);
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = "high";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    const computeWorldW = (W) => {
-      const mult = mobileLike
-        ? isPortrait
-          ? WORLD_WIDTH_PORTRAIT_MULT
-          : WORLD_WIDTH_LANDSCAPE_MULT
-        : WORLD_WIDTH_DESKTOP_MULT;
-      return Math.max(W + 280, Math.round(W * mult));
-    };
-
     const initSim = () => {
       const rect = canvas.getBoundingClientRect();
       const W = rect.width;
       const H = rect.height;
-      const worldW = computeWorldW(W);
 
-      const release = {
-        x: Math.max(140, W * 0.24),
-        y: H * 0.54 + RELEASE_Y_OFFSET_PX,
-      };
-
-      const candles = buildCandleLayout(W, H, release.x, worldW);
+      const release = { x: Math.max(130, W * 0.23), y: H * 0.52 + RELEASE_Y_OFFSET_PX };
+      const candles = buildCandleLayout(W, H, release.x);
 
       simRef.current = {
         W,
         H,
-        worldW,
-        cameraX: 0,
-        cameraV: 0,
-        previewCam: 0,
-        previewPanning: false,
-        previewStartX: 0,
-        previewStartCam: 0,
 
         release,
         pull: { ...release },
         pullVel: { x: 0, y: 0 },
 
-        wind: reducedMotion ? 0 : (Math.random() * 2 - 1) * 18,
-
         aiming: false,
         done: false,
-        hasReleasedShot: false,
+        completionQueued: false,
 
         bowAnchors: null,
         stringVibStart: 0,
@@ -532,27 +736,31 @@ export default function ArcheryGame({
 
         arrows: [],
         particles: [],
-        extinguishFx: [],
-        candles,
+        glowPulses: [],
+        confetti: [],
 
-        layoutW: W,
-        layoutH: H,
-        layoutAnchored: false,
+        candles,
+        extinguished: 0,
 
         shots: 0,
         startedAt: null,
         finishedAt: null,
       };
 
-      completeOnceRef.current = false;
-      setDoneUI(false);
+      pointerIdRef.current = null;
+      completeLockedRef.current = false;
+      midpointTriggeredRef.current = false;
+
       setShotsUI(0);
       setRemainingUI(candleCount);
+      setDoneUI(false);
+      setHitFlash(null);
+      setCallout(null);
     };
 
     initSim();
 
-    const pointerToCanvas = (event) => {
+    const pointerToLocal = (event) => {
       const rect = canvas.getBoundingClientRect();
       return {
         x: event.clientX - rect.left,
@@ -561,41 +769,40 @@ export default function ArcheryGame({
     };
 
     const constrainPull = (sim, x, y) => {
-      const dxRaw = x - sim.release.x;
-      const dyRaw = y - sim.release.y;
+      let dx = x - sim.release.x;
+      let dy = y - sim.release.y;
 
-      const boostedDx = dxRaw * DRAW_REACH_BOOST_X;
-      const boostedDy = dyRaw * DRAW_REACH_BOOST_Y;
-
-      const dx = Math.min(boostedDx, -MIN_PULL_PX);
-      const dy = clamp(boostedDy, -MAX_VERTICAL_AIM_PX, MAX_VERTICAL_AIM_PX);
+      dx = Math.min(dx, -MIN_PULL_PX);
+      dy = clamp(dy, -MAX_VERTICAL_AIM_PX, MAX_VERTICAL_AIM_PX);
 
       const dist = Math.hypot(dx, dy) || 1;
       const scale = dist > MAX_PULL_PX ? MAX_PULL_PX / dist : 1;
-
-      let nextX = sim.release.x + dx * scale;
-      let nextY = sim.release.y + dy * scale;
+      dx *= scale;
+      dy *= scale;
 
       const pullNorm = clamp01((Math.abs(dx) - MIN_PULL_PX) / (MAX_PULL_PX - MIN_PULL_PX));
-      const magnet = CENTER_MAGNET_BASE + CENTER_MAGNET_PULL * pullNorm;
-      nextY = lerp(nextY, sim.release.y, clamp01(magnet));
+      const magnet = CENTERLINE_MAGNET_BASE + CENTERLINE_MAGNET_PULL * pullNorm;
 
-      return { x: nextX, y: nextY };
+      return {
+        x: sim.release.x + dx,
+        y: lerp(sim.release.y + dy, sim.release.y, magnet),
+      };
     };
 
     const snapToComfortZone = (sim, x, y) => {
       const comfort = { x: sim.release.x - COMFORT_PULL_PX, y: sim.release.y };
-      return constrainPull(sim, lerp(x, comfort.x, 0.72), lerp(y, comfort.y, 0.72));
+      const sx = lerp(x, comfort.x, 0.7);
+      const sy = lerp(y, comfort.y, 0.68);
+      return constrainPull(sim, sx, sy);
     };
 
-    const computeLaunch = (sim, pullPoint) => {
-      const dx = pullPoint.x - sim.release.x;
-      const dy = pullPoint.y - sim.release.y;
+    const launchFromPull = (sim) => {
+      const dx = sim.pull.x - sim.release.x;
+      const dy = sim.pull.y - sim.release.y;
       const dist = Math.hypot(dx, dy);
-
       const t = clamp01((dist - MIN_PULL_PX) / (MAX_PULL_PX - MIN_PULL_PX));
-      const eased = 1 - Math.pow(1 - t, 2.1);
-      const speed = lerp(MIN_SPEED, MAX_SPEED, eased);
+      const eased = 1 - Math.pow(1 - t, 2.2);
+      const speed = lerp(MIN_SHOT_SPEED, MAX_SHOT_SPEED, eased);
 
       let vx = (-dx / (dist || 1)) * speed;
       let vy = (-dy / (dist || 1)) * speed;
@@ -604,13 +811,103 @@ export default function ArcheryGame({
       return { vx, vy, rot: Math.atan2(vy, vx), pullDist: dist };
     };
 
-    const updateStrings = (sim, nowMs) => {
-      const topA = stringTopARef.current;
-      const topB = stringTopBRef.current;
-      const botA = stringBotARef.current;
-      const botB = stringBotBRef.current;
+    const spawnHitSparks = (sim, x, y) => {
+      const count = reducedMotion ? 10 : 24;
+      for (let i = 0; i < count; i += 1) {
+        sim.particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 300,
+          vy: (Math.random() - 0.75) * 340,
+          life: 0.32 + Math.random() * 0.26,
+          kind: "spark",
+        });
+      }
+    };
+
+    const spawnConfetti = (sim) => {
+      if (sim.confetti.length > 0) return;
+      const count = reducedMotion ? 18 : 40;
+      const colors = ["#f3d089", "#d8b270", "#ffe2b0", "#f2c57e", "#f8e6c5"];
+      for (let i = 0; i < count; i += 1) {
+        sim.confetti.push({
+          x: Math.random() * sim.W,
+          y: -Math.random() * sim.H * 0.25,
+          vx: (Math.random() - 0.5) * 24,
+          vy: 16 + Math.random() * 28,
+          rot: Math.random() * Math.PI * 2,
+          vr: (Math.random() - 0.5) * 2.8,
+          size: 2.5 + Math.random() * 3.2,
+          color: colors[i % colors.length],
+          drift: Math.random() * Math.PI * 2,
+        });
+      }
+    };
+
+    const maybeTriggerMidpoint = (sim) => {
+      if (midpointTriggeredRef.current) return;
+      const midpoint = Math.ceil(candleCount / 2);
+      if (sim.extinguished < midpoint) return;
+
+      midpointTriggeredRef.current = true;
+      showCallout(MIDPOINT_TEXT, 1800);
+      speakOrFallback(MIDPOINT_TEXT, "midpoint");
+    };
+
+    const maybeQueueCompletion = (sim) => {
+      if (sim.completionQueued || sim.extinguished !== candleCount) return;
+      sim.completionQueued = true;
+      sim.done = true;
+      sim.finishedAt = performance.now();
+
+      if (completionTimerRef.current) {
+        clearTimeout(completionTimerRef.current);
+      }
+
+      completionTimerRef.current = setTimeout(() => {
+        showCallout(COMPLETION_TEXT, 1900);
+        speakOrFallback(COMPLETION_TEXT, "completion");
+        vibrate([16, 32, 18]);
+        spawnConfetti(sim);
+        setDoneUI(true);
+
+        if (autoCompleteTimerRef.current) {
+          clearTimeout(autoCompleteTimerRef.current);
+        }
+        autoCompleteTimerRef.current = setTimeout(() => {
+          finalizeCompletion();
+        }, COMPLETE_AUTO_ADVANCE_MS);
+      }, COMPLETE_MICRO_PAUSE_MS);
+    };
+
+    const extinguishCandle = (sim, candle) => {
+      if (candle.state !== "lit") return;
+      candle.state = "fading";
+      candle.fadeT = 0;
+    };
+
+    const completeCandleOut = (sim, candle) => {
+      if (candle.state !== "fading") return;
+      candle.state = "out";
+      sim.extinguished += 1;
+      setRemainingUI(Math.max(0, candleCount - sim.extinguished));
+
+      spawnHitSparks(sim, candle.x, candle.y - candle.h * 0.92);
+      sim.glowPulses.push({ x: candle.x, y: candle.y - candle.h * 0.92, t: 0, life: reducedMotion ? 0.24 : 0.4 });
+
+      showHitFlash();
+      playHitTone(candle.id);
+      vibrate([10]);
+
+      maybeTriggerMidpoint(sim);
+      maybeQueueCompletion(sim);
+    };
+
+    const updateBowStrings = (sim, nowMs, dt) => {
+      const a = stringARef.current;
+      const b = stringBRef.current;
       const anchors = sim.bowAnchors;
-      if (!topA || !topB || !botA || !botB || !anchors) return;
+      if (!a || !b || !anchors) return;
 
       const wrapRect = bowWrapRef.current?.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
@@ -618,8 +915,8 @@ export default function ArcheryGame({
 
       let nx = (sim.pull.x - (wrapRect.left - containerRect.left)) / wrapRect.width;
       let ny = (sim.pull.y - (wrapRect.top - containerRect.top)) / wrapRect.height;
-      nx = clamp(nx, -0.85, 0.98);
-      ny = clamp(ny, -0.2, 1.2);
+      nx = clamp(nx, -0.8, 1.2);
+      ny = clamp(ny, -0.3, 1.3);
       if (BOW_MIRRORED) nx = 1 - nx;
 
       const pullVB = {
@@ -627,155 +924,78 @@ export default function ArcheryGame({
         y: anchors.vbY + ny * anchors.vbH,
       };
 
-      const dx = pullVB.x - anchors.vbNock.x;
-      const dy = pullVB.y - anchors.vbNock.y;
-      const pullT = clamp01(Math.abs(dx) / (MAX_PULL_PX * 0.8));
+      const dx = pullVB.x - anchors.nockVB.x;
+      const dy = pullVB.y - anchors.nockVB.y;
 
-      const vibProgress = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
-      const vibEnv = 1 - vibProgress;
-      const vibActive = sim.stringVibAmp > 0 && vibProgress < 1;
-      const vib = vibActive ? Math.sin(vibProgress * Math.PI * 20) * sim.stringVibAmp * vibEnv : 0;
+      const pullT = clamp01(Math.abs(dx) / (MAX_PULL_PX * 0.84));
 
-      const bendT = sim.aiming ? clamp01(pullT * 1.08) : 0;
-      const centerDir = BOW_MIRRORED ? -1 : 1;
+      const vibP = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
+      const vibEnv = 1 - vibP;
+      const vib =
+        sim.stringVibAmp > 0 && vibP < 1 ? Math.sin(vibP * Math.PI * 20) * sim.stringVibAmp * vibEnv : 0;
 
-      const topTip = {
-        x: anchors.vbTop.x + centerDir * (8 + bendT * 14) * bendT,
-        y: anchors.vbTop.y + (12 + bendT * 18) * bendT,
+      const inwardDir = BOW_MIRRORED ? -1 : 1;
+      const tipTop = {
+        x: anchors.topVB.x + inwardDir * BOW_INWARD_BEND_X * pullT,
+        y: anchors.topVB.y + BOW_INWARD_BEND_Y * pullT,
       };
-      const bottomTip = {
-        x: anchors.vbBottom.x + centerDir * (8 + bendT * 14) * bendT,
-        y: anchors.vbBottom.y - (12 + bendT * 18) * bendT,
+      const tipBottom = {
+        x: anchors.bottomVB.x + inwardDir * BOW_INWARD_BEND_X * pullT,
+        y: anchors.bottomVB.y - BOW_INWARD_BEND_Y * pullT,
       };
 
-      const nockX = anchors.vbNock.x + dx + vib;
-      const nockY = anchors.vbNock.y + dy;
+      const nockX = anchors.nockVB.x + dx + vib;
+      const nockY = anchors.nockVB.y + dy;
 
-      const topCtrlX = lerp(topTip.x, nockX, 0.46) - 52 * pullT + vib * 0.42;
-      const topCtrlY = lerp(topTip.y, nockY, 0.44);
-      const botCtrlX = lerp(nockX, bottomTip.x, 0.54) - 52 * pullT + vib * 0.42;
-      const botCtrlY = lerp(nockY, bottomTip.y, 0.56);
+      const c1x = lerp(tipTop.x, nockX, 0.48) - pullT * 46 * STRING_CURVE_STRENGTH;
+      const c1y = lerp(tipTop.y, nockY, 0.42);
+      const c2x = lerp(nockX, tipBottom.x, 0.52) - pullT * 46 * STRING_CURVE_STRENGTH;
+      const c2y = lerp(nockY, tipBottom.y, 0.58);
 
-      const split = 2.9 + pullT * 1.8;
-      const splitDir = BOW_MIRRORED ? -1 : 1;
-      const ax = split * splitDir;
-      const bx = -split * splitDir;
+      const offsetDir = BOW_MIRRORED ? -1 : 1;
+      const offA = STRING_GAP * offsetDir;
+      const offB = -STRING_GAP * offsetDir;
 
-      topA.setAttribute("d", `M ${topTip.x + ax} ${topTip.y} Q ${topCtrlX + ax} ${topCtrlY} ${nockX + ax} ${nockY}`);
-      topB.setAttribute("d", `M ${topTip.x + bx} ${topTip.y} Q ${topCtrlX + bx} ${topCtrlY} ${nockX + bx} ${nockY}`);
-      botA.setAttribute("d", `M ${nockX + ax} ${nockY} Q ${botCtrlX + ax} ${botCtrlY} ${bottomTip.x + ax} ${bottomTip.y}`);
-      botB.setAttribute("d", `M ${nockX + bx} ${nockY} Q ${botCtrlX + bx} ${botCtrlY} ${bottomTip.x + bx} ${bottomTip.y}`);
+      const pathA =
+        `M ${tipTop.x + offA} ${tipTop.y} ` +
+        `Q ${c1x + offA} ${c1y} ${nockX + offA} ${nockY} ` +
+        `Q ${c2x + offA} ${c2y} ${tipBottom.x + offA} ${tipBottom.y}`;
+      const pathB =
+        `M ${tipTop.x + offB} ${tipTop.y} ` +
+        `Q ${c1x + offB} ${c1y} ${nockX + offB} ${nockY} ` +
+        `Q ${c2x + offB} ${c2y} ${tipBottom.x + offB} ${tipBottom.y}`;
 
-      const activeT = sim.aiming ? 1 : vibActive ? 0.65 : 0;
-      const opacity = (0.68 + pullT * 0.26) * activeT;
-      const strokeW = String(1.35 + pullT * 0.78);
-      for (const path of [topA, topB, botA, botB]) {
-        path.setAttribute("stroke-opacity", String(opacity));
-        path.setAttribute("stroke-width", strokeW);
-      }
+      a.setAttribute("d", pathA);
+      b.setAttribute("d", pathB);
+
+      const opacity = sim.aiming || vibP < 1 ? 0.88 : 0.66;
+      const width = String(1.35 + pullT * 0.75);
+      a.setAttribute("stroke-opacity", String(opacity));
+      b.setAttribute("stroke-opacity", String(opacity));
+      a.setAttribute("stroke-width", width);
+      b.setAttribute("stroke-width", width);
 
       const bowWrap = bowWrapRef.current;
       if (bowWrap) {
-        // Limb flex follows string pull; anchored bow (no world translation).
-        const bendScale = sim.aiming ? bendT : vibActive ? 0.16 * vibEnv : 0;
-        const sx = 1 + bendScale * 0.035;
-        const sy = 1 - bendScale * 0.11;
-        bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy})`;
+        const bend = sim.aiming ? pullT : vibP < 1 ? vibEnv * 0.12 : 0;
+        const sx = 1 - bend * 0.06;
+        const sy = 1 + bend * 0.045;
+        const skew = bend * 1.3 * (BOW_MIRRORED ? -1 : 1);
+        bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy}) skewY(${skew}deg)`;
       }
-    };
 
-    const spawnSparks = (x, y) => {
-      const sim = simRef.current;
-      if (!sim) return;
-      const amount = reducedMotion ? 8 : 20;
-
-      for (let i = 0; i < amount; i += 1) {
-        sim.particles.push({
-          x,
-          y,
-          vx: (Math.random() - 0.5) * 320,
-          vy: (Math.random() - 0.8) * 360,
-          life: 0.32 + Math.random() * 0.28,
-        });
-      }
-    };
-
-    const spawnExtinguishFlame = (x, y) => {
-      const sim = simRef.current;
-      if (!sim) return;
-
-      const streaks = Array.from({ length: reducedMotion ? 3 : 6 }).map(() => ({
-        angle: -Math.PI * 0.9 + Math.random() * (Math.PI * 0.8),
-        speed: 14 + Math.random() * 24,
-        drift: (Math.random() - 0.5) * 10,
-        size: 1.8 + Math.random() * 1.8,
-      }));
-
-      sim.extinguishFx.push({
-        x,
-        y,
-        t: 0,
-        life: reducedMotion ? 0.34 : 0.52,
-        streaks,
-      });
-    };
-
-    const extinguishCandle = (sim, candle) => {
-      if (!candle.lit) return;
-      candle.lit = false;
-
-      spawnExtinguishFlame(candle.x, candle.y - candle.h * 0.94);
-      spawnSparks(candle.x, candle.y - candle.h * 0.92);
-      const typeCycle = ["triangle", "sine", "square"];
-      const typeA = typeCycle[candle.id % typeCycle.length];
-      const typeB = typeCycle[(candle.id + 1) % typeCycle.length];
-      const semitone = (candle.id % 12) - 6;
-      const base = 780 * Math.pow(2, semitone / 24);
-      const jitter = 0.97 + Math.random() * 0.06;
-      playTone(base * 1.3 * jitter, 88, {
-        toFreq: base * 0.86,
-        type: typeA,
-        gainPeak: 0.04,
-      });
-      playTone(base * 0.94 * jitter, 112, {
-        toFreq: base * 0.54,
-        type: typeB,
-        gainPeak: 0.028,
-      });
-      vibrate([10, 16, 10]);
-
-      const left = sim.candles.filter((item) => item.lit).length;
-      setRemainingUI(left);
-
-      if (left === 0 && !sim.done) {
-        sim.done = true;
-        setDoneUI(true);
-
-        if (completeTimeoutRef.current) {
-          clearTimeout(completeTimeoutRef.current);
-        }
-
-        completeTimeoutRef.current = setTimeout(() => {
-          completeGame();
-        }, COMPLETE_AUTO_DELAY_MS);
+      if (!sim.aiming) {
+        sim.stringVibAmp = Math.max(0, sim.stringVibAmp - dt * 32);
       }
     };
 
     const onPointerDown = (event) => {
       const sim = simRef.current;
-      if (!sim || sim.done) return;
+      if (!sim || !assetsRef.current.ready || sim.done || rotateBlockedRef.current) return;
       if (pointerIdRef.current != null) return;
+      if (sim.arrows.some((arrow) => arrow.alive)) return;
 
-      const point = pointerToCanvas(event);
-      const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
-      if (mobileLike && (hasLiveArrow || sim.hasReleasedShot)) return;
-
-      const maxCam = Math.max(0, sim.worldW - sim.W);
-      const shouldPreviewPan =
-        !hasLiveArrow &&
-        !sim.hasReleasedShot &&
-        maxCam > 4 &&
-        point.x > sim.release.x + PREVIEW_PAN_START_OFFSET_PX;
+      resumeAudioContext();
 
       pointerIdRef.current = event.pointerId;
       try {
@@ -784,79 +1004,46 @@ export default function ArcheryGame({
         // no-op
       }
 
-      if (shouldPreviewPan) {
-        sim.previewPanning = true;
-        sim.previewStartX = point.x;
-        sim.previewStartCam = sim.cameraX;
-        event.preventDefault();
-        return;
-      }
-
-      sim.previewPanning = false;
-      sim.previewCam = 0;
-      sim.cameraX = 0;
-      sim.cameraV = 0;
-
+      const point = pointerToLocal(event);
       sim.aiming = true;
+      sim.pull = snapToComfortZone(sim, point.x, point.y);
+      sim.pullVel = { x: 0, y: 0 };
+
       if (!sim.startedAt) {
         sim.startedAt = performance.now();
       }
-
-      sim.pull = snapToComfortZone(sim, point.x, point.y);
-      sim.pullVel = { x: 0, y: 0 };
 
       event.preventDefault();
     };
 
     const onPointerMove = (event) => {
       const sim = simRef.current;
-      if (!sim || sim.done) return;
+      if (!sim || sim.done || rotateBlockedRef.current) return;
       if (pointerIdRef.current !== event.pointerId) return;
-
-      if (sim.previewPanning) {
-        const point = pointerToCanvas(event);
-        const maxCam = Math.max(0, sim.worldW - sim.W);
-        const dx = point.x - sim.previewStartX;
-        sim.previewCam = clamp(sim.previewStartCam - dx, 0, maxCam);
-        sim.cameraX = sim.previewCam;
-        sim.cameraV = 0;
-        event.preventDefault();
-        return;
-      }
-
       if (!sim.aiming) return;
-      const point = pointerToCanvas(event);
+
+      const point = pointerToLocal(event);
       sim.pull = constrainPull(sim, point.x, point.y);
       event.preventDefault();
     };
 
-    const onPointerUpLike = (event) => {
+    const onPointerRelease = (event) => {
       const sim = simRef.current;
-      if (!sim || sim.done) return;
+      if (!sim || sim.done || rotateBlockedRef.current) return;
       if (pointerIdRef.current !== event.pointerId) return;
 
-      if (sim.previewPanning) {
-        pointerIdRef.current = null;
-        sim.previewPanning = false;
-        try {
-          canvas.releasePointerCapture(event.pointerId);
-        } catch {
-          // no-op
-        }
-        return;
-      }
-
-      if (!sim.aiming) return;
-
       pointerIdRef.current = null;
-      sim.aiming = false;
+
       try {
         canvas.releasePointerCapture(event.pointerId);
       } catch {
         // no-op
       }
 
-      const launch = computeLaunch(sim, sim.pull);
+      if (!sim.aiming) return;
+      sim.aiming = false;
+
+      const launch = launchFromPull(sim);
       sim.arrows.push({
         x: sim.release.x,
         y: sim.release.y,
@@ -864,56 +1051,45 @@ export default function ArcheryGame({
         vy: launch.vy,
         rot: launch.rot,
         alive: true,
+        hits: 0,
         hitIds: new Set(),
       });
 
       sim.shots += 1;
       setShotsUI(sim.shots);
-      sim.stringVibStart = performance.now();
-      sim.stringVibAmp = 12 + clamp01(launch.pullDist / MAX_PULL_PX) * 8;
-      sim.hasReleasedShot = true;
 
-      sim.pullVel.x = 760;
+      sim.stringVibStart = performance.now();
+      sim.stringVibAmp = 13 + clamp01(launch.pullDist / MAX_PULL_PX) * 9;
+
+      sim.pullVel.x = 720;
       sim.pullVel.y = 0;
 
-      playTone(240, 140, { toFreq: 132, type: "triangle", gainPeak: 0.032 });
-      playTone(640, 120, { toFreq: 360, type: "sine", gainPeak: 0.024 });
-      vibrate([8, 12, 8]);
+      playReleaseSnap();
+      vibrate([8, 12]);
+
+      event.preventDefault();
     };
 
     const onPointerCancel = (event) => {
       const sim = simRef.current;
       if (!sim || pointerIdRef.current !== event.pointerId) return;
-
       pointerIdRef.current = null;
-      sim.previewPanning = false;
       sim.aiming = false;
-      sim.pullVel = { x: 0, y: 0 };
       sim.pull = { ...sim.release };
+      sim.pullVel = { x: 0, y: 0 };
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch {
+        // no-op
+      }
     };
 
-    const onWheel = (event) => {
-      const sim = simRef.current;
-      if (!sim || sim.done || sim.aiming || sim.previewPanning || sim.hasReleasedShot) return;
-      if (sim.arrows.some((arrow) => arrow.alive)) return;
-
-      const maxCam = Math.max(0, sim.worldW - sim.W);
-      if (maxCam <= 4) return;
-
-      const delta = event.deltaX + event.deltaY * 0.75;
-      sim.previewCam = clamp(sim.previewCam + delta * PREVIEW_WHEEL_GAIN, 0, maxCam);
-      sim.cameraX = sim.previewCam;
-      sim.cameraV = 0;
-      event.preventDefault();
-    };
-
-    const listenerOptions = { passive: false };
-    canvas.addEventListener("pointerdown", onPointerDown, listenerOptions);
-    canvas.addEventListener("pointermove", onPointerMove, listenerOptions);
-    canvas.addEventListener("pointerup", onPointerUpLike);
+    const options = { passive: false };
+    canvas.addEventListener("pointerdown", onPointerDown, options);
+    canvas.addEventListener("pointermove", onPointerMove, options);
+    canvas.addEventListener("pointerup", onPointerRelease, options);
     canvas.addEventListener("pointercancel", onPointerCancel);
     canvas.addEventListener("pointerleave", onPointerCancel);
-    canvas.addEventListener("wheel", onWheel, listenerOptions);
 
     const update = (dt, nowMs) => {
       const sim = simRef.current;
@@ -927,59 +1103,38 @@ export default function ArcheryGame({
       if (anchors) {
         sim.bowAnchors = anchors;
         sim.release = {
-          x: anchors.pxNock.x,
-          y: anchors.pxNock.y + RELEASE_Y_OFFSET_PX,
+          x: anchors.nockPX.x,
+          y: anchors.nockPX.y + RELEASE_Y_OFFSET_PX,
         };
-
-        if (!sim.layoutAnchored && !sim.startedAt) {
-          sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x, sim.worldW);
-          sim.layoutAnchored = true;
-          setRemainingUI(sim.candles.filter((item) => item.lit).length);
-        }
       }
 
-      if (
-        !sim.startedAt &&
-        (Math.abs(sim.W - sim.layoutW) > 18 || Math.abs(sim.H - sim.layoutH) > 18)
-      ) {
-        sim.layoutW = sim.W;
-        sim.layoutH = sim.H;
-        sim.worldW = computeWorldW(sim.W);
-
-        const maxCam = Math.max(0, sim.worldW - sim.W);
-        sim.cameraX = clamp(sim.cameraX, 0, maxCam);
-        sim.previewCam = clamp(sim.previewCam, 0, maxCam);
-
-        sim.candles = buildCandleLayout(sim.W, sim.H, sim.release.x, sim.worldW);
-        setRemainingUI(sim.candles.filter((item) => item.lit).length);
-      }
-
-      if (!sim.aiming && !sim.previewPanning) {
-        const tx = sim.release.x;
-        const ty = sim.release.y;
-
-        const ax = -90 * (sim.pull.x - tx) - 14 * sim.pullVel.x;
-        const ay = -86 * (sim.pull.y - ty) - 13 * sim.pullVel.y;
-
+      if (!sim.aiming) {
+        const ax = -SPRING_STIFFNESS * (sim.pull.x - sim.release.x) - SPRING_DAMPING * sim.pullVel.x;
+        const ay = -SPRING_STIFFNESS * (sim.pull.y - sim.release.y) - SPRING_DAMPING * sim.pullVel.y;
         sim.pullVel.x += ax * dt;
         sim.pullVel.y += ay * dt;
         sim.pull.x += sim.pullVel.x * dt;
         sim.pull.y += sim.pullVel.y * dt;
       }
 
-      updateStrings(sim, nowMs);
+      updateBowStrings(sim, nowMs, dt);
 
       for (const candle of sim.candles) {
-        candle.flamePhase += dt * 6.4;
+        candle.flamePhase += dt * 7.4;
+        candle.floatPhase += dt * 0.9;
+
         if (!sim.done) {
-          const driftScale = mobileLike ? 0.52 : 0.9;
-          candle.driftPhase += dt * candle.driftSpeed * 0.34;
-          candle.x = candle.baseX + Math.sin(candle.driftPhase) * candle.driftAmpX * 0.08 * driftScale;
-          candle.y =
-            candle.baseY + Math.cos(candle.driftPhase * 0.72) * candle.driftAmpY * 0.58 * driftScale;
+          const floatAmp = reducedMotion ? 1.2 : 3.8;
+          candle.y = candle.baseY + Math.sin(candle.floatPhase + candle.id * 0.7) * floatAmp;
         } else {
-          candle.x = candle.baseX;
           candle.y = candle.baseY;
+        }
+
+        if (candle.state === "fading") {
+          candle.fadeT += dt;
+          if (candle.fadeT * 1000 >= CANDLE_FLICKER_OUT_MS) {
+            completeCandleOut(sim, candle);
+          }
         }
       }
 
@@ -987,39 +1142,43 @@ export default function ArcheryGame({
         if (!arrow.alive) continue;
 
         arrow.vy += GRAVITY * dt;
-        arrow.vx += sim.wind * dt * 0.16;
         arrow.vx *= 1 - ARROW_DRAG;
         arrow.vy *= 1 - ARROW_DRAG * 0.5;
         arrow.x += arrow.vx * dt;
         arrow.y += arrow.vy * dt;
         arrow.rot = Math.atan2(arrow.vy, arrow.vx);
 
-        if (!reducedMotion && sim.particles.length < 360) {
+        if (!reducedMotion && sim.particles.length < 420) {
           sim.particles.push({
-            x: arrow.x - Math.cos(arrow.rot) * 14 + (Math.random() - 0.5) * 3,
-            y: arrow.y - Math.sin(arrow.rot) * 14 + (Math.random() - 0.5) * 3,
-            vx: -arrow.vx * 0.08 + (Math.random() - 0.5) * 34,
-            vy: -arrow.vy * 0.08 + (Math.random() - 0.5) * 34,
-            life: 0.11 + Math.random() * 0.09,
-            color: "trail",
+            x: arrow.x - Math.cos(arrow.rot) * 12,
+            y: arrow.y - Math.sin(arrow.rot) * 12,
+            vx: -arrow.vx * 0.06 + (Math.random() - 0.5) * 24,
+            vy: -arrow.vy * 0.06 + (Math.random() - 0.5) * 24,
+            life: 0.1 + Math.random() * 0.08,
+            kind: "trail",
           });
         }
 
-        if (arrow.x > sim.worldW + 420 || arrow.y > sim.H + 340 || arrow.y < -320) {
+        if (arrow.x > sim.W + 400 || arrow.y > sim.H + 260 || arrow.y < -300) {
           arrow.alive = false;
+          continue;
+        }
+
+        if (arrow.hits >= MAX_CANDLES_PER_ARROW) {
           continue;
         }
 
         const arrowBox = {
           x: arrow.x - 18,
-          y: arrow.y - 10,
-          w: 64,
-          h: 20,
+          y: arrow.y - 9,
+          w: 74,
+          h: 18,
         };
 
-        let hits = 0;
         for (const candle of sim.candles) {
-          if (!candle.lit || arrow.hitIds.has(candle.id)) continue;
+          if (arrow.hits >= MAX_CANDLES_PER_ARROW) break;
+          if (candle.state !== "lit") continue;
+          if (arrow.hitIds.has(candle.id)) continue;
 
           const candleBox = {
             x: candle.x - (candle.w * CANDLE_HITBOX_SCALE) / 2,
@@ -1030,360 +1189,326 @@ export default function ArcheryGame({
 
           if (rectsIntersect(arrowBox, candleBox)) {
             arrow.hitIds.add(candle.id);
-            hits += 1;
+            arrow.hits += 1;
             extinguishCandle(sim, candle);
+
+            arrow.vx *= 0.84;
+            arrow.vy *= 0.9;
           }
         }
+      }
 
-        if (hits > 0) {
-          arrow.vx *= Math.max(0.72, 1 - hits * 0.09);
-          arrow.vy *= Math.max(0.72, 1 - hits * 0.07);
+      sim.arrows = sim.arrows.filter((arrow) => arrow.alive);
+
+      sim.particles = sim.particles.filter((p) => p.life > 0);
+      for (const p of sim.particles) {
+        p.vy += GRAVITY * 0.26 * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+      }
+
+      sim.glowPulses = sim.glowPulses.filter((pulse) => pulse.t < pulse.life);
+      for (const pulse of sim.glowPulses) {
+        pulse.t += dt;
+      }
+
+      for (const bit of sim.confetti) {
+        bit.drift += dt * 1.1;
+        bit.x += bit.vx * dt + Math.sin(bit.drift) * dt * 14;
+        bit.y += bit.vy * dt;
+        bit.rot += bit.vr * dt;
+
+        if (bit.y > sim.H + 16) {
+          bit.y = -8;
+          bit.x = Math.random() * sim.W;
         }
-      }
-
-      const maxCam = Math.max(0, sim.worldW - sim.W);
-      const leadArrow = sim.arrows.filter((item) => item.alive).sort((a, b) => b.x - a.x)[0] || null;
-
-      let targetCam = sim.previewCam;
-      if (sim.aiming) {
-        targetCam = 0;
-      } else if (sim.previewPanning) {
-        targetCam = sim.previewCam;
-      } else if (leadArrow) {
-        targetCam = clamp(leadArrow.x - sim.W * 0.34, 0, maxCam);
-      } else if (sim.hasReleasedShot) {
-        targetCam = 0;
-      }
-
-      const cameraDelta = targetCam - sim.cameraX;
-      if (sim.previewPanning) {
-        sim.cameraX = targetCam;
-        sim.cameraV = 0;
-      } else {
-        sim.cameraV = sim.cameraV * 0.84 + cameraDelta * dt * 10;
-        sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCam);
-      }
-
-      if (!leadArrow && sim.hasReleasedShot && sim.cameraX < 1.4 && Math.abs(sim.cameraV) < 0.4) {
-        sim.hasReleasedShot = false;
-        sim.cameraX = 0;
-        sim.cameraV = 0;
-        sim.previewCam = 0;
-      }
-
-      const bowWrap = bowWrapRef.current;
-      if (bowWrap) {
-        const followActive = Boolean(leadArrow) || (sim.hasReleasedShot && !sim.aiming);
-        const targetOpacity = followActive ? 0 : 0.99;
-        const currentOpacity = Number.parseFloat(bowWrap.style.opacity || "0.99");
-        bowWrap.style.opacity = String(lerp(currentOpacity, targetOpacity, followActive ? 0.28 : 0.18));
-      }
-
-      sim.particles = sim.particles.filter((particle) => particle.life > 0);
-      for (const particle of sim.particles) {
-        particle.vy += GRAVITY * 0.32 * dt;
-        particle.x += particle.vx * dt;
-        particle.y += particle.vy * dt;
-        particle.life -= dt;
-      }
-
-      sim.extinguishFx = sim.extinguishFx.filter((fx) => fx.t < fx.life);
-      for (const fx of sim.extinguishFx) {
-        fx.t += dt;
+        if (bit.x < -16) bit.x = sim.W + 12;
+        if (bit.x > sim.W + 16) bit.x = -12;
       }
     };
 
-    const drawFlame = (x, y, w, h, phase) => {
-      const flicker = 0.88 + 0.12 * Math.sin(phase) + 0.06 * Math.sin(phase * 2.3);
-      const fw = w * 0.44 * flicker;
-      const fh = h * 0.3 * flicker;
+    const drawFlame = (x, y, candle, alphaMult = 1) => {
+      const flicker = 0.88 + Math.sin(candle.flamePhase) * 0.1 + Math.sin(candle.flamePhase * 2.4) * 0.06;
+      const fw = candle.w * 0.43 * flicker;
+      const fh = candle.h * 0.32 * flicker;
 
-      context.save();
-      context.globalAlpha = 0.19;
-      context.fillStyle = "#ffc973";
-      context.beginPath();
-      context.ellipse(x, y, fw * 2.9, fh * 1.9, 0, 0, Math.PI * 2);
-      context.fill();
+      ctx.save();
+      ctx.globalAlpha = 0.18 * alphaMult;
+      ctx.fillStyle = "#ffc36e";
+      ctx.beginPath();
+      ctx.ellipse(x, y, fw * 2.8, fh * 1.9, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-      context.globalAlpha = 0.95;
-      context.fillStyle = "#ffbe45";
-      context.beginPath();
-      context.moveTo(x, y - fh);
-      context.quadraticCurveTo(x + fw, y - fh * 0.08, x, y + fh);
-      context.quadraticCurveTo(x - fw, y - fh * 0.08, x, y - fh);
-      context.fill();
+      ctx.globalAlpha = 0.94 * alphaMult;
+      ctx.fillStyle = "#ffb341";
+      ctx.beginPath();
+      ctx.moveTo(x, y - fh);
+      ctx.quadraticCurveTo(x + fw, y - fh * 0.08, x, y + fh);
+      ctx.quadraticCurveTo(x - fw, y - fh * 0.08, x, y - fh);
+      ctx.fill();
 
-      context.globalAlpha = 0.84;
-      context.fillStyle = "#fff5cf";
-      context.beginPath();
-      context.ellipse(x, y - fh * 0.02, fw * 0.32, fh * 0.55, 0, 0, Math.PI * 2);
-      context.fill();
-      context.restore();
+      ctx.globalAlpha = 0.88 * alphaMult;
+      ctx.fillStyle = "#fff5d2";
+      ctx.beginPath();
+      ctx.ellipse(x, y - fh * 0.02, fw * 0.32, fh * 0.56, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     };
 
     const drawBackground = (sim) => {
-      context.clearRect(0, 0, sim.W, sim.H);
+      ctx.clearRect(0, 0, sim.W, sim.H);
 
-      const camT = sim.worldW > sim.W ? clamp01(sim.cameraX / (sim.worldW - sim.W)) : 0;
-      const sky = context.createLinearGradient(0, 0, 0, sim.H);
-      sky.addColorStop(0, "rgba(34, 27, 19, 0.94)");
-      sky.addColorStop(0.45, "rgba(55, 43, 29, 0.9)");
-      sky.addColorStop(1, "rgba(24, 17, 12, 0.96)");
-      context.fillStyle = sky;
-      context.fillRect(0, 0, sim.W, sim.H);
+      const base = ctx.createLinearGradient(0, 0, 0, sim.H);
+      base.addColorStop(0, "rgba(39,30,21,0.96)");
+      base.addColorStop(0.46, "rgba(63,48,33,0.92)");
+      base.addColorStop(1, "rgba(20,14,10,0.96)");
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, sim.W, sim.H);
 
-      const glow = context.createRadialGradient(
-        sim.W * (0.26 + camT * 0.48),
-        sim.H * 0.22,
-        24,
-        sim.W * (0.26 + camT * 0.48),
-        sim.H * 0.22,
-        sim.W * 0.82
-      );
-      glow.addColorStop(0, "rgba(255, 218, 150, 0.24)");
-      glow.addColorStop(0.35, "rgba(214, 166, 98, 0.12)");
-      glow.addColorStop(1, "rgba(0, 0, 0, 0)");
-      context.fillStyle = glow;
-      context.fillRect(0, 0, sim.W, sim.H);
+      const glow = ctx.createRadialGradient(sim.W * 0.54, sim.H * 0.22, 32, sim.W * 0.54, sim.H * 0.34, sim.W * 0.88);
+      glow.addColorStop(0, "rgba(255,220,154,0.22)");
+      glow.addColorStop(0.34, "rgba(227,178,105,0.1)");
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, sim.W, sim.H);
 
-      const floor = context.createLinearGradient(0, sim.H * 0.62, 0, sim.H);
-      floor.addColorStop(0, "rgba(107, 73, 40, 0.08)");
-      floor.addColorStop(1, "rgba(18, 12, 8, 0.36)");
-      context.fillStyle = floor;
-      context.fillRect(0, sim.H * 0.62, sim.W, sim.H * 0.38);
-
-      context.save();
-      context.globalAlpha = 0.08;
-      context.strokeStyle = "rgba(255, 225, 168, 0.55)";
-      context.lineWidth = 1;
-      const gridOffset = (sim.cameraX * 0.18) % 36;
-      for (let x = -gridOffset; x < sim.W; x += 36) {
-        context.beginPath();
-        context.moveTo(x, 0);
-        context.lineTo(x, sim.H);
-        context.stroke();
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      ctx.strokeStyle = "rgba(251,231,190,0.68)";
+      ctx.lineWidth = 1;
+      for (let x = 14; x < sim.W; x += 34) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, sim.H);
+        ctx.stroke();
       }
-      for (let y = 18; y < sim.H; y += 36) {
-        context.beginPath();
-        context.moveTo(0, y);
-        context.lineTo(sim.W, y);
-        context.stroke();
+      for (let y = 16; y < sim.H; y += 34) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(sim.W, y);
+        ctx.stroke();
       }
-      context.restore();
+      ctx.restore();
 
-      context.strokeStyle = "rgba(241, 221, 183, 0.24)";
-      context.lineWidth = 1;
-      context.strokeRect(10, 10, sim.W - 20, sim.H - 20);
+      ctx.strokeStyle = "rgba(244,225,186,0.24)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(10, 10, sim.W - 20, sim.H - 20);
     };
 
     const drawCandles = (sim) => {
       const candleImg = assetsRef.current.candle;
       for (const candle of sim.candles) {
-        if (!candle.lit) continue;
+        if (candle.state === "out") continue;
 
-        const sx = candle.x - sim.cameraX;
-        if (sx < -candle.w * 1.6 || sx > sim.W + candle.w * 1.6) continue;
+        const flameX = candle.x;
+        const flameY = candle.y - candle.h * 0.94;
 
-        context.save();
-        context.globalAlpha = 0.2;
-        context.fillStyle = "#ffcc7a";
-        context.beginPath();
-        context.ellipse(sx, candle.y - candle.h * 0.92, candle.w * 1.22, candle.h * 0.24, 0, 0, Math.PI * 2);
-        context.fill();
-        context.restore();
+        ctx.save();
+        ctx.globalAlpha = 0.17;
+        ctx.fillStyle = "#ffd08c";
+        ctx.beginPath();
+        ctx.ellipse(flameX, flameY, candle.w * 1.28, candle.h * 0.24, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
         if (candleImg) {
-          context.drawImage(candleImg, sx - candle.w / 2, candle.y - candle.h, candle.w, candle.h);
+          ctx.drawImage(candleImg, candle.x - candle.w / 2, candle.y - candle.h, candle.w, candle.h);
         }
 
-        drawFlame(sx, candle.y - candle.h * 0.94, candle.w, candle.h, candle.flamePhase);
+        let flameAlpha = 1;
+        if (candle.state === "fading") {
+          const t = clamp01((candle.fadeT * 1000) / CANDLE_FLICKER_OUT_MS);
+          flameAlpha = 0.92 - t * 0.92 + Math.sin(candle.fadeT * 92) * 0.12;
+          flameAlpha = clamp(flameAlpha, 0.08, 1);
+        }
+
+        drawFlame(flameX, flameY, candle, flameAlpha);
+      }
+    };
+
+    const drawGlowPulses = (sim) => {
+      for (const pulse of sim.glowPulses) {
+        const t = clamp01(pulse.t / pulse.life);
+        const inv = 1 - t;
+        const radius = 12 + t * 34;
+
+        ctx.save();
+        ctx.globalAlpha = 0.24 * inv;
+        const grad = ctx.createRadialGradient(pulse.x, pulse.y, 2, pulse.x, pulse.y, radius);
+        grad.addColorStop(0, "rgba(255, 224, 164, 0.95)");
+        grad.addColorStop(1, "rgba(255, 224, 164, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
     };
 
     const drawNockedArrow = (sim) => {
       const arrowImg = assetsRef.current.arrow;
       if (!arrowImg) return;
-
-      if (!sim.aiming) {
-        const hasLiveArrow = sim.arrows.some((arrow) => arrow.alive);
-        if (hasLiveArrow || sim.hasReleasedShot || sim.cameraX > 4) return;
-      }
+      if (sim.done && !sim.aiming) return;
+      if (!sim.aiming && sim.arrows.length > 0) return;
 
       const nock = sim.aiming ? sim.pull : sim.release;
       const rot = sim.aiming
         ? Math.atan2(sim.release.y - sim.pull.y, sim.release.x - sim.pull.x)
         : 0;
 
-      const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
+      const drawX = -ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
+      const drawY = -ARROW_DRAW_H * ARROW_NOCK_Y_FRAC;
 
-      context.save();
-      context.globalAlpha = sim.aiming ? 0.98 : 0.8;
-      context.translate(nock.x, nock.y);
-      context.rotate(rot);
-      context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
-      context.restore();
+      ctx.save();
+      ctx.globalAlpha = sim.aiming ? 0.99 : 0.9;
+      ctx.translate(nock.x, nock.y);
+      ctx.rotate(rot);
+      ctx.drawImage(arrowImg, drawX, drawY, ARROW_DRAW_W, ARROW_DRAW_H);
+      ctx.restore();
     };
 
     const drawTrajectory = (sim) => {
       if (!sim.aiming) return;
+      const launch = launchFromPull(sim);
 
-      const launch = computeLaunch(sim, sim.pull);
       let x = sim.release.x;
       let y = sim.release.y;
       let vx = launch.vx;
       let vy = launch.vy;
 
-      context.save();
-      context.globalAlpha = 0.18;
-      context.fillStyle = "rgba(246, 232, 206, 0.9)";
-      for (let i = 0; i < 22; i += 1) {
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "rgba(249,235,204,0.88)";
+      for (let i = 0; i < 24; i += 1) {
         const step = 0.016;
         vy += GRAVITY * step;
-        vx += sim.wind * step * 0.16;
+        vx *= 1 - ARROW_DRAG;
+        vy *= 1 - ARROW_DRAG * 0.4;
         x += vx * step;
         y += vy * step;
-        context.fillRect(x - sim.cameraX, y, 2, 2);
+        ctx.fillRect(x, y, 2, 2);
       }
-      context.restore();
+      ctx.restore();
     };
 
     const drawFlyingArrows = (sim) => {
       const arrowImg = assetsRef.current.arrow;
       if (!arrowImg) return;
 
-      const nockX = ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
+      const drawX = -ARROW_DRAW_W * ARROW_NOCK_X_FRAC;
+      const drawY = -ARROW_DRAW_H * ARROW_NOCK_Y_FRAC;
+
       for (const arrow of sim.arrows) {
-        if (!arrow.alive) continue;
-
-        const sx = arrow.x - sim.cameraX;
-        if (sx < -ARROW_DRAW_W * 0.8 || sx > sim.W + ARROW_DRAW_W) continue;
-
-        context.save();
-        context.translate(sx, arrow.y);
-        context.rotate(arrow.rot);
-        context.drawImage(arrowImg, -nockX, -ARROW_DRAW_H / 2, ARROW_DRAW_W, ARROW_DRAW_H);
-        context.restore();
-      }
-    };
-
-    const drawExtinguishFx = (sim) => {
-      for (const fx of sim.extinguishFx) {
-        const t = clamp01(fx.t / fx.life);
-        const inv = 1 - t;
-        const sx = fx.x - sim.cameraX;
-
-        context.save();
-        context.globalAlpha = 0.26 * inv;
-        context.strokeStyle = "#ffd6a0";
-        context.lineWidth = 1.4;
-        context.beginPath();
-        context.arc(sx, fx.y, 4 + t * 24, 0, Math.PI * 2);
-        context.stroke();
-
-        context.globalAlpha = 0.34 * inv;
-        context.fillStyle = "#fff4cf";
-        context.beginPath();
-        context.ellipse(sx + Math.sin(t * 8) * 1.8, fx.y - t * 18, 5 + t * 7, 3 + t * 6, 0, 0, Math.PI * 2);
-        context.fill();
-
-        context.globalAlpha = 0.18 * inv;
-        context.fillStyle = "rgba(226,226,226,1)";
-        context.beginPath();
-        context.ellipse(sx + Math.sin(t * 4) * 4, fx.y - 4 - t * 26, 6 + t * 12, 3 + t * 8, 0, 0, Math.PI * 2);
-        context.fill();
-
-        context.globalAlpha = 0.58 * inv;
-        context.fillStyle = "#ffcb72";
-        for (const streak of fx.streaks) {
-          const px = sx + Math.cos(streak.angle) * streak.speed * t + streak.drift * t;
-          const sy = fx.y + Math.sin(streak.angle) * streak.speed * t - t * 4;
-          const size = streak.size * inv;
-          context.fillRect(px, sy, size, size);
-        }
-
-        context.restore();
+        ctx.save();
+        ctx.translate(arrow.x, arrow.y);
+        ctx.rotate(arrow.rot);
+        ctx.drawImage(arrowImg, drawX, drawY, ARROW_DRAW_W, ARROW_DRAW_H);
+        ctx.restore();
       }
     };
 
     const drawParticles = (sim) => {
       if (reducedMotion) return;
-      for (const particle of sim.particles) {
-        const sx = particle.x - sim.cameraX;
-        if (sx < -6 || sx > sim.W + 6) continue;
+      for (const p of sim.particles) {
+        ctx.save();
+        ctx.globalAlpha = clamp01(p.life);
+        ctx.fillStyle = p.kind === "trail" ? "#ffe8bd" : "#ffd18f";
+        ctx.fillRect(p.x, p.y, 2, 2);
+        ctx.restore();
+      }
+    };
 
-        context.save();
-        context.globalAlpha = clamp01(particle.life);
-        context.fillStyle = particle.color === "trail" ? "#ffe8bc" : "#ffd08a";
-        context.fillRect(sx, particle.y, 2, 2);
-        context.restore();
+    const drawConfetti = (sim) => {
+      if (sim.confetti.length === 0) return;
+      for (const bit of sim.confetti) {
+        ctx.save();
+        ctx.translate(bit.x, bit.y);
+        ctx.rotate(bit.rot);
+        ctx.fillStyle = bit.color;
+        ctx.globalAlpha = 0.48;
+        ctx.fillRect(-bit.size / 2, -bit.size / 2, bit.size, bit.size * 0.7);
+        ctx.restore();
       }
     };
 
     const drawHud = (sim) => {
-      context.save();
-      context.fillStyle = "rgba(245, 234, 212, 0.92)";
-      context.font = "12px Georgia, serif";
-      const dir = sim.wind === 0 ? "•" : sim.wind > 0 ? "→" : "←";
-      context.fillText(`Wind ${dir} ${Math.round(Math.abs(sim.wind))}`, sim.W - 108, 20);
-      context.restore();
+      ctx.save();
+      ctx.fillStyle = "rgba(246,236,215,0.92)";
+      ctx.font = "12px Georgia, serif";
+      ctx.fillText(`Candles ${Math.max(0, candleCount - sim.extinguished)}/${candleCount}`, sim.W - 142, 20);
+      ctx.restore();
     };
 
     const loop = (now) => {
       const sim = simRef.current;
       if (!sim) return;
 
-      const dt = Math.min(0.033, (now - lastTime) / 1000);
-      lastTime = now;
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
 
       update(dt, now);
       drawBackground(sim);
+      drawGlowPulses(sim);
       drawCandles(sim);
-      drawExtinguishFx(sim);
       drawNockedArrow(sim);
       drawTrajectory(sim);
       drawFlyingArrows(sim);
       drawParticles(sim);
+      drawConfetti(sim);
       drawHud(sim);
 
-      raf = requestAnimationFrame(loop);
+      rafId = requestAnimationFrame(loop);
     };
 
-    raf = requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
 
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(rafId);
       window.removeEventListener("resize", resizeCanvas);
 
-      canvas.removeEventListener("pointerdown", onPointerDown, listenerOptions);
-      canvas.removeEventListener("pointermove", onPointerMove, listenerOptions);
-      canvas.removeEventListener("pointerup", onPointerUpLike);
+      canvas.removeEventListener("pointerdown", onPointerDown, options);
+      canvas.removeEventListener("pointermove", onPointerMove, options);
+      canvas.removeEventListener("pointerup", onPointerRelease, options);
       canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("pointerleave", onPointerCancel);
-      canvas.removeEventListener("wheel", onWheel, listenerOptions);
     };
   }, [
     buildCandleLayout,
     candleCount,
-    completeGame,
+    finalizeCompletion,
     getBowAnchors,
-    isPortrait,
-    mobileLike,
-    playTone,
+    playHitTone,
+    playReleaseSnap,
     reducedMotion,
+    resumeAudioContext,
+    showCallout,
+    showHitFlash,
+    speakOrFallback,
     vibrate,
   ]);
 
   useEffect(() => {
     return () => {
-      if (completeTimeoutRef.current) {
-        clearTimeout(completeTimeoutRef.current);
+      if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current);
+      if (hitFlashTimerRef.current) clearTimeout(hitFlashTimerRef.current);
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+      if (autoCompleteTimerRef.current) clearTimeout(autoCompleteTimerRef.current);
+      cleanupAudioNodes();
+
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          // no-op
+        }
       }
     };
-  }, []);
+  }, [cleanupAudioNodes]);
 
-  const handleContinue = useCallback(() => {
-    completeGame();
-  }, [completeGame]);
+  const onContinue = useCallback(() => {
+    finalizeCompletion();
+  }, [finalizeCompletion]);
 
   return (
     <div
@@ -1396,10 +1521,105 @@ export default function ArcheryGame({
         WebkitUserSelect: "none",
       }}
     >
+      <style>{`
+        .archery-rotate-icon {
+          width: 74px;
+          height: 74px;
+          border-radius: 16px;
+          border: 2px solid rgba(248, 229, 190, 0.44);
+          position: relative;
+          animation: archeryRotatePulse 1.5s ease-in-out infinite;
+        }
+
+        .archery-rotate-icon::before,
+        .archery-rotate-icon::after {
+          content: "";
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          border-top: 2px solid rgba(255, 239, 210, 0.8);
+          border-right: 2px solid rgba(255, 239, 210, 0.8);
+        }
+
+        .archery-rotate-icon::before {
+          top: -8px;
+          right: -8px;
+          transform: rotate(45deg);
+        }
+
+        .archery-rotate-icon::after {
+          left: -8px;
+          bottom: -8px;
+          transform: rotate(225deg);
+        }
+
+        .archery-callout {
+          animation-name: archeryCallout;
+          animation-timing-function: ease;
+          animation-fill-mode: both;
+        }
+
+        .archery-hit-flash {
+          animation: archeryHitFlash 760ms ease both;
+        }
+
+        @keyframes archeryRotatePulse {
+          0%,
+          100% {
+            transform: rotate(0deg);
+            box-shadow: 0 0 0 rgba(251, 222, 173, 0.2);
+          }
+          45% {
+            transform: rotate(90deg);
+            box-shadow: 0 0 0 8px rgba(251, 222, 173, 0.06);
+          }
+        }
+
+        @keyframes archeryCallout {
+          0% {
+            opacity: 0;
+            transform: translateY(12px) scale(0.98);
+          }
+          18%,
+          70% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-8px) scale(1.01);
+          }
+        }
+
+        @keyframes archeryHitFlash {
+          0% {
+            opacity: 0;
+            transform: translateY(8px) scale(0.96);
+          }
+          22%,
+          58% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-6px) scale(1.02);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .archery-rotate-icon,
+          .archery-callout,
+          .archery-hit-flash {
+            animation: none !important;
+          }
+        }
+      `}</style>
+
       <div style={hudBar}>
         <div>
           <div style={title}>Extinguish the candles</div>
-          <div style={subtitle}>Swipe right side to preview candles. Pull near bow to shoot.</div>
+          <div style={subtitle}>Draw from anywhere, release to shoot. Max 2 candles per arrow.</div>
         </div>
 
         <div style={statusPills}>
@@ -1416,7 +1636,8 @@ export default function ArcheryGame({
             height: gameHeight,
             display: "block",
             touchAction: "none",
-            pointerEvents: "auto",
+            pointerEvents: showRotateOverlay ? "none" : "auto",
+            opacity: showRotateOverlay ? 0.42 : 1,
           }}
         />
 
@@ -1424,16 +1645,16 @@ export default function ArcheryGame({
           ref={bowWrapRef}
           style={{
             position: "absolute",
-            left: `${BOW_LEFT_PX}px`,
+            left: BOW_LEFT_PX,
             top: 8,
             bottom: 8,
-            width: BOW_WIDTH_CSS,
+            width: BOW_WIDTH,
             transform: `scaleX(${BOW_MIRRORED ? -1 : 1})`,
-            transformOrigin: "50% 54%",
+            transformOrigin: "50% 52%",
             pointerEvents: "none",
             opacity: 0.99,
             filter:
-              "drop-shadow(0 14px 28px rgba(0,0,0,0.36)) drop-shadow(0 0 2px rgba(255, 226, 170, 0.14))",
+              "drop-shadow(0 16px 30px rgba(0, 0, 0, 0.44)) drop-shadow(0 0 8px rgba(255, 226, 168, 0.18))",
           }}
         >
           <div
@@ -1441,7 +1662,7 @@ export default function ArcheryGame({
             style={{
               width: "100%",
               height: "100%",
-              filter: "contrast(1.16) saturate(1.2) brightness(1.06)",
+              filter: "contrast(1.18) saturate(1.18) brightness(1.05)",
             }}
           />
           <div
@@ -1450,7 +1671,7 @@ export default function ArcheryGame({
               inset: 0,
               pointerEvents: "none",
               background:
-                "radial-gradient(80% 60% at 35% 48%, rgba(255,240,205,0.12), rgba(0,0,0,0) 62%), linear-gradient(120deg, rgba(255,230,180,0.08), rgba(0,0,0,0) 34%)",
+                "radial-gradient(82% 62% at 42% 48%, rgba(255,238,203,0.14), rgba(0,0,0,0) 64%), linear-gradient(120deg, rgba(248,219,164,0.1), rgba(0,0,0,0) 34%)",
               mixBlendMode: "screen",
             }}
           />
@@ -1467,11 +1688,43 @@ export default function ArcheryGame({
           </div>
         )}
 
+        {hitFlash && (
+          <div style={hitFlashWrap}>
+            <div className="archery-hit-flash" key={hitFlash.key} style={hitFlashText}>
+              {hitFlash.text}
+            </div>
+          </div>
+        )}
+
+        {callout && (
+          <div style={calloutWrap}>
+            <div
+              className="archery-callout"
+              key={callout.key}
+              style={{
+                ...calloutCard,
+                animationDuration: `${callout.durationMs}ms`,
+              }}
+            >
+              {callout.text}
+            </div>
+          </div>
+        )}
+
+        {showRotateOverlay && (
+          <div style={rotateOverlay}>
+            <div style={rotateCard}>
+              <div className="archery-rotate-icon" />
+              <div style={rotateText}>Rotate your phone to landscape to shoot 🎯</div>
+            </div>
+          </div>
+        )}
+
         {doneUI && (
           <div style={doneOverlay}>
             <div style={doneCard}>
               <div style={doneTitle}>Candles out ✅</div>
-              <button type="button" style={continueBtn} onClick={handleContinue}>
+              <button type="button" style={continueBtn} onClick={onContinue}>
                 Continue
               </button>
             </div>
@@ -1491,8 +1744,8 @@ function TogglePill({ label, value, onChange }) {
       style={{
         appearance: "none",
         borderRadius: 999,
-        border: "1px solid rgba(250, 236, 203, 0.22)",
-        background: value ? "rgba(226, 184, 120, 0.3)" : "rgba(21, 15, 11, 0.4)",
+        border: "1px solid rgba(250, 236, 203, 0.24)",
+        background: value ? "rgba(224, 184, 119, 0.34)" : "rgba(21, 15, 11, 0.42)",
         color: "#fff9ec",
         fontSize: 12,
         padding: "6px 10px",
@@ -1510,7 +1763,7 @@ const hudBar = {
   alignItems: "flex-start",
   gap: 10,
   padding: "10px 12px",
-  color: "#f5e8cf",
+  color: "#f4e7ce",
 };
 
 const title = {
@@ -1520,7 +1773,7 @@ const title = {
 
 const subtitle = {
   fontSize: 12,
-  opacity: 0.82,
+  opacity: 0.84,
 };
 
 const statusPills = {
@@ -1531,7 +1784,7 @@ const statusPills = {
 
 const pill = {
   borderRadius: 999,
-  border: "1px solid rgba(248, 232, 202, 0.18)",
+  border: "1px solid rgba(248, 232, 202, 0.2)",
   background: "rgba(22, 16, 12, 0.42)",
   padding: "6px 10px",
   fontSize: 12,
@@ -1543,9 +1796,9 @@ const arenaWrap = {
   borderRadius: 22,
   overflow: "hidden",
   border: "1px solid rgba(245, 230, 198, 0.2)",
-  boxShadow: "0 20px 52px rgba(0, 0, 0, 0.42)",
+  boxShadow: "0 22px 56px rgba(0, 0, 0, 0.46)",
   background:
-    "linear-gradient(165deg, rgba(86,58,34,0.36), rgba(18,12,8,0.62)), radial-gradient(135% 110% at 50% 8%, rgba(255,216,145,0.2), rgba(0,0,0,0.24))",
+    "linear-gradient(165deg, rgba(84,59,36,0.38), rgba(16,12,8,0.64)), radial-gradient(128% 112% at 50% 8%, rgba(255,216,145,0.22), rgba(0,0,0,0.24))",
 };
 
 const toggleWrap = {
@@ -1570,10 +1823,89 @@ const assetBadge = {
   padding: "6px 10px",
 };
 
+const rotateOverlay = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 140,
+  display: "grid",
+  placeItems: "center",
+  background: "rgba(10, 7, 5, 0.72)",
+  backdropFilter: "blur(3px)",
+  padding: 18,
+};
+
+const rotateCard = {
+  width: "100%",
+  maxWidth: 420,
+  borderRadius: 20,
+  border: "1px solid rgba(244, 225, 187, 0.28)",
+  background: "linear-gradient(180deg, rgba(50,36,24,0.9), rgba(22,15,11,0.92))",
+  boxShadow: "0 18px 44px rgba(0,0,0,0.46)",
+  padding: "20px 18px",
+  display: "grid",
+  placeItems: "center",
+  gap: 14,
+  textAlign: "center",
+  color: "#f8ead1",
+};
+
+const rotateText = {
+  fontSize: 17,
+  lineHeight: 1.35,
+  fontWeight: 650,
+};
+
+const hitFlashWrap = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  top: 52,
+  zIndex: 32,
+  display: "grid",
+  placeItems: "center",
+  pointerEvents: "none",
+};
+
+const hitFlashText = {
+  borderRadius: 999,
+  border: "1px solid rgba(247, 225, 181, 0.34)",
+  background: "rgba(28, 20, 14, 0.7)",
+  color: "#ffeccc",
+  fontWeight: 700,
+  letterSpacing: "0.2px",
+  fontSize: 14,
+  padding: "7px 14px",
+};
+
+const calloutWrap = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 54,
+  display: "grid",
+  placeItems: "center",
+  pointerEvents: "none",
+  padding: 18,
+};
+
+const calloutCard = {
+  maxWidth: 520,
+  textAlign: "center",
+  borderRadius: 16,
+  border: "1px solid rgba(249, 226, 182, 0.36)",
+  background: "linear-gradient(180deg, rgba(42,31,21,0.82), rgba(19,14,10,0.84))",
+  color: "#fff0d3",
+  fontSize: 23,
+  fontWeight: 760,
+  lineHeight: 1.22,
+  letterSpacing: "0.2px",
+  padding: "14px 18px",
+  boxShadow: "0 18px 40px rgba(0, 0, 0, 0.4)",
+};
+
 const doneOverlay = {
   position: "absolute",
   inset: 0,
-  zIndex: 50,
+  zIndex: 65,
   background: "rgba(8, 6, 5, 0.56)",
   display: "grid",
   placeItems: "center",
@@ -1585,7 +1917,7 @@ const doneCard = {
   maxWidth: 360,
   borderRadius: 16,
   border: "1px solid rgba(246, 228, 193, 0.24)",
-  background: "linear-gradient(180deg, rgba(49,35,24,0.8), rgba(23,15,11,0.84))",
+  background: "linear-gradient(180deg, rgba(49,35,24,0.82), rgba(23,15,11,0.86))",
   padding: 16,
   textAlign: "center",
   color: "#f8ead0",
@@ -1601,7 +1933,7 @@ const continueBtn = {
   width: "100%",
   borderRadius: 999,
   border: "1px solid rgba(246, 228, 193, 0.3)",
-  background: "linear-gradient(90deg, rgba(206, 153, 83, 0.4), rgba(246, 206, 139, 0.28))",
+  background: "linear-gradient(90deg, rgba(206, 153, 83, 0.42), rgba(246, 206, 139, 0.3))",
   color: "#fffaf0",
   fontWeight: 700,
   fontSize: 14,
