@@ -40,7 +40,8 @@ const BOW_MIRRORED = false;
 const BOW_LEFT_PX = "clamp(20px, 7vw, 88px)";
 const BOW_WIDTH = "clamp(220px, 26vw, 320px)";
 
-const FALLBACK_STRING_X_FRAC = 0.155;
+// Rear-of-bow X anchor in rendered bow space (0 = left edge, 1 = right edge).
+const REAR_STRING_RENDER_X_FRAC = 0.11;
 const FALLBACK_STRING_TOP_Y_FRAC = 0.11;
 const FALLBACK_STRING_BOTTOM_Y_FRAC = 0.9;
 
@@ -717,15 +718,22 @@ export default function ArcheryGame({
     if (stringEl) {
       try {
         const bb = stringEl.getBBox();
-        top = { x: bb.x + bb.width * 0.5, y: bb.y };
-        bottom = { x: bb.x + bb.width * 0.5, y: bb.y + bb.height };
+        const centerX = bb.x + bb.width * 0.5;
+        const sourceFrac = clamp01((centerX - vbX) / vbW);
+        const renderFrac = BOW_MIRRORED ? 1 - sourceFrac : sourceFrac;
+        const looksLikeRearString = renderFrac <= 0.42 && bb.height >= vbH * 0.3;
+        if (looksLikeRearString) {
+          top = { x: centerX, y: bb.y };
+          bottom = { x: centerX, y: bb.y + bb.height };
+        }
       } catch {}
     }
 
     if (!top || !bottom) {
-      const xFrac = BOW_MIRRORED ? 1 - FALLBACK_STRING_X_FRAC : FALLBACK_STRING_X_FRAC;
-      top = { x: vbX + vbW * xFrac, y: vbY + vbH * FALLBACK_STRING_TOP_Y_FRAC };
-      bottom = { x: vbX + vbW * xFrac, y: vbY + vbH * FALLBACK_STRING_BOTTOM_Y_FRAC };
+      const renderFrac = REAR_STRING_RENDER_X_FRAC;
+      const sourceFrac = BOW_MIRRORED ? 1 - renderFrac : renderFrac;
+      top = { x: vbX + vbW * sourceFrac, y: vbY + vbH * FALLBACK_STRING_TOP_Y_FRAC };
+      bottom = { x: vbX + vbW * sourceFrac, y: vbY + vbH * FALLBACK_STRING_BOTTOM_Y_FRAC };
     }
 
     const nockVB = {
