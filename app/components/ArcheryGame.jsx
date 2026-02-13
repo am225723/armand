@@ -35,9 +35,8 @@ const ARROW_NOCK_X_FRAC = 0.04;
 const ARROW_NOCK_Y_FRAC = 0.5;
 const RELEASE_Y_OFFSET_PX = -60;
 
-// IMPORTANT: you want string on LEFT visually. If your bow.svg is reversed,
-// keep BOW_MIRRORED true (it flips the svg so string appears left).
-const BOW_MIRRORED = true;
+// Bow turned to opposite facing direction.
+const BOW_MIRRORED = false;
 const BOW_LEFT_PX = "clamp(20px, 7vw, 88px)";
 const BOW_WIDTH = "clamp(220px, 26vw, 320px)";
 
@@ -80,7 +79,6 @@ const COMPLETION_TEXT = "Good boy.";
 const HIT_FLASH_TEXTS = ["Good.", "Again.", "Perfect form.", "That\u2019s it."];
 
 const COMPLETE_MICRO_PAUSE_MS = 700;
-const COMPLETE_AUTO_ADVANCE_MS = 520;
 
 const ROTATE_OVERLAY_BREAKPOINT = 900;
 const FORCE_LANDSCAPE_ON_MOBILE = false;
@@ -144,7 +142,6 @@ export default function ArcheryGame({
   const calloutTimerRef = useRef(null);
   const hitFlashTimerRef = useRef(null);
   const completionTimerRef = useRef(null);
-  const autoCompleteTimerRef = useRef(null);
 
   const reducedMotion = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -281,6 +278,31 @@ export default function ArcheryGame({
         voiceIsPlayingRef.current = true;
 
         await el.play();
+        await new Promise((resolve) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve();
+          };
+          const onEnded = () => finish();
+          const onError = () => finish();
+          const onAbort = () => finish();
+          const onStalled = () => finish();
+          const timeoutId = setTimeout(finish, 12000);
+          const cleanup = () => {
+            clearTimeout(timeoutId);
+            el.removeEventListener("ended", onEnded);
+            el.removeEventListener("error", onError);
+            el.removeEventListener("abort", onAbort);
+            el.removeEventListener("stalled", onStalled);
+          };
+          el.addEventListener("ended", onEnded);
+          el.addEventListener("error", onError);
+          el.addEventListener("abort", onAbort);
+          el.addEventListener("stalled", onStalled);
+        });
         return true;
       } catch {
         // failed (blocked or missing)
@@ -508,8 +530,24 @@ export default function ArcheryGame({
           utter.rate = kind === "completion" ? 0.74 : 0.82;
           utter.pitch = 0.9;
           utter.volume = 0.95;
-
-          synth.speak(utter);
+          await new Promise((resolve) => {
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              resolve();
+            };
+            const timeoutId = setTimeout(finish, 9000);
+            utter.onend = () => {
+              clearTimeout(timeoutId);
+              finish();
+            };
+            utter.onerror = () => {
+              clearTimeout(timeoutId);
+              finish();
+            };
+            synth.speak(utter);
+          });
           return;
         } catch {
           // fall through to cue
@@ -519,6 +557,7 @@ export default function ArcheryGame({
       // 3) WebAudio cue fallback
       if (kind === "completion") playCompletionCue();
       else playMidpointCue();
+      await new Promise((resolve) => setTimeout(resolve, kind === "completion" ? 600 : 350));
     },
     [cleanupAudioNodes, playCompletionCue, playMidpointCue, playVoice]
   );
@@ -979,16 +1018,13 @@ export default function ArcheryGame({
       if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
 
       completionTimerRef.current = setTimeout(() => {
+        (async () => {
         showCallout(COMPLETION_TEXT, 1900);
-        speakOrFallback(COMPLETION_TEXT, "completion");
+        await speakOrFallback(COMPLETION_TEXT, "completion");
         vibrate([16, 32, 18]);
         spawnConfetti(sim);
         setDoneUI(true);
-
-        if (autoCompleteTimerRef.current) clearTimeout(autoCompleteTimerRef.current);
-        autoCompleteTimerRef.current = setTimeout(() => {
-          finalizeCompletion();
-        }, COMPLETE_AUTO_ADVANCE_MS);
+        })();
       }, COMPLETE_MICRO_PAUSE_MS);
     };
 
@@ -1051,22 +1087,34 @@ export default function ArcheryGame({
       const vib =
         sim.stringVibAmp > 0 && vibP < 1 ? Math.sin(vibP * Math.PI * 20) * sim.stringVibAmp * vibEnv : 0;
 
-      const inwardDir = BOW_MIRRORED ? -1 : 1;
+      // Bend both limb tips toward the center (nock), not away from each other.
+      const topVecX = anchors.nockVB.x - anchors.topVB.x;
+      const topVecY = anchors.nockVB.y - anchors.topVB.y;
+      const topLen = Math.hypot(topVecX, topVecY) || 1;
+      const topMove = pullT * (BOW_INWARD_BEND_Y + BOW_INWARD_BEND_X * 0.45);
+
+      const bottomVecX = anchors.nockVB.x - anchors.bottomVB.x;
+      const bottomVecY = anchors.nockVB.y - anchors.bottomVB.y;
+      const bottomLen = Math.hypot(bottomVecX, bottomVecY) || 1;
+      const bottomMove = pullT * (BOW_INWARD_BEND_Y + BOW_INWARD_BEND_X * 0.45);
+
       const tipTop = {
-        x: anchors.topVB.x + inwardDir * BOW_INWARD_BEND_X * pullT,
-        y: anchors.topVB.y + BOW_INWARD_BEND_Y * pullT,
+        x: anchors.topVB.x + (topVecX / topLen) * topMove,
+        y: anchors.topVB.y + (topVecY / topLen) * topMove,
       };
       const tipBottom = {
-        x: anchors.bottomVB.x + inwardDir * BOW_INWARD_BEND_X * pullT,
-        y: anchors.bottomVB.y - BOW_INWARD_BEND_Y * pullT,
+        x: anchors.bottomVB.x + (bottomVecX / bottomLen) * bottomMove,
+        y: anchors.bottomVB.y + (bottomVecY / bottomLen) * bottomMove,
       };
 
       const nockX = anchors.nockVB.x + dx + vib;
       const nockY = anchors.nockVB.y + dy;
 
-      const c1x = lerp(tipTop.x, nockX, 0.48) - pullT * 46 * STRING_CURVE_STRENGTH;
+      const c1Dir = Math.sign(nockX - tipTop.x) || 1;
+      const c2Dir = Math.sign(nockX - tipBottom.x) || 1;
+      const c1x = lerp(tipTop.x, nockX, 0.48) + c1Dir * pullT * 46 * STRING_CURVE_STRENGTH;
       const c1y = lerp(tipTop.y, nockY, 0.42);
-      const c2x = lerp(nockX, tipBottom.x, 0.52) - pullT * 46 * STRING_CURVE_STRENGTH;
+      const c2x = lerp(nockX, tipBottom.x, 0.52) + c2Dir * pullT * 46 * STRING_CURVE_STRENGTH;
       const c2y = lerp(nockY, tipBottom.y, 0.58);
 
       const offsetDir = BOW_MIRRORED ? -1 : 1;
@@ -1596,7 +1644,6 @@ export default function ArcheryGame({
       if (calloutTimerRef.current) clearTimeout(calloutTimerRef.current);
       if (hitFlashTimerRef.current) clearTimeout(hitFlashTimerRef.current);
       if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
-      if (autoCompleteTimerRef.current) clearTimeout(autoCompleteTimerRef.current);
 
       cleanupAudioNodes();
       stopVoice();
@@ -1820,7 +1867,7 @@ export default function ArcheryGame({
             <div style={doneCard}>
               <div style={doneTitle}>Candles out ✅</div>
               <button type="button" style={continueBtn} onClick={onContinue}>
-                Continue
+                🔒 Unlock Card
               </button>
             </div>
           </div>

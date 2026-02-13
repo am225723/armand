@@ -15,7 +15,7 @@ export default function Page() {
       const detail = event?.detail || {};
       if (detail.shots == null && detail.timeMs == null) return;
       setResult({ shots: detail.shots ?? null, timeMs: detail.timeMs ?? null });
-      setStep("earned");
+      setStep("poem");
     };
 
     window.addEventListener("archery:complete", handler);
@@ -110,7 +110,7 @@ export default function Page() {
                 height={420}
                 onComplete={({ shots, timeMs }) => {
                   setResult({ shots, timeMs });
-                  setStep("earned");
+                  setStep("poem");
                 }}
               />
             </div>
