@@ -3,7 +3,7 @@ import React from "react";
 
 export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = [] }) {
   const VB_W = 820;
-  const VB_H = 1468;
+  const VB_H = 1548;
 
   const poemLines = [
     `The world became a brighter place...`,
@@ -51,6 +51,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
   const secondToLastIndex = poemLines.length - 2;
   const finalLineIndex = poemLines.length - 1;
   const finalProgress = lineProgress[finalLineIndex] ?? 0;
+  const clamp01 = (value) => Math.max(0, Math.min(1, value));
 
   const delayedProgress = (progress, delayFrac) => {
     const p = Number.isFinite(progress) ? progress : 0;
@@ -59,9 +60,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
   };
 
   const normalLineProgress = (index) => delayedProgress(lineProgress[index] ?? 0, 0.12 + (index % 3) * 0.03);
-  const finalLineReveal = delayedProgress(finalProgress, 0.24);
-  const finalLineOpacity = delayedProgress(finalLineReveal, 0.15);
-  const finalRevealFade = delayedProgress(finalLineReveal, 0.3);
+  const finalLineReveal = clamp01(finalProgress * 1.08 + 0.02);
+  const finalLineOpacity = delayedProgress(finalLineReveal, 0.04);
+  const finalRevealFade = delayedProgress(finalLineReveal, 0.14);
   const inkBackdropOpacity = 0.05 + Math.min(0.05, (lineProgress[0] ?? 0) * 0.1);
 
   return (
@@ -433,44 +434,74 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
         {(() => {
           const finalText = "Is To Be-Known";
           const chars = finalText.split("");
-          const charsRevealed = finalLineReveal * chars.length;
+          const charsRevealed = finalLineReveal >= 0.995 ? chars.length : finalLineReveal * chars.length;
           
           return (
-            <text
-              x="50%"
-              y={finalLineY}
-              textAnchor="middle"
-              fontFamily='"InterSignature", cursive'
-              fontSize="88"
-              filter="url(#finalLineGlow)"
-              style={{ textRendering: "geometricPrecision" }}
-            >
-              {chars.map((char, ci) => {
-                const charProgress = ci < charsRevealed ? 1 : 
-                  ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
-                
-                if (charProgress === 0) {
-                  return <tspan key={ci} fill="transparent" stroke="transparent">{char}</tspan>;
-                }
-                
-                const strokeLen = 150;
-                const strokeOffset = strokeLen * (1 - charProgress);
-                const fillOpacity = charProgress > 0.6 ? (charProgress - 0.6) / 0.4 : 0;
-                
-                return (
-                  <tspan
-                    key={ci}
-                    fill={`rgba(110, 32, 34, ${fillOpacity * 0.92})`}
-                    stroke="url(#finalLineCrimson)"
-                    strokeWidth="1.62"
-                    strokeDasharray={strokeLen}
-                    strokeDashoffset={strokeOffset}
-                  >
-                    {char}
-                  </tspan>
-                );
-              })}
-            </text>
+            <>
+              <text
+                x="50%"
+                y={finalLineY}
+                textAnchor="middle"
+                fontFamily='"InterSignature", cursive'
+                fontSize="88"
+                filter="url(#finalLineGlow)"
+                style={{ textRendering: "geometricPrecision" }}
+              >
+                {chars.map((char, ci) => {
+                  const charProgress = ci < charsRevealed ? 1 :
+                    ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+
+                  if (charProgress === 0) {
+                    return <tspan key={`main-${ci}`} fill="transparent" stroke="transparent">{char}</tspan>;
+                  }
+
+                  const strokeLen = 150;
+                  const strokeOffset = strokeLen * (1 - charProgress);
+                  const fillOpacity = charProgress > 0.56 ? (charProgress - 0.56) / 0.44 : 0;
+
+                  return (
+                    <tspan
+                      key={`main-${ci}`}
+                      fill={`rgba(110, 32, 34, ${fillOpacity * 0.98})`}
+                      stroke="url(#finalLineCrimson)"
+                      strokeWidth="2.05"
+                      strokeDasharray={strokeLen}
+                      strokeDashoffset={strokeOffset}
+                      paintOrder="stroke fill"
+                    >
+                      {char}
+                    </tspan>
+                  );
+                })}
+              </text>
+              <text
+                x="50%"
+                y={finalLineY}
+                textAnchor="middle"
+                fontFamily='"InterSignature", cursive'
+                fontSize="88"
+                fill="transparent"
+                stroke="rgba(60, 16, 17, 0.34)"
+                strokeWidth="2.65"
+                opacity={Math.max(0, finalRevealFade * 0.7)}
+                style={{ textRendering: "geometricPrecision" }}
+              >
+                {chars.map((char, ci) => {
+                  const charProgress = ci < charsRevealed ? 1 :
+                    ci < charsRevealed + 1 ? (charsRevealed % 1) : 0;
+                  const strokeLen = 150;
+                  const strokeOffset = strokeLen * (1 - charProgress);
+                  if (charProgress === 0) {
+                    return <tspan key={`shadow-${ci}`} fill="transparent" stroke="transparent">{char}</tspan>;
+                  }
+                  return (
+                    <tspan key={`shadow-${ci}`} strokeDasharray={strokeLen} strokeDashoffset={strokeOffset}>
+                      {char}
+                    </tspan>
+                  );
+                })}
+              </text>
+            </>
           );
         })()}
 
@@ -480,10 +511,10 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
           textAnchor="middle"
           fontFamily='"InterSignature", cursive'
           fontSize="40"
-          fill={`rgba(126, 52, 52, ${Math.max(0, finalRevealFade * 0.86)})`}
+          fill={`rgba(126, 52, 52, ${Math.max(0, finalRevealFade * 0.92)})`}
           stroke="url(#goldFoil)"
           strokeWidth="0.4"
-          opacity={finalRevealFade > 0.66 ? 0.86 : 0}
+          opacity={finalRevealFade > 0.48 ? 0.9 : 0}
           style={{ transition: "opacity 0.5s ease", textRendering: "geometricPrecision" }}
         >
           XOXO

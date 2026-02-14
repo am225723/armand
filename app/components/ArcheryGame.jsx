@@ -31,9 +31,9 @@ const STRING_SELECTOR_ORDER = ["#bow-string", ".bow-string", '[data-role="bow-st
 const STRING_NOCK_Y_FRAC = 0.52;
 const ARROW_DRAW_W = 292;
 const ARROW_DRAW_H = 20;
-const ARROW_NOCK_X_FRAC = 0.04;
+const ARROW_NOCK_X_FRAC = 0.0085;
 const ARROW_NOCK_Y_FRAC = 0.5;
-const RELEASE_Y_OFFSET_PX = -60;
+const RELEASE_Y_OFFSET_PX = -52;
 
 // Bow turned to opposite facing direction.
 const BOW_MIRRORED = false;
@@ -41,7 +41,7 @@ const BOW_LEFT_PX = "clamp(20px, 7vw, 88px)";
 const BOW_WIDTH = "clamp(220px, 26vw, 320px)";
 
 // Rear-of-bow X anchor in rendered bow space (0 = left edge, 1 = right edge).
-const REAR_STRING_RENDER_X_FRAC = 0.11;
+const REAR_STRING_RENDER_X_FRAC = 0.2;
 const FALLBACK_STRING_TOP_Y_FRAC = 0.11;
 const FALLBACK_STRING_BOTTOM_Y_FRAC = 0.9;
 
@@ -53,7 +53,7 @@ const CENTERLINE_MAGNET_BASE = 0.18;
 const CENTERLINE_MAGNET_PULL = 0.45;
 
 const STRING_VIBRATION_MS = 340;
-const STRING_CURVE_STRENGTH = 0.38;
+const STRING_CURVE_STRENGTH = 0.34;
 const STRING_GAP = 1.9;
 const BOW_INWARD_BEND_X = 11;
 const BOW_INWARD_BEND_Y = 14;
@@ -73,10 +73,13 @@ const CANDLE_DEFAULT_COUNT = 14;
 const MAX_CANDLES_PER_ARROW = 2;
 const CANDLE_REGION_START_PCT = 0.54;
 const CANDLE_REGION_END_PAD_PX = 28;
-const CANDLE_BOW_CLEARANCE_PX = 320;
+const CANDLE_BOW_CLEARANCE_PX = 420;
 
 const CANDLE_FLICKER_OUT_MS = 220;
 const CANDLE_HITBOX_SCALE = 0.62;
+
+const CONFETTI_SOURCES = ["/game/con1.svg", "/game/con2.svg", "/game/con3.svg", "/game/con4.svg", "/game/con5.svg", "/game/con6.svg"];
+const CONFETTI_POOL_SIZE = 104;
 
 const MIDPOINT_TEXT = "Are you gonna be a good boy?";
 const COMPLETION_TEXT = "Good boy.";
@@ -109,7 +112,7 @@ export default function ArcheryGame({
   const stringBRef = useRef(null);
 
   const simRef = useRef(null);
-  const assetsRef = useRef({ arrow: null, candle: null, ready: false });
+  const assetsRef = useRef({ arrow: null, candle: null, confetti: [], ready: false });
 
   const pointerIdRef = useRef(null);
   const aimDragRef = useRef(null);
@@ -574,21 +577,39 @@ export default function ArcheryGame({
 
     const arrow = new Image();
     const candle = new Image();
+    const confetti = CONFETTI_SOURCES.map(() => new Image());
 
-    arrow.src = "/game/arrow.png";
-    candle.src = "/game/candle.png";
-
+    const total = 2 + confetti.length;
     let loaded = 0;
     const markLoaded = () => {
       loaded += 1;
-      if (!cancelled && loaded === 2) {
-        assetsRef.current = { arrow, candle, ready: true };
+      if (!cancelled && loaded >= total) {
+        assetsRef.current = {
+          arrow,
+          candle,
+          confetti: confetti.filter((img) => img.naturalWidth > 0 && img.naturalHeight > 0),
+          ready: true,
+        };
         setAssetsReady(true);
       }
     };
 
     arrow.onload = markLoaded;
+    arrow.onerror = markLoaded;
     candle.onload = markLoaded;
+    candle.onerror = markLoaded;
+
+    for (const [index, img] of confetti.entries()) {
+      img.decoding = "async";
+      img.onload = markLoaded;
+      img.onerror = markLoaded;
+      img.src = CONFETTI_SOURCES[index];
+    }
+
+    arrow.decoding = "async";
+    candle.decoding = "async";
+    arrow.src = "/game/arrow.png";
+    candle.src = "/game/candle.png";
 
     return () => {
       cancelled = true;
@@ -618,14 +639,20 @@ export default function ArcheryGame({
       }
       if (!bb) continue;
 
-      const stroke = el.getAttribute("stroke");
-      if (!stroke || stroke === "none") continue;
-      if (bb.height < vbH * 0.45) continue;
+      const computed = typeof window !== "undefined" ? window.getComputedStyle(el) : null;
+      const stroke = el.getAttribute("stroke") || computed?.stroke;
+      const fill = el.getAttribute("fill") || computed?.fill;
+      if (!stroke || stroke === "none" || stroke === "transparent" || stroke === "rgba(0, 0, 0, 0)") continue;
+      if (fill && fill !== "none" && fill !== "transparent" && fill !== "rgba(0, 0, 0, 0)") continue;
+      if (bb.height < vbH * 0.52) continue;
+      if (bb.width <= 0 || bb.width > vbW * 0.28) continue;
 
-      const score =
-        bb.height / Math.max(1, bb.width) +
-        (1 - clamp01(bb.width / vbW)) * 2 +
-        clamp01((vbW * 0.7 - bb.x) / vbW);
+      const centerX = bb.x + bb.width * 0.5;
+      const sourceFrac = clamp01((centerX - vbX) / vbW);
+      const renderFrac = BOW_MIRRORED ? 1 - sourceFrac : sourceFrac;
+      if (renderFrac > 0.44) continue;
+
+      const score = bb.height / Math.max(1, bb.width) + (0.44 - renderFrac) * 3.2;
 
       if (score > bestScore) {
         bestScore = score;
@@ -682,7 +709,7 @@ export default function ArcheryGame({
         const centerX = bb.x + bb.width * 0.5;
         const sourceFrac = clamp01((centerX - vbX) / vbW);
         const renderFrac = BOW_MIRRORED ? 1 - sourceFrac : sourceFrac;
-        const looksLikeRearString = renderFrac <= 0.42 && bb.height >= vbH * 0.3;
+        const looksLikeRearString = renderFrac <= 0.42 && bb.height >= vbH * 0.3 && bb.width <= vbW * 0.28;
         if (looksLikeRearString) {
           top = { x: centerX, y: bb.y };
           bottom = { x: centerX, y: bb.y + bb.height };
@@ -777,6 +804,7 @@ export default function ArcheryGame({
 
       const candleH = clamp(H * 0.12, 34, 52);
       const candleW = candleH * (546 / 1208);
+      const edgePad = Math.max(12, candleW * 0.78);
 
       const rowAnchors = [0.28, 0.43, 0.58, 0.73];
 
@@ -786,7 +814,7 @@ export default function ArcheryGame({
         const wave = Math.sin(i * 1.26) * 24;
         const zig = (i % 2 === 0 ? -1 : 1) * 16;
 
-        const x = clamp(lerp(regionStart, regionEnd, t) + wave + zig, regionStart + 10, regionEnd - 10);
+        const x = clamp(lerp(regionStart, regionEnd, t) + wave + zig, regionStart + edgePad, regionEnd - edgePad);
         const y = clamp(H * rowAnchors[row] + Math.cos(i * 0.82) * 13, candleH + 20, H - 26);
 
         list.push({
@@ -801,6 +829,11 @@ export default function ArcheryGame({
           fadeT: 0,
           flamePhase: Math.random() * Math.PI * 2,
           floatPhase: Math.random() * Math.PI * 2,
+          driftPhase: Math.random() * Math.PI * 2,
+          bobAmp: 1 + Math.random() * 2,
+          xDriftAmp: Math.random() * 2,
+          bobRate: 0.84 + Math.random() * 0.52,
+          xDriftRate: 0.44 + Math.random() * 0.46,
         });
       }
 
@@ -863,6 +896,7 @@ export default function ArcheryGame({
         completionQueued: false,
 
         bowAnchors: null,
+        stringNock: null,
         stringVibStart: 0,
         stringVibAmp: 0,
 
@@ -963,22 +997,45 @@ export default function ArcheryGame({
       }
     };
 
+    const resetConfettiBit = (sim, bit, spawnAbove) => {
+      const confettiSprites = assetsRef.current.confetti || [];
+      const depthRoll = Math.random();
+      const isFar = depthRoll < 0.28;
+      const isNear = depthRoll > 0.8;
+      const sizeTier = Math.random();
+
+      const sizeScale = sizeTier < 0.34 ? 1.62 + Math.random() * 0.32 : sizeTier < 0.76 ? 1.84 + Math.random() * 0.36 : 2.06 + Math.random() * 0.32;
+      const baseSize = sizeScale * 7.8;
+      const aspect = 0.72 + Math.random() * 0.44;
+
+      bit.sprite = confettiSprites.length ? confettiSprites[Math.floor(Math.random() * confettiSprites.length)] : null;
+      bit.w = baseSize * aspect;
+      bit.h = baseSize;
+      bit.x = Math.random() * sim.W;
+      bit.y = spawnAbove ? -Math.random() * sim.H * 0.95 - bit.h : Math.random() * sim.H * 0.45 - sim.H * 0.2;
+      bit.vx = (Math.random() - 0.5) * (isNear ? 58 : 44);
+      bit.vy = (52 + Math.random() * 64) * (isFar ? 0.72 : isNear ? 1.06 : 0.88);
+      bit.rot = Math.random() * Math.PI * 2;
+      bit.vr = (Math.random() - 0.5) * (isFar ? 2.6 : 4.6);
+      bit.drift = Math.random() * Math.PI * 2;
+      bit.lateralAmp = 10 + Math.random() * 18;
+      bit.lateralRate = 0.42 + Math.random() * 0.65;
+      bit.blur = isFar ? 0.3 + Math.random() * 0.7 : 0;
+      bit.shimmerPhase = Math.random() * Math.PI * 2;
+      bit.shimmerRate = 0.26 + Math.random() * 0.44;
+      bit.baseAlpha = 0.77 + Math.random() * 0.18;
+      bit.alpha = bit.baseAlpha;
+      return bit;
+    };
+
     const spawnConfetti = (sim) => {
+      if (reducedMotion) {
+        sim.confetti = [];
+        return;
+      }
       if (sim.confetti.length > 0) return;
-      const count = reducedMotion ? 18 : 40;
-      const colors = ["#f3d089", "#d8b270", "#ffe2b0", "#f2c57e", "#f8e6c5"];
-      for (let i = 0; i < count; i += 1) {
-        sim.confetti.push({
-          x: Math.random() * sim.W,
-          y: -Math.random() * sim.H * 0.25,
-          vx: (Math.random() - 0.5) * 24,
-          vy: 16 + Math.random() * 28,
-          rot: Math.random() * Math.PI * 2,
-          vr: (Math.random() - 0.5) * 2.8,
-          size: 2.5 + Math.random() * 3.2,
-          color: colors[i % colors.length],
-          drift: Math.random() * Math.PI * 2,
-        });
+      for (let i = 0; i < CONFETTI_POOL_SIZE; i += 1) {
+        sim.confetti.push(resetConfettiBit(sim, {}, false));
       }
     };
 
@@ -1129,6 +1186,14 @@ export default function ArcheryGame({
       a.setAttribute("stroke-width", width);
       b.setAttribute("stroke-width", width);
 
+      const sourceNockX = clamp01((nockX - anchors.vbX) / anchors.vbW);
+      const renderNockX = BOW_MIRRORED ? 1 - sourceNockX : sourceNockX;
+      const renderNockY = clamp01((nockY - anchors.vbY) / anchors.vbH);
+      sim.stringNock = {
+        x: sim.cameraX + (wrapRect.left - containerRect.left) + renderNockX * wrapRect.width,
+        y: wrapRect.top - containerRect.top + renderNockY * wrapRect.height,
+      };
+
       const bowWrap = bowWrapRef.current;
       if (bowWrap) {
         const tx = -sim.cameraX;
@@ -1277,6 +1342,8 @@ export default function ArcheryGame({
           x: anchors.nockPX.x + sim.cameraX,
           y: anchors.nockPX.y + RELEASE_Y_OFFSET_PX,
         };
+      } else {
+        sim.stringNock = null;
       }
 
       if (!sim.aiming) {
@@ -1291,12 +1358,16 @@ export default function ArcheryGame({
 
       for (const candle of sim.candles) {
         candle.flamePhase += dt * 7.4;
-        candle.floatPhase += dt * 0.9;
+        candle.floatPhase += dt * candle.bobRate;
+        candle.driftPhase += dt * candle.xDriftRate;
 
         if (!sim.done) {
-          const floatAmp = reducedMotion ? 1.2 : 3.8;
-          candle.y = candle.baseY + Math.sin(candle.floatPhase + candle.id * 0.7) * floatAmp;
+          const bobAmp = reducedMotion ? 0.8 : candle.bobAmp;
+          const xDriftAmp = reducedMotion ? 0 : candle.xDriftAmp;
+          candle.x = candle.baseX + Math.sin(candle.driftPhase + candle.id * 0.42) * xDriftAmp;
+          candle.y = candle.baseY + Math.sin(candle.floatPhase + candle.id * 0.7) * bobAmp;
         } else {
+          candle.x = candle.baseX;
           candle.y = candle.baseY;
         }
 
@@ -1408,18 +1479,22 @@ export default function ArcheryGame({
       sim.glowPulses = sim.glowPulses.filter((pulse) => pulse.t < pulse.life);
       for (const pulse of sim.glowPulses) pulse.t += dt;
 
+      if (reducedMotion) {
+        sim.confetti = [];
+      }
       for (const bit of sim.confetti) {
-        bit.drift += dt * 1.1;
-        bit.x += bit.vx * dt + Math.sin(bit.drift) * dt * 14;
+        bit.drift += dt * bit.lateralRate;
+        bit.shimmerPhase += dt * bit.shimmerRate;
+        bit.alpha = clamp(bit.baseAlpha + Math.sin(bit.shimmerPhase) * 0.12, 0.75, 1);
+        bit.x += (bit.vx + Math.sin(bit.drift) * bit.lateralAmp) * dt;
         bit.y += bit.vy * dt;
         bit.rot += bit.vr * dt;
 
-        if (bit.y > sim.H + 16) {
-          bit.y = -8;
-          bit.x = Math.random() * sim.W;
+        if (bit.y > sim.H + bit.h + 20) {
+          resetConfettiBit(sim, bit, true);
         }
-        if (bit.x < -16) bit.x = sim.W + 12;
-        if (bit.x > sim.W + 16) bit.x = -12;
+        if (bit.x < -bit.w - 24) bit.x = sim.W + bit.w + 16;
+        if (bit.x > sim.W + bit.w + 24) bit.x = -bit.w - 16;
       }
     };
 
@@ -1555,7 +1630,7 @@ export default function ArcheryGame({
       if (sim.done && !sim.aiming) return;
       if (!sim.aiming && sim.arrows.length > 0) return;
 
-      const nock = sim.aiming ? sim.pull : sim.release;
+      const nock = sim.aiming && sim.stringNock ? sim.stringNock : sim.aiming ? sim.pull : sim.release;
       const screenX = nock.x - sim.cameraX;
 
       // While aiming: point arrow from pull->release (forward)
@@ -1628,14 +1703,24 @@ export default function ArcheryGame({
     };
 
     const drawConfetti = (sim) => {
-      if (sim.confetti.length === 0) return;
+      if (reducedMotion || sim.confetti.length === 0) return;
       for (const bit of sim.confetti) {
         ctx.save();
         ctx.translate(bit.x, bit.y);
         ctx.rotate(bit.rot);
-        ctx.fillStyle = bit.color;
-        ctx.globalAlpha = 0.48;
-        ctx.fillRect(-bit.size / 2, -bit.size / 2, bit.size, bit.size * 0.7);
+        const blur = bit.blur ? `blur(${bit.blur.toFixed(2)}px) ` : "";
+        ctx.filter = `${blur}drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25)) contrast(1.1) saturate(1.1) brightness(0.9)`;
+        ctx.globalAlpha = bit.alpha ?? 0.86;
+        if (bit.sprite) {
+          ctx.drawImage(bit.sprite, -bit.w / 2, -bit.h / 2, bit.w, bit.h);
+          ctx.globalCompositeOperation = "multiply";
+          ctx.fillStyle = "rgba(36, 21, 14, 0.22)";
+          ctx.fillRect(-bit.w / 2, -bit.h / 2, bit.w, bit.h);
+          ctx.globalCompositeOperation = "source-over";
+        } else {
+          ctx.fillStyle = "#c5905c";
+          ctx.fillRect(-bit.w / 2, -bit.h / 2, bit.w, bit.h * 0.78);
+        }
         ctx.restore();
       }
     };
@@ -1810,7 +1895,7 @@ export default function ArcheryGame({
             bottom: 8,
             width: BOW_WIDTH,
             transform: `translate3d(0px, 0, 0) scaleX(${BOW_MIRRORED ? -1 : 1})`,
-            transformOrigin: "50% 52%",
+            transformOrigin: "46% 50%",
             pointerEvents: "none",
             opacity: 0.99,
             filter:
