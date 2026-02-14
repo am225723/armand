@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const PRAISE_LINES = [
   "Performance exceeds expectations.",
@@ -16,15 +16,46 @@ const STAT_ROWS = [
   { key: "Obedience", value: "MAXED", icon: "OBY" },
 ];
 
-export default function StatsCard({ result, onContinue }) {
+const BADGES = [
+  "Badge: Certified Good Boy Energy",
+  "Achievement: Focused. Disciplined. Iconic.",
+  "Commendation: Precision under pressure.",
+];
+
+export default function StatsCard({ result, onContinue, onReveal }) {
   const [mounted, setMounted] = useState(false);
   const [activePulse, setActivePulse] = useState("");
   const [protocolIndex, setProtocolIndex] = useState(-1);
+  const [badgeCursor, setBadgeCursor] = useState(0);
+
+  const badgeDeck = useMemo(() => {
+    const seed = (Number(result?.shots ?? 3) * 17 + Math.round(Number(result?.timeMs ?? 0) / 1000)) % 97;
+    const rotateBy = seed % BADGES.length;
+    const rotated = BADGES.map((_, index) => BADGES[(index + rotateBy) % BADGES.length]);
+    const count = seed % 2 === 0 ? 2 : 3;
+    return rotated.slice(0, count);
+  }, [result?.shots, result?.timeMs]);
 
   useEffect(() => {
-    const id = setTimeout(() => setMounted(true), 12);
-    return () => clearTimeout(id);
-  }, []);
+    const revealTimer = setTimeout(() => {
+      setMounted(true);
+      if (typeof onReveal === "function") {
+        try {
+          onReveal();
+        } catch {}
+      }
+    }, 24);
+
+    return () => clearTimeout(revealTimer);
+  }, [onReveal]);
+
+  useEffect(() => {
+    if (badgeDeck.length <= 1) return;
+    const interval = setInterval(() => {
+      setBadgeCursor((prev) => (prev + 1) % badgeDeck.length);
+    }, 2400);
+    return () => clearInterval(interval);
+  }, [badgeDeck]);
 
   const protocolLine = protocolIndex < 0 ? "System idle. Awaiting protocol." : PRAISE_LINES[protocolIndex];
 
@@ -33,7 +64,7 @@ export default function StatsCard({ result, onContinue }) {
     setActivePulse(pulseId);
     setTimeout(() => {
       setActivePulse((current) => (current === pulseId ? "" : current));
-    }, 320);
+    }, 330);
   };
 
   const runProtocol = () => {
@@ -50,12 +81,24 @@ export default function StatsCard({ result, onContinue }) {
           transition: opacity 320ms ease, transform 460ms cubic-bezier(.2,.8,.25,1);
         }
 
+        .stats-top-sweep {
+          animation: statsTopSweep 880ms cubic-bezier(.18,.66,.21,.99) both;
+        }
+
+        .stats-title-pulse {
+          animation: statsTitlePulse 1100ms ease both;
+        }
+
         .stats-tile {
           transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
         }
 
         .stats-tile-pulse {
-          animation: statsTilePulse 320ms ease;
+          animation: statsTilePulse 330ms ease;
+        }
+
+        .stats-badge-chip {
+          animation: statsBadgeFade 420ms ease;
         }
 
         .stats-protocol-btn {
@@ -68,6 +111,35 @@ export default function StatsCard({ result, onContinue }) {
 
         .stats-protocol-btn:active {
           transform: translateY(1px);
+        }
+
+        @keyframes statsTopSweep {
+          0% {
+            transform: translateX(-130%);
+            opacity: 0;
+          }
+          20% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(220%);
+            opacity: 0;
+          }
+        }
+
+        @keyframes statsTitlePulse {
+          0% {
+            opacity: 0;
+            transform: scale(0.96);
+          }
+          45% {
+            opacity: 0.9;
+            transform: scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.05);
+          }
         }
 
         @keyframes statsTilePulse {
@@ -85,10 +157,24 @@ export default function StatsCard({ result, onContinue }) {
           }
         }
 
+        @keyframes statsBadgeFade {
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .stats-card-enter,
+          .stats-top-sweep,
+          .stats-title-pulse,
           .stats-tile,
           .stats-tile-pulse,
+          .stats-badge-chip,
           .stats-protocol-btn {
             animation: none !important;
             transition: none !important;
@@ -105,13 +191,24 @@ export default function StatsCard({ result, onContinue }) {
         }}
         className="stats-card-enter"
       >
+        <div style={topSweepClip} aria-hidden="true">
+          {mounted && <span style={topSweepLine} className="stats-top-sweep" />}
+        </div>
+
         <header style={headRow}>
-          <div>
+          <div style={titleWrap}>
+            {mounted && <span style={titleGlow} className="stats-title-pulse" />}
             <div style={kicker}>Performance Summary</div>
             <h1 style={title}>Front Cover Complete</h1>
           </div>
           <div style={scoreChip}>Premium Session</div>
         </header>
+
+        <div style={badgeRow}>
+          <span className="stats-badge-chip" style={badgeChip}>
+            {badgeDeck[badgeCursor]}
+          </span>
+        </div>
 
         <div style={metaRow}>
           <span style={metaPill}>Shots {shotValue}</span>
@@ -170,14 +267,33 @@ const wrap = {
 };
 
 const card = {
+  position: "relative",
   width: "100%",
   borderRadius: 28,
-  border: "1px solid rgba(245, 218, 170, 0.28)",
+  overflow: "hidden",
+  border: "1px solid rgba(245, 218, 170, 0.32)",
   background:
-    "linear-gradient(170deg, rgba(34,27,22,0.94), rgba(17,14,12,0.94)), radial-gradient(130% 95% at 0% 0%, rgba(236,188,108,0.24), rgba(0,0,0,0))",
+    "linear-gradient(170deg, rgba(34,27,22,0.95), rgba(17,14,12,0.94)), radial-gradient(130% 95% at 0% 0%, rgba(236,188,108,0.24), rgba(0,0,0,0))",
   boxShadow: "0 28px 70px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.09)",
   color: "#f7e8cd",
   padding: "18px 16px 16px",
+};
+
+const topSweepClip = {
+  position: "absolute",
+  inset: "0 0 auto",
+  height: 4,
+  overflow: "hidden",
+  pointerEvents: "none",
+};
+
+const topSweepLine = {
+  position: "absolute",
+  top: 0,
+  left: "-52%",
+  width: "44%",
+  height: "100%",
+  background: "linear-gradient(90deg, rgba(255,255,255,0), rgba(250,220,165,0.95), rgba(255,255,255,0))",
 };
 
 const headRow = {
@@ -185,6 +301,21 @@ const headRow = {
   alignItems: "flex-start",
   justifyContent: "space-between",
   gap: 12,
+};
+
+const titleWrap = {
+  position: "relative",
+};
+
+const titleGlow = {
+  position: "absolute",
+  top: -14,
+  left: -18,
+  width: 190,
+  height: 84,
+  borderRadius: "50%",
+  background: "radial-gradient(ellipse at center, rgba(246,204,126,0.42), rgba(246,204,126,0))",
+  pointerEvents: "none",
 };
 
 const kicker = {
@@ -197,9 +328,12 @@ const kicker = {
 
 const title = {
   margin: "6px 0 0",
-  fontSize: "clamp(26px, 7vw, 34px)",
-  lineHeight: 1.02,
-  letterSpacing: "-0.03em",
+  fontFamily: "var(--font-script)",
+  fontSize: "clamp(42px, 11vw, 74px)",
+  lineHeight: 0.86,
+  letterSpacing: "0.01em",
+  color: "#fff0d1",
+  textShadow: "0 3px 16px rgba(240, 193, 113, 0.34)",
 };
 
 const scoreChip = {
@@ -211,6 +345,21 @@ const scoreChip = {
   fontWeight: 800,
   whiteSpace: "nowrap",
   marginTop: 2,
+};
+
+const badgeRow = {
+  marginTop: 12,
+  minHeight: 30,
+};
+
+const badgeChip = {
+  display: "inline-block",
+  borderRadius: 999,
+  border: "1px solid rgba(246, 221, 186, 0.24)",
+  background: "rgba(13, 9, 7, 0.52)",
+  padding: "7px 12px",
+  fontSize: 12,
+  color: "#f5e7ca",
 };
 
 const metaRow = {
@@ -342,9 +491,12 @@ const protocolBtn = {
 
 const footerText = {
   marginTop: 12,
-  fontSize: 12,
-  opacity: 0.74,
-  letterSpacing: "0.03em",
+  fontFamily: "var(--font-script)",
+  fontSize: "clamp(26px, 6.4vw, 38px)",
+  lineHeight: 0.94,
+  color: "#ffeed2",
+  letterSpacing: "0.01em",
+  textShadow: "0 3px 14px rgba(235, 186, 103, 0.25)",
 };
 
 const continueBtn = {

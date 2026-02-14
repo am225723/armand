@@ -84,9 +84,6 @@ const HIT_FLASH_TEXTS = ["Good.", "Again.", "Perfect form.", "That\u2019s it."];
 
 const COMPLETE_MICRO_PAUSE_MS = 700;
 
-const ROTATE_OVERLAY_BREAKPOINT = 900;
-const FORCE_LANDSCAPE_ON_MOBILE = false;
-
 // Voice assets (Tier 1)
 const VOICE_MIDPOINT_SRC = "/audio/archery-midpoint.mp3";
 const VOICE_COMPLETE_SRC = "/audio/archery-complete.mp3";
@@ -96,6 +93,7 @@ const DUCK_WHILE_VOICE = 0.42;
 
 export default function ArcheryGame({
   onComplete,
+  onSoundChange,
   candleCount = CANDLE_DEFAULT_COUNT,
   width = "100%",
   height = 420,
@@ -126,12 +124,8 @@ export default function ArcheryGame({
   const [hitFlash, setHitFlash] = useState(null);
   const [callout, setCallout] = useState(null);
 
-  const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
-
   const soundRef = useRef(false);
   const hapticRef = useRef(false);
-  const rotateBlockedRef = useRef(false);
 
   // WebAudio (SFX)
   const audioCtxRef = useRef(null);
@@ -159,43 +153,6 @@ export default function ArcheryGame({
   useEffect(() => {
     hapticRef.current = hapticsOn;
   }, [hapticsOn]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const updateViewport = () => {
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
-    };
-
-    const coarseMql = window.matchMedia?.("(pointer: coarse)");
-    setIsCoarsePointer(coarseMql?.matches ?? false);
-
-    const onCoarseChange = (event) => {
-      setIsCoarsePointer(event.matches);
-    };
-
-    updateViewport();
-    window.addEventListener("resize", updateViewport);
-    window.addEventListener("orientationchange", updateViewport);
-    coarseMql?.addEventListener?.("change", onCoarseChange);
-
-    return () => {
-      window.removeEventListener("resize", updateViewport);
-      window.removeEventListener("orientationchange", updateViewport);
-      coarseMql?.removeEventListener?.("change", onCoarseChange);
-    };
-  }, []);
-
-  const showRotateOverlay =
-    FORCE_LANDSCAPE_ON_MOBILE &&
-    isCoarsePointer &&
-    viewport.width > 0 &&
-    viewport.width <= ROTATE_OVERLAY_BREAKPOINT &&
-    viewport.height > viewport.width;
-
-  useEffect(() => {
-    rotateBlockedRef.current = showRotateOverlay;
-  }, [showRotateOverlay]);
 
   const gameHeight = `clamp(260px, 62vh, ${Math.max(280, Number(height) || 420)}px)`;
 
@@ -1192,7 +1149,7 @@ export default function ArcheryGame({
 
     const onPointerDown = (event) => {
       const sim = simRef.current;
-      if (!sim || !assetsRef.current.ready || sim.done || rotateBlockedRef.current) return;
+      if (!sim || !assetsRef.current.ready || sim.done) return;
       if (pointerIdRef.current != null) return;
       if (sim.shotCycleActive) return;
       if (sim.arrows.some((arrow) => arrow.alive)) return;
@@ -1218,7 +1175,7 @@ export default function ArcheryGame({
 
     const onPointerMove = (event) => {
       const sim = simRef.current;
-      if (!sim || sim.done || rotateBlockedRef.current) return;
+      if (!sim || sim.done) return;
       if (pointerIdRef.current !== event.pointerId) return;
       if (!sim.aiming) return;
 
@@ -1229,7 +1186,7 @@ export default function ArcheryGame({
 
     const onPointerRelease = (event) => {
       const sim = simRef.current;
-      if (!sim || sim.done || rotateBlockedRef.current) return;
+      if (!sim || sim.done) return;
       if (pointerIdRef.current !== event.pointerId) return;
 
       pointerIdRef.current = null;
@@ -1750,6 +1707,11 @@ export default function ArcheryGame({
   const onToggleSound = useCallback(
     async (next) => {
       setSoundOn(next);
+      if (typeof onSoundChange === "function") {
+        try {
+          onSoundChange(next);
+        } catch {}
+      }
       if (next) {
         resumeAudioContext();
         await unlockVoicePlayback();
@@ -1757,7 +1719,7 @@ export default function ArcheryGame({
         stopVoice();
       }
     },
-    [resumeAudioContext, stopVoice, unlockVoicePlayback]
+    [onSoundChange, resumeAudioContext, stopVoice, unlockVoicePlayback]
   );
 
   return (
@@ -1772,37 +1734,6 @@ export default function ArcheryGame({
       }}
     >
       <style>{`
-        .archery-rotate-icon {
-          width: 74px;
-          height: 74px;
-          border-radius: 16px;
-          border: 2px solid rgba(248, 229, 190, 0.44);
-          position: relative;
-          animation: archeryRotatePulse 1.5s ease-in-out infinite;
-        }
-
-        .archery-rotate-icon::before,
-        .archery-rotate-icon::after {
-          content: "";
-          position: absolute;
-          width: 12px;
-          height: 12px;
-          border-top: 2px solid rgba(255, 239, 210, 0.8);
-          border-right: 2px solid rgba(255, 239, 210, 0.8);
-        }
-
-        .archery-rotate-icon::before {
-          top: -8px;
-          right: -8px;
-          transform: rotate(45deg);
-        }
-
-        .archery-rotate-icon::after {
-          left: -8px;
-          bottom: -8px;
-          transform: rotate(225deg);
-        }
-
         .archery-callout {
           animation-name: archeryCallout;
           animation-timing-function: ease;
@@ -1811,18 +1742,6 @@ export default function ArcheryGame({
 
         .archery-hit-flash {
           animation: archeryHitFlash 760ms ease both;
-        }
-
-        @keyframes archeryRotatePulse {
-          0%,
-          100% {
-            transform: rotate(0deg);
-            box-shadow: 0 0 0 rgba(251, 222, 173, 0.2);
-          }
-          45% {
-            transform: rotate(90deg);
-            box-shadow: 0 0 0 8px rgba(251, 222, 173, 0.06);
-          }
         }
 
         @keyframes archeryCallout {
@@ -1838,7 +1757,6 @@ export default function ArcheryGame({
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .archery-rotate-icon,
           .archery-callout,
           .archery-hit-flash { animation: none !important; }
         }
@@ -1864,8 +1782,6 @@ export default function ArcheryGame({
             height: gameHeight,
             display: "block",
             touchAction: "none",
-            pointerEvents: showRotateOverlay ? "none" : "auto",
-            opacity: showRotateOverlay ? 0.42 : 1,
           }}
         />
 
@@ -1935,15 +1851,6 @@ export default function ArcheryGame({
               }}
             >
               {callout.text}
-            </div>
-          </div>
-        )}
-
-        {showRotateOverlay && (
-          <div style={rotateOverlay}>
-            <div style={rotateCard}>
-              <div className="archery-rotate-icon" />
-              <div style={rotateText}>Rotate your phone to landscape to shoot 🎯</div>
             </div>
           </div>
         )}
@@ -2039,34 +1946,6 @@ const assetBadge = {
   fontSize: 12,
   padding: "6px 10px",
 };
-
-const rotateOverlay = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 140,
-  display: "grid",
-  placeItems: "center",
-  background: "rgba(10, 7, 5, 0.72)",
-  backdropFilter: "blur(3px)",
-  padding: 18,
-};
-
-const rotateCard = {
-  width: "100%",
-  maxWidth: 420,
-  borderRadius: 20,
-  border: "1px solid rgba(244, 225, 187, 0.28)",
-  background: "linear-gradient(180deg, rgba(50,36,24,0.9), rgba(22,15,11,0.92))",
-  boxShadow: "0 18px 44px rgba(0,0,0,0.46)",
-  padding: "20px 18px",
-  display: "grid",
-  placeItems: "center",
-  gap: 14,
-  textAlign: "center",
-  color: "#f8ead1",
-};
-
-const rotateText = { fontSize: 17, lineHeight: 1.35, fontWeight: 650 };
 
 const hitFlashWrap = {
   position: "absolute",

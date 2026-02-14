@@ -1,0 +1,31 @@
+@font-face {
+  font-family: "CardScript";
+  src: url("/fonts/InterSignature-q20q2.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  --font-script: "CardScript", "Brush Script MT", cursive;
+  --font-ui: "Avenir Next", "Segoe UI", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
+
+  --cream-paper: #eee1c8;
+  --cream-paper-deep: #dcc5a2;
+  --ink-plum: #24191a;
+  --gold-accent: #e9bb79;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: #fff7ea;
+  background: radial-gradient(130% 130% at 50% 0%, rgba(245, 204, 130, 0.14), #060505 62%);
+}

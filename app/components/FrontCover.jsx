@@ -22,7 +22,7 @@ const SPARKLES = [
   { left: "50%", top: "20%", size: 11, duration: 6.1, delay: -2.9 },
 ];
 
-export default function FrontCover({ onComplete }) {
+export default function FrontCover({ onComplete, onSoundChange }) {
   const confettiPieces = useMemo(
     () =>
       Array.from({ length: 18 }).map((_, index) => {
@@ -46,12 +46,6 @@ export default function FrontCover({ onComplete }) {
   return (
     <div style={frontWrap}>
       <style>{`
-        @font-face {
-          font-family: "InterSignature";
-          src: url("/fonts/InterSignature-q20q2.ttf") format("truetype");
-          font-display: swap;
-        }
-
         .front-golden-sweep {
           animation: frontGoldenSweep 16s ease-in-out infinite;
         }
@@ -91,7 +85,7 @@ export default function FrontCover({ onComplete }) {
           width: 12px;
           height: 10px;
           border-radius: 2px 2px 8px 8px;
-          background: color-mix(in srgb, var(--balloon-color) 72%, #8a6038 28%);
+          background: rgba(120, 85, 52, 0.66);
           transform: translateX(-50%);
         }
 
@@ -153,10 +147,10 @@ export default function FrontCover({ onComplete }) {
             opacity: 0.62;
           }
           54% {
-            transform: translate3d(var(--confetti-drift), 58%, 0) rotate(calc(var(--confetti-rot) + 24deg));
+            transform: translate3d(var(--confetti-drift), 58vh, 0) rotate(calc(var(--confetti-rot) + 24deg));
           }
           100% {
-            transform: translate3d(calc(var(--confetti-drift) * -0.78), 126%, 0)
+            transform: translate3d(calc(var(--confetti-drift) * -0.78), 118vh, 0)
               rotate(calc(var(--confetti-rot) + 52deg));
             opacity: 0;
           }
@@ -254,7 +248,12 @@ export default function FrontCover({ onComplete }) {
           <div style={frontStageGlow} />
 
           <div style={frontGamePanel}>
-            <ArcheryGame candleCount={14} height={420} onComplete={onComplete} />
+            <ArcheryGame
+              candleCount={14}
+              height={420}
+              onComplete={onComplete}
+              onSoundChange={onSoundChange}
+            />
           </div>
         </div>
 
@@ -389,7 +388,7 @@ const frontHeading = {
 };
 
 const frontHeadingTop = {
-  fontFamily: '"InterSignature", "Adelia", "Mayonice", "Brush Script MT", cursive',
+  fontFamily: "var(--font-script)",
   fontSize: "clamp(52px, 15.2vw, 122px)",
   letterSpacing: "0.01em",
   color: "#6a4020",
@@ -397,7 +396,7 @@ const frontHeadingTop = {
 
 const frontHeadingName = {
   marginTop: -4,
-  fontFamily: '"InterSignature", "Adelia", "Mayonice", "Brush Script MT", cursive',
+  fontFamily: "var(--font-script)",
   fontSize: "clamp(66px, 19.6vw, 156px)",
   letterSpacing: "0.01em",
   color: "#7f4b21",
@@ -443,14 +442,15 @@ const frontInstructionWrap = {
 };
 
 const frontInstructionLabel = {
+  fontFamily: "var(--font-script)",
   borderRadius: 999,
   border: "1px solid rgba(171, 127, 74, 0.32)",
   background: "linear-gradient(90deg, rgba(255,249,237,0.66), rgba(246,232,205,0.58))",
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.72)",
   color: "#664021",
   textAlign: "center",
-  fontSize: "clamp(12px, 3.1vw, 14px)",
-  fontWeight: 700,
+  fontSize: "clamp(16px, 4.2vw, 22px)",
+  fontWeight: 500,
   lineHeight: 1.35,
   padding: "9px 12px",
 };
