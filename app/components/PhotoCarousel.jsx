@@ -16,6 +16,11 @@ const MEMORY_NOTES = [
 ];
 const POLAROID_ROTATIONS = [-1.5, 1.2, -0.85, 1.35, -1.1, 0.95];
 const VALENTINE_TITLE_STACK = '"Valentine", "HawaiiLover", "InterSignature", cursive';
+const PHOTO_SCALE_STORAGE_KEY = "birthday-card-photo-scale-v1";
+const PHOTO_SCALE_DEFAULT = 1.08;
+const PHOTO_SCALE_MIN = 0.92;
+const PHOTO_SCALE_MAX = 1.34;
+const PHOTO_SCALE_STEP = 0.02;
 
 export default function PhotoCarousel({ photos = [], captions = [] }) {
   const [i, setI] = useState(0);
@@ -23,6 +28,8 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [slideDir, setSlideDir] = useState(1);
   const [slideTick, setSlideTick] = useState(0);
+  const [photoScale, setPhotoScale] = useState(PHOTO_SCALE_DEFAULT);
+  const [photoScaleReady, setPhotoScaleReady] = useState(false);
 
   const safePhotos = useMemo(() => (photos || []).filter(Boolean), [photos]);
   const frameRef = useRef(null);
@@ -38,6 +45,7 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
   const memoryTitle = MEMORY_TITLES[i % MEMORY_TITLES.length];
   const memoryNote = MEMORY_NOTES[i % MEMORY_NOTES.length];
   const polaroidRotation = reducedMotion ? 0 : POLAROID_ROTATIONS[i % POLAROID_ROTATIONS.length];
+  const photoScalePct = Math.round(photoScale * 100);
 
   const captionParts = useMemo(() => {
     const raw = typeof cap === "string" ? cap.trim() : "";
@@ -64,6 +72,29 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
     media.addEventListener?.("change", onChange);
     return () => media.removeEventListener?.("change", onChange);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const storedScale = Number(window.localStorage.getItem(PHOTO_SCALE_STORAGE_KEY));
+      if (Number.isFinite(storedScale)) {
+        setPhotoScale(clampPhotoScale(storedScale));
+      }
+    } catch {
+      // Ignore storage read failures and keep the default.
+    } finally {
+      setPhotoScaleReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!photoScaleReady || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(PHOTO_SCALE_STORAGE_KEY, String(photoScale));
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [photoScale, photoScaleReady]);
 
   useEffect(() => {
     return () => {
@@ -304,6 +335,9 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
                   objectFit: "cover",
                   display: "block",
                   cursor: "zoom-in",
+                  transform: `scale(${photoScale})`,
+                  transformOrigin: "center center",
+                  transition: reducedMotion ? "none" : "transform 360ms cubic-bezier(.22,.61,.36,1)",
                 }}
                 onClick={() =>
                   setActiveMemory({
@@ -384,6 +418,40 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
         ))}
       </div>
 
+      <div style={photoScaleControlRow}>
+        <span style={photoScaleLabel}>Photo size</span>
+        <button
+          type="button"
+          onClick={() => setPhotoScale((value) => clampPhotoScale(value - PHOTO_SCALE_STEP))}
+          style={photoScaleBtn}
+          aria-label="Decrease photo size"
+        >
+          -
+        </button>
+        <input
+          type="range"
+          min={Math.round(PHOTO_SCALE_MIN * 100)}
+          max={Math.round(PHOTO_SCALE_MAX * 100)}
+          step={Math.round(PHOTO_SCALE_STEP * 100)}
+          value={photoScalePct}
+          onChange={(event) => setPhotoScale(clampPhotoScale(Number(event.target.value) / 100))}
+          style={photoScaleRange}
+          aria-label="Adjust photo size"
+        />
+        <button
+          type="button"
+          onClick={() => setPhotoScale((value) => clampPhotoScale(value + PHOTO_SCALE_STEP))}
+          style={photoScaleBtn}
+          aria-label="Increase photo size"
+        >
+          +
+        </button>
+        <button type="button" onClick={() => setPhotoScale(PHOTO_SCALE_DEFAULT)} style={photoScaleResetBtn}>
+          Reset
+        </button>
+        <span style={photoScaleValue}>{photoScalePct}%</span>
+      </div>
+
       {activeMemory && (
         <div
           role="button"
@@ -426,6 +494,11 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
       )}
     </div>
   );
+}
+
+function clampPhotoScale(value) {
+  if (!Number.isFinite(value)) return PHOTO_SCALE_DEFAULT;
+  return Math.min(PHOTO_SCALE_MAX, Math.max(PHOTO_SCALE_MIN, value));
 }
 
 function pillBtn() {
@@ -590,4 +663,67 @@ const modalCaption = {
   marginTop: 10,
   fontSize: 12,
   opacity: 0.74,
+};
+
+const photoScaleControlRow = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "0 12px 10px",
+  color: "rgba(74, 50, 30, 0.84)",
+  flexWrap: "wrap",
+};
+
+const photoScaleLabel = {
+  fontFamily: "var(--font-ui)",
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  marginRight: 2,
+};
+
+const photoScaleBtn = {
+  appearance: "none",
+  width: 24,
+  height: 24,
+  borderRadius: 999,
+  border: "1px solid rgba(132, 96, 60, 0.42)",
+  background: "rgba(251,245,233,0.9)",
+  color: "rgba(82,56,30,0.9)",
+  fontFamily: "var(--font-ui)",
+  fontWeight: 700,
+  fontSize: 14,
+  lineHeight: "14px",
+  cursor: "pointer",
+};
+
+const photoScaleRange = {
+  flex: "1 1 140px",
+  accentColor: "#b8844f",
+  cursor: "pointer",
+  minWidth: 120,
+};
+
+const photoScaleResetBtn = {
+  appearance: "none",
+  borderRadius: 999,
+  border: "1px solid rgba(132, 96, 60, 0.34)",
+  background: "rgba(250,242,228,0.84)",
+  color: "rgba(82,56,30,0.82)",
+  padding: "4px 8px",
+  fontFamily: "var(--font-ui)",
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.03em",
+  cursor: "pointer",
+};
+
+const photoScaleValue = {
+  minWidth: 38,
+  textAlign: "right",
+  fontFamily: "var(--font-ui)",
+  fontSize: 11,
+  fontWeight: 700,
+  color: "rgba(92, 63, 34, 0.86)",
 };

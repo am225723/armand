@@ -15,24 +15,62 @@ export default function AmbientFX({
   balloonCount,
 }) {
   const isInside = variant !== "cover";
+  const baseConfetti = confettiCount ?? (isInside ? 10 : 20);
   const config =
     !isInside
-      ? { confetti: confettiCount ?? 20, sparkles: sparkleCount ?? 10, balloons: balloonCount ?? 6 }
-      : { confetti: confettiCount ?? 10, sparkles: sparkleCount ?? 8, balloons: balloonCount ?? 3 };
+      ? {
+          confetti: Math.max(16, Math.round(baseConfetti * 2.2)),
+          sparkles: sparkleCount ?? 10,
+          balloons: balloonCount ?? 6,
+        }
+      : {
+          confetti: Math.max(14, Math.round(baseConfetti * 2.6)),
+          sparkles: sparkleCount ?? 8,
+          balloons: balloonCount ?? 3,
+        };
 
   const confetti = useMemo(
     () =>
-      Array.from({ length: config.confetti }).map((_, index) => ({
-        id: index,
-        left: `${3 + ((index * 8.1) % 94)}%`,
-        size: index % 3 === 0 ? 6 : 4,
-        drift: 10 + (index % 5) * 6,
-        rotate: -26 + index * 11,
-        duration: (isInside ? 24 : 16) + (index % 6) * 2,
-        delay: -(index % 8) * 1.5,
-        opacity: isInside ? (index % 2 === 0 ? 0.11 : 0.07) : index % 2 === 0 ? 0.24 : 0.17,
-        color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-      })),
+      Array.from({ length: config.confetti }).map((_, index) => {
+        const depthRoll = Math.random();
+        const sizeRoll = Math.random();
+        const isFar = depthRoll < 0.28;
+        const isNear = depthRoll > 0.8;
+        const baseSize =
+          sizeRoll < 0.3
+            ? 9.5 + Math.random() * 3.4
+            : sizeRoll < 0.76
+              ? 13.8 + Math.random() * 4.7
+              : 19.4 + Math.random() * 6.3;
+        const opacityBase = isInside
+          ? isNear
+            ? 0.86
+            : isFar
+              ? 0.64
+              : 0.76
+          : isNear
+            ? 0.94
+            : isFar
+              ? 0.72
+              : 0.84;
+
+        return {
+          id: index,
+          left: `${3 + ((index * 8.1) % 94)}%`,
+          top: `${4 + ((index * 11.6) % 92)}%`,
+          width: baseSize,
+          height: baseSize * (0.76 + Math.random() * 0.4),
+          drift: 22 + Math.random() * 34,
+          crossDrift: -9 + Math.random() * 18,
+          rotateStart: -28 + Math.random() * 56,
+          rotateEnd: 64 + Math.random() * 84,
+          duration: (isInside ? 20 : 14) + Math.random() * 8 + (isFar ? 4.6 : 0),
+          delay: -Math.random() * (isInside ? 14 : 11),
+          opacity: opacityBase,
+          color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+          blur: isFar ? 0.3 + Math.random() * 0.7 : 0,
+        };
+      }),
     [config.confetti, isInside]
   );
 
@@ -57,13 +95,15 @@ export default function AmbientFX({
         left: `${index % 2 === 0 ? 2 + index * 8 : 84 - index * 7}%`,
         top: `${12 + (index % 3) * 20}%`,
         scale: 0.84 + (index % 3) * 0.08,
-        sway: 8 + (index % 4) * 3,
-        duration: 21 + (index % 4) * 2,
+        sway: 9 + (index % 4) * 4,
+        bob: 10 + (index % 3) * 3,
+        drift: 2 + (index % 3) * 1.2,
+        duration: 15 + (index % 4) * 1.9,
         delay: -index * 2.3,
         color: BALLOON_COLORS[index % BALLOON_COLORS.length],
-        opacity: 0.2,
+        opacity: isInside ? 0.28 : 0.33,
       })),
-    [config.balloons]
+    [config.balloons, isInside]
   );
 
   return (
@@ -82,11 +122,14 @@ export default function AmbientFX({
       <style>{`
         .afx-confetti {
           --afx-drift: 14px;
-          --afx-rot: 10deg;
+          --afx-cross-drift: 6px;
+          --afx-rot-start: 8deg;
+          --afx-rot-end: 68deg;
+          --afx-opacity: 0.8;
           position: absolute;
-          border-radius: 2px;
+          border-radius: 3px;
           animation: afxConfettiFall linear infinite;
-          will-change: transform, opacity;
+          will-change: transform, opacity, filter;
         }
 
         .afx-bokeh {
@@ -108,6 +151,8 @@ export default function AmbientFX({
         .afx-balloon {
           --afx-balloon-scale: 1;
           --afx-balloon-sway: 10px;
+          --afx-balloon-bob: 10px;
+          --afx-balloon-drift: 2px;
           position: absolute;
           width: clamp(42px, 7.4vw, 60px);
           aspect-ratio: 0.82;
@@ -143,17 +188,23 @@ export default function AmbientFX({
 
         @keyframes afxConfettiFall {
           0% {
-            transform: translate3d(0, -12vh, 0) rotate(calc(var(--afx-rot) - 12deg));
+            transform: translate3d(calc(var(--afx-cross-drift) * -0.4), -22vh, 0)
+              rotate(calc(var(--afx-rot-start) - 14deg));
             opacity: 0;
           }
-          12% {
-            opacity: 0.66;
+          10% {
+            opacity: calc(var(--afx-opacity) * 0.9);
           }
-          60% {
-            transform: translate3d(var(--afx-drift), 54vh, 0) rotate(calc(var(--afx-rot) + 24deg));
+          36% {
+            opacity: calc(var(--afx-opacity) * 1.02);
+          }
+          58% {
+            transform: translate3d(calc(var(--afx-drift) + var(--afx-cross-drift)), 46vh, 0)
+              rotate(calc(var(--afx-rot-start) + 24deg));
+            opacity: calc(var(--afx-opacity) * 0.84);
           }
           100% {
-            transform: translate3d(calc(var(--afx-drift) * -0.75), 112vh, 0) rotate(calc(var(--afx-rot) + 56deg));
+            transform: translate3d(calc(var(--afx-drift) * -0.65), 114vh, 0) rotate(var(--afx-rot-end));
             opacity: 0;
           }
         }
@@ -187,8 +238,21 @@ export default function AmbientFX({
           100% {
             transform: translate3d(0, 0, 0) rotate(-0.7deg) scale(var(--afx-balloon-scale));
           }
-          50% {
-            transform: translate3d(var(--afx-balloon-sway), -10px, 0) rotate(1.1deg)
+          26% {
+            transform: translate3d(
+                calc(var(--afx-balloon-sway) * 0.42 + var(--afx-balloon-drift)),
+                calc(var(--afx-balloon-bob) * -0.55),
+                0
+              )
+              rotate(0.65deg) scale(var(--afx-balloon-scale));
+          }
+          52% {
+            transform: translate3d(var(--afx-balloon-sway), calc(var(--afx-balloon-bob) * -1), 0) rotate(1.1deg)
+              scale(var(--afx-balloon-scale));
+          }
+          78% {
+            transform: translate3d(calc(var(--afx-balloon-sway) * -0.36), calc(var(--afx-balloon-bob) * -0.42), 0)
+              rotate(0.3deg)
               scale(var(--afx-balloon-scale));
           }
         }
@@ -209,16 +273,19 @@ export default function AmbientFX({
           className="afx-confetti"
           style={{
             left: piece.left,
-            top: "-10%",
-            width: piece.size,
-            height: piece.size + 1,
+            top: piece.top,
+            width: piece.width,
+            height: piece.height,
             background: piece.color,
             opacity: piece.opacity,
             animationDuration: `${piece.duration}s`,
             animationDelay: `${piece.delay}s`,
             "--afx-drift": `${piece.drift}px`,
-            "--afx-rot": `${piece.rotate}deg`,
-            filter: isInside ? "blur(0.6px)" : "none",
+            "--afx-cross-drift": `${piece.crossDrift}px`,
+            "--afx-rot-start": `${piece.rotateStart}deg`,
+            "--afx-rot-end": `${piece.rotateEnd}deg`,
+            "--afx-opacity": `${piece.opacity}`,
+            filter: `blur(${piece.blur.toFixed(2)}px) drop-shadow(0 2px 2px rgba(0,0,0,0.25)) contrast(1.1) saturate(1.1) brightness(0.9)`,
           }}
         />
       ))}
@@ -267,6 +334,8 @@ export default function AmbientFX({
             animationDelay: `${balloon.delay}s`,
             "--afx-balloon-scale": `${balloon.scale}`,
             "--afx-balloon-sway": `${balloon.sway}px`,
+            "--afx-balloon-bob": `${balloon.bob}px`,
+            "--afx-balloon-drift": `${balloon.drift}px`,
             "--afx-balloon-color": balloon.color,
           }}
         />

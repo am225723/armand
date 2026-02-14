@@ -23,6 +23,8 @@ export default function OrnateBirthdayCard({
   autoStart = true,
   showControls = true,
 }) {
+  const REVEAL_SYNC_STRETCH = 1.16;
+  const MIN_REVEAL_SEC = 0.3;
   const audioRef = useRef(null);
   const rafRef = useRef(0);
 
@@ -113,7 +115,8 @@ export default function OrnateBirthdayCard({
 
     return schedule.map((slot) => {
       const delayedStart = slot.start + slot.lineDelaySec;
-      return clamp((t - delayedStart) / Math.max(0.22, slot.end - delayedStart), 0, 1);
+      const revealWindow = Math.max(MIN_REVEAL_SEC, (slot.end - delayedStart) * REVEAL_SYNC_STRETCH);
+      return clamp((t - delayedStart) / revealWindow, 0, 1);
     });
   }
 
@@ -133,6 +136,7 @@ export default function OrnateBirthdayCard({
       setLineProgress(next);
 
       if (a.ended) {
+        setLineProgress(new Array(ensureLineCount).fill(1));
         setStatus("Done 💛");
         setIsPlaying(false);
         stopRaf();
@@ -165,6 +169,7 @@ export default function OrnateBirthdayCard({
     if (!a) return;
 
     const onEnded = () => {
+      setLineProgress(new Array(ensureLineCount).fill(1));
       setIsPlaying(false);
       setStatus("Done 💛");
       stopRaf();
@@ -172,7 +177,7 @@ export default function OrnateBirthdayCard({
 
     a.addEventListener("ended", onEnded);
     return () => a.removeEventListener("ended", onEnded);
-  }, []);
+  }, [ensureLineCount]);
 
   useEffect(() => {
     if (!autoStart || !fontReady) return;

@@ -294,7 +294,11 @@ export default function Page() {
           )}
           <div style={closingSweep} className={showPoemClosing ? "poem-closing-sweep" : undefined} />
           <div style={closingTitle}>Happy Birthday, Luke 🎂</div>
-          <div style={closingSub}>Always proud of the way you show up.</div>
+          <div style={closingSub}>
+            I am blessed to have crossed paths with such an amazing guy. You really are one of a kind. May this year
+            bring you all the smiles and joy that you bring to me everything we chat. You are a fucking catch, never
+            forget that
+          </div>
         </div>
       </div>
     );
