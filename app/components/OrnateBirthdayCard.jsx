@@ -19,7 +19,7 @@ export default function OrnateBirthdayCard({
   name = "Luke",
   audioUrl = "/audio/luke-poem.mp3",
   fontUrl = "/fonts/InterSignature-q20q2.ttf",
-  titleFontUrl = "/fonts/HawaiiLover.ttf",
+  titleFontUrl = "/fonts/valentine.otf",
   autoStart = true,
   showControls = true,
 }) {
@@ -54,7 +54,7 @@ export default function OrnateBirthdayCard({
         if (typeof window === "undefined") return;
 
         const handwritingFace = new FontFace("InterSignature", `url(${fontUrl})`);
-        const headingFace = new FontFace("HawaiiLover", `url(${titleFontUrl})`);
+        const headingFace = new FontFace("Valentine", `url(${titleFontUrl})`);
         const [loadedHand, loadedTitle] = await Promise.all([handwritingFace.load(), headingFace.load()]);
         document.fonts.add(loadedHand);
         document.fonts.add(loadedTitle);

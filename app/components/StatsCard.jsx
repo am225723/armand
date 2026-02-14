@@ -41,6 +41,7 @@ const BADGES = [
   "Achievement: Focused. Disciplined. Iconic.",
   "Commendation: Precision under pressure.",
 ];
+const VALENTINE_TITLE_STACK = '"Valentine", "HawaiiLover", "InterSignature", cursive';
 
 export default function StatsCard({ result, onContinue, onReveal }) {
   const [mounted, setMounted] = useState(false);
@@ -481,7 +482,7 @@ const kicker = {
 
 const title = {
   margin: "6px 0 0",
-  fontFamily: "var(--font-script)",
+  fontFamily: VALENTINE_TITLE_STACK,
   fontSize: "clamp(42px, 11vw, 72px)",
   lineHeight: 0.86,
   letterSpacing: "0.01em",
@@ -645,7 +646,7 @@ const protocolBtn = {
 
 const footerText = {
   marginTop: 12,
-  fontFamily: "var(--font-script)",
+  fontFamily: VALENTINE_TITLE_STACK,
   fontSize: "clamp(26px, 6.4vw, 38px)",
   lineHeight: 0.94,
   color: "#f5e8cf",

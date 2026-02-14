@@ -22,6 +22,28 @@ export default function Page() {
   const poemClosingTimerRef = useRef(null);
   const audioCtxRef = useRef(null);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadValentineFont = async () => {
+      try {
+        if (typeof window === "undefined") return;
+        const face = new FontFace("Valentine", "url(/fonts/valentine.otf)");
+        const loadedFace = await face.load();
+        if (cancelled) return;
+        document.fonts.add(loadedFace);
+        await document.fonts.ready;
+      } catch {
+        // graceful fallback to existing font stack
+      }
+    };
+
+    loadValentineFont();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const getAudioContext = useCallback(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -374,6 +396,8 @@ const insideHeaderStrip = {
   padding: "12px 10px",
 };
 
+const valentineTitleStack = '"Valentine", "HawaiiLover", "InterSignature", cursive';
+
 const insideBadge = {
   display: "inline-block",
   borderRadius: 999,
@@ -388,7 +412,7 @@ const insideBadge = {
 
 const insideTitle = {
   margin: "8px 0 0",
-  fontFamily: "var(--font-script)",
+  fontFamily: valentineTitleStack,
   fontSize: "clamp(44px, 12vw, 72px)",
   lineHeight: 0.86,
   color: "#603a1f",
@@ -442,7 +466,7 @@ const photoStageCornerBR = {
 
 const photoStageLabel = {
   marginBottom: 9,
-  fontFamily: "var(--font-script)",
+  fontFamily: valentineTitleStack,
   fontSize: "clamp(22px, 6.4vw, 34px)",
   lineHeight: 0.9,
   color: "#6b4120",
@@ -459,7 +483,7 @@ const poemStageWrap = {
 };
 
 const poemStageLabel = {
-  fontFamily: "var(--font-script)",
+  fontFamily: valentineTitleStack,
   fontSize: "clamp(24px, 7vw, 36px)",
   lineHeight: 0.92,
   color: "#6b4120",

@@ -3,7 +3,7 @@ import React from "react";
 
 export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = [] }) {
   const VB_W = 820;
-  const VB_H = 1360;
+  const VB_H = 1468;
 
   const poemLines = [
     `The world became a brighter place...`,
@@ -45,8 +45,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
     linePositions.push({ y: currentY, line, isBlank });
   });
 
-  const secondToLastLineY = 1216;
+  const secondToLastLineY = 1172;
   const finalLineY = 1302;
+  const knownCenterX = VB_W / 2 + 126;
   const secondToLastIndex = poemLines.length - 2;
   const finalLineIndex = poemLines.length - 1;
   const finalProgress = lineProgress[finalLineIndex] ?? 0;
@@ -472,6 +473,21 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             </text>
           );
         })()}
+
+        <text
+          x={knownCenterX}
+          y={finalLineY + 122}
+          textAnchor="middle"
+          fontFamily='"InterSignature", cursive'
+          fontSize="40"
+          fill={`rgba(126, 52, 52, ${Math.max(0, finalRevealFade * 0.86)})`}
+          stroke="url(#goldFoil)"
+          strokeWidth="0.4"
+          opacity={finalRevealFade > 0.66 ? 0.86 : 0}
+          style={{ transition: "opacity 0.5s ease", textRendering: "geometricPrecision" }}
+        >
+          XOXO
+        </text>
 
         <g
           opacity={finalRevealFade > 0.82 ? 0.75 : 0}

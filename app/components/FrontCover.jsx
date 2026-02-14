@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ArcheryGame from "./ArcheryGame";
 
-const COVER_HEADLINE_STACK = 'ui-serif, Georgia, "Times New Roman", Times, serif';
+const COVER_HEADLINE_STACK = '"Valentine", "HawaiiLover", ui-serif, Georgia, "Times New Roman", Times, serif';
 
 const BALLOON_CONFIG = [
   { left: "-9%", top: "8%", color: "#2d2326", scale: 1.04, duration: 11.8, delay: -3.1, ampX: 12, ampY: 16, tilt: 1.8, phase: -8 },
@@ -99,7 +99,7 @@ export default function FrontCover({ onComplete, onSoundChange }) {
         width: size,
         height: Math.round(size * 1.16),
         color: CONFETTI_COLORS[(index * 3 + 2) % CONFETTI_COLORS.length],
-        opacity: 0.25 + (index % 5) * 0.07,
+        opacity: 0.38 + (index % 5) * 0.075,
         maskUrl: confettiMasks[index % confettiMasks.length],
       };
     });
@@ -197,7 +197,9 @@ export default function FrontCover({ onComplete, onSoundChange }) {
           mask-position: center;
           -webkit-mask-size: contain;
           mask-size: contain;
-          filter: drop-shadow(0 2px 2px rgba(0,0,0,0.16));
+          filter: contrast(1.08) brightness(0.82) saturate(0.95) drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+          mix-blend-mode: multiply;
+          opacity: 0.92;
         }
 
         .front-sparkle {

@@ -112,6 +112,7 @@ export default function ArcheryGame({
   const assetsRef = useRef({ arrow: null, candle: null, ready: false });
 
   const pointerIdRef = useRef(null);
+  const aimDragRef = useRef(null);
   const completeLockedRef = useRef(false);
   const midpointTriggeredRef = useRef(false);
 
@@ -879,6 +880,7 @@ export default function ArcheryGame({
       };
 
       pointerIdRef.current = null;
+      aimDragRef.current = null;
       completeLockedRef.current = false;
       midpointTriggeredRef.current = false;
 
@@ -1165,8 +1167,13 @@ export default function ArcheryGame({
 
       const point = pointerToWorld(event, sim);
       sim.aiming = true;
-      sim.pull = snapToComfortZone(sim, point.x, point.y);
+      const snappedPull = snapToComfortZone(sim, point.x, point.y);
+      sim.pull = snappedPull;
       sim.pullVel = { x: 0, y: 0 };
+      aimDragRef.current = {
+        pointerStart: point,
+        pullStart: { x: snappedPull.x, y: snappedPull.y },
+      };
 
       if (!sim.startedAt) sim.startedAt = performance.now();
 
@@ -1180,7 +1187,14 @@ export default function ArcheryGame({
       if (!sim.aiming) return;
 
       const point = pointerToWorld(event, sim);
-      sim.pull = constrainPull(sim, point.x, point.y);
+      const drag = aimDragRef.current;
+      if (drag) {
+        const dx = point.x - drag.pointerStart.x;
+        const dy = point.y - drag.pointerStart.y;
+        sim.pull = constrainPull(sim, drag.pullStart.x + dx, drag.pullStart.y + dy);
+      } else {
+        sim.pull = constrainPull(sim, point.x, point.y);
+      }
       event.preventDefault();
     };
 
@@ -1190,6 +1204,7 @@ export default function ArcheryGame({
       if (pointerIdRef.current !== event.pointerId) return;
 
       pointerIdRef.current = null;
+      aimDragRef.current = null;
 
       try {
         canvas.releasePointerCapture(event.pointerId);
@@ -1231,6 +1246,7 @@ export default function ArcheryGame({
       const sim = simRef.current;
       if (!sim || pointerIdRef.current !== event.pointerId) return;
       pointerIdRef.current = null;
+      aimDragRef.current = null;
       sim.aiming = false;
       sim.pull = { ...sim.release };
       sim.pullVel = { x: 0, y: 0 };

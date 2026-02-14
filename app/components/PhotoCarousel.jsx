@@ -14,6 +14,8 @@ const MEMORY_NOTES = [
   "Your patience made the result feel effortless.",
   "Confidence looked natural on you that night.",
 ];
+const POLAROID_ROTATIONS = [-1.5, 1.2, -0.85, 1.35, -1.1, 0.95];
+const VALENTINE_TITLE_STACK = '"Valentine", "HawaiiLover", "InterSignature", cursive';
 
 export default function PhotoCarousel({ photos = [], captions = [] }) {
   const [i, setI] = useState(0);
@@ -32,10 +34,27 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
   const src = safePhotos[i] || safePhotos[0] || "";
   const cap = captions?.[i] ?? `Memory ${i + 1}`;
   const memoryLabel = `Memory ${String(i + 1).padStart(2, "0")}`;
-  const memorySubtitle = cap || "A favorite moment";
   const memoryChip = MEMORY_CHIPS[i % MEMORY_CHIPS.length];
   const memoryTitle = MEMORY_TITLES[i % MEMORY_TITLES.length];
   const memoryNote = MEMORY_NOTES[i % MEMORY_NOTES.length];
+  const polaroidRotation = reducedMotion ? 0 : POLAROID_ROTATIONS[i % POLAROID_ROTATIONS.length];
+
+  const captionParts = useMemo(() => {
+    const raw = typeof cap === "string" ? cap.trim() : "";
+    if (!raw) return { main: `Memory ${i + 1}`, meta: "" };
+
+    const separators = ["|", "\u2022", "\u2014"];
+    for (const sep of separators) {
+      if (!raw.includes(sep)) continue;
+      const [main, ...metaParts] = raw.split(sep);
+      return {
+        main: (main || "").trim() || `Memory ${i + 1}`,
+        meta: metaParts.join(sep).trim(),
+      };
+    }
+
+    return { main: raw, meta: "" };
+  }, [cap, i]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -119,46 +138,78 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
         .memory-frame {
           --tilt-x: 0deg;
           --tilt-y: 0deg;
-          transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
-          transition: transform 240ms cubic-bezier(.2,.72,.2,1);
+          --photo-rotation: 0deg;
+          transform: perspective(980px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) rotate(var(--photo-rotation));
+          transition: transform 260ms ease, box-shadow 280ms ease;
+          background:
+            linear-gradient(175deg, rgba(248,242,230,0.98), rgba(239,229,210,0.95)),
+            radial-gradient(130% 100% at 50% 0%, rgba(255,255,255,0.55), rgba(255,255,255,0));
+          box-shadow: 0 14px 28px rgba(42,28,14,0.2), inset 0 1px 0 rgba(255,255,255,0.9);
+        }
+
+        .memory-frame-active {
+          box-shadow: 0 22px 38px rgba(38,24,12,0.28), inset 0 1px 0 rgba(255,255,255,0.92);
+        }
+
+        .memory-photo-window {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          right: 12px;
+          bottom: 86px;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 1px solid rgba(147,120,91,0.24);
+          box-shadow: 0 10px 22px rgba(0,0,0,0.2);
+          background: rgba(238,226,208,0.6);
+          transition: box-shadow 260ms ease;
+        }
+
+        .memory-frame-active .memory-photo-window {
+          box-shadow: 0 16px 30px rgba(0,0,0,0.26);
         }
 
         .memory-slide {
-          animation: memorySlideIn 320ms cubic-bezier(.2,.72,.2,1) both;
+          width: 100%;
+          height: 100%;
+          animation: memorySlideIn 320ms cubic-bezier(.22,.61,.36,1) both;
+          transform: scale(var(--slide-scale, 1.02));
+          transition: transform 280ms ease;
         }
 
         .memory-caption {
-          animation: memoryCaptionIn 280ms ease both;
+          animation: memoryCaptionIn 240ms ease both;
         }
 
         .memory-modal {
-          animation: memoryModalIn 340ms cubic-bezier(.2,.72,.2,1) both;
+          animation: memoryModalIn 320ms cubic-bezier(.22,.61,.36,1) both;
         }
 
         .memory-backdrop {
-          animation: memoryBackdropIn 220ms ease both;
+          animation: memoryBackdropIn 200ms ease both;
         }
 
         .memory-grain {
           position: absolute;
           inset: 0;
           background:
-            radial-gradient(circle at 25% 20%, rgba(255,255,255,0.1), rgba(255,255,255,0) 42%),
-            radial-gradient(circle at 70% 65%, rgba(255,255,255,0.08), rgba(255,255,255,0) 35%),
-            repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 3px);
-          mix-blend-mode: soft-light;
-          opacity: 0.18;
+            radial-gradient(circle at 18% 24%, rgba(255,255,255,0.2), rgba(255,255,255,0) 44%),
+            radial-gradient(circle at 74% 70%, rgba(102,74,44,0.08), rgba(255,255,255,0) 45%),
+            repeating-linear-gradient(0deg, rgba(94,67,38,0.03) 0 1px, transparent 1px 3px),
+            repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 4px);
+          mix-blend-mode: multiply;
+          opacity: 0.42;
           pointer-events: none;
         }
 
         @keyframes memorySlideIn {
           from {
-            opacity: 0;
-            transform: translate3d(var(--slide-shift, 4px), 0, 0) scale(1.01);
+            opacity: 0.25;
+            transform: translate3d(var(--slide-shift, 5px), 0, 0) scale(calc(var(--slide-scale, 1.02) - 0.014));
           }
           to {
             opacity: 1;
-            transform: translate3d(0, 0, 0) scale(1);
+            transform: translate3d(0, 0, 0) scale(var(--slide-scale, 1.02));
           }
         }
 
@@ -198,6 +249,13 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
             transform: none !important;
             transition: none !important;
           }
+          .memory-photo-window {
+            transition: none !important;
+          }
+          .memory-slide {
+            transform: none !important;
+            transition: none !important;
+          }
           .memory-slide,
           .memory-caption,
           .memory-modal,
@@ -212,93 +270,89 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
 
       <div
         ref={frameRef}
-        className="memory-frame"
+        className="memory-frame memory-frame-active"
         style={{
           position: "relative",
           width: "100%",
           aspectRatio: "16 / 9",
           borderRadius: 16,
           overflow: "hidden",
-          border: "1px solid rgba(164, 121, 72, 0.3)",
-          boxShadow: "0 14px 30px rgba(0,0,0,0.24)",
+          border: "1px solid rgba(170, 134, 98, 0.42)",
           touchAction: "pan-y",
+          "--photo-rotation": `${polaroidRotation}deg`,
         }}
         onPointerMove={onPointerMove}
         onPointerLeave={resetTilt}
         onPointerCancel={resetTilt}
       >
-        {src ? (
-          <div
-            key={`${src}-${slideTick}`}
-            className="memory-slide"
-            style={{
-              width: "100%",
-              height: "100%",
-              "--slide-shift": `${slideDir * 6}px`,
-            }}
-          >
-            <img
-              src={src}
-              alt={cap || `Photo ${i + 1}`}
+        <div className="memory-photo-window">
+          {src ? (
+            <div
+              key={`${src}-${slideTick}`}
+              className="memory-slide"
+              style={{
+                "--slide-shift": `${slideDir * 7}px`,
+                "--slide-scale": reducedMotion ? 1 : 1.022,
+              }}
+            >
+              <img
+                src={src}
+                alt={cap || `Photo ${i + 1}`}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                  cursor: "zoom-in",
+                }}
+                onClick={() =>
+                  setActiveMemory({
+                    title: memoryTitle,
+                    caption: cap,
+                    chip: memoryChip,
+                    note: memoryNote,
+                    src,
+                  })
+                }
+              />
+            </div>
+          ) : (
+            <div
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
-                display: "block",
-                cursor: "zoom-in",
+                display: "grid",
+                placeItems: "center",
+                color: "rgba(60,42,24,0.7)",
+                fontFamily: "var(--font-ui)",
+                fontSize: 13,
               }}
-              onClick={() =>
-                setActiveMemory({
-                  title: memoryTitle,
-                  caption: cap,
-                  chip: memoryChip,
-                  note: memoryNote,
-                  src,
-                })
-              }
-            />
-          </div>
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "grid",
-              placeItems: "center",
-              color: "rgba(255,255,255,.7)",
-            }}
-          >
-            No photos found
-          </div>
-        )}
+            >
+              No photos found
+            </div>
+          )}
+        </div>
 
         <div className="memory-grain" />
-
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "linear-gradient(to top, rgba(18,12,8,.72), rgba(18,12,8,0) 58%)",
-          }}
-        />
 
         <div
           key={`caption-${i}`}
           className="memory-caption"
           style={{
             position: "absolute",
-            left: 12,
-            right: 12,
-            bottom: 10,
+            left: 14,
+            right: 14,
+            bottom: 12,
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "flex-end",
             gap: 10,
           }}
         >
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={memoryMetaTitle}>{memoryLabel}</div>
-            <div style={memoryMetaSub}>{memorySubtitle}</div>
+            <div style={memoryMetaSub}>{captionParts.main || "A favorite moment"}</div>
+            {captionParts.meta ? <div style={memoryMetaAux}>{captionParts.meta}</div> : null}
             <span style={chipOverlay}>{memoryChip}</span>
           </div>
 
@@ -377,17 +431,18 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
 function pillBtn() {
   return {
     appearance: "none",
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 999,
-    border: "1px solid rgba(255,235,201,.3)",
-    background: "rgba(29,19,14,.42)",
-    color: "#fff2d6",
+    border: "1px solid rgba(126, 92, 58, 0.42)",
+    background: "rgba(248,242,231,0.82)",
+    color: "#5f3d20",
     fontWeight: 900,
     fontSize: 18,
     lineHeight: "18px",
     cursor: "pointer",
-    backdropFilter: "blur(8px)",
+    fontFamily: "var(--font-ui)",
+    boxShadow: "0 4px 10px rgba(36,22,11,0.15)",
   };
 }
 
@@ -416,32 +471,42 @@ const goldCornerBR = {
 };
 
 const memoryMetaTitle = {
-  color: "rgba(255, 241, 214, 0.96)",
-  fontWeight: 860,
-  letterSpacing: "0.06em",
+  color: "rgba(90, 62, 34, 0.9)",
+  fontWeight: 760,
+  letterSpacing: "0.11em",
   textTransform: "uppercase",
-  fontSize: 11,
-  textShadow: "0 2px 16px rgba(0,0,0,.7)",
+  fontSize: 10,
+  fontFamily: "var(--font-ui)",
 };
 
 const memoryMetaSub = {
+  marginTop: 3,
+  color: "rgba(58, 40, 23, 0.95)",
+  fontWeight: 650,
+  fontSize: 14,
+  lineHeight: 1.2,
+  fontFamily: "var(--font-ui)",
+};
+
+const memoryMetaAux = {
   marginTop: 2,
-  color: "rgba(245, 232, 207, 0.9)",
-  fontWeight: 700,
-  fontSize: 13,
-  textShadow: "0 2px 14px rgba(0,0,0,.66)",
+  color: "rgba(72, 50, 30, 0.62)",
+  fontSize: 11,
+  lineHeight: 1.2,
+  fontFamily: "var(--font-ui)",
 };
 
 const chipOverlay = {
   display: "inline-block",
-  marginTop: 4,
+  marginTop: 5,
   borderRadius: 999,
-  border: "1px solid rgba(226,184,119,0.36)",
-  background: "rgba(18,12,8,0.58)",
-  color: "rgba(245,232,207,0.95)",
+  border: "1px solid rgba(170,129,84,0.32)",
+  background: "rgba(255,248,236,0.84)",
+  color: "rgba(98,67,35,0.9)",
   padding: "3px 8px",
   fontSize: 11,
   letterSpacing: "0.03em",
+  fontFamily: "var(--font-ui)",
 };
 
 const modalBackdrop = {
@@ -497,7 +562,7 @@ const modalHeader = {
 
 const modalTitle = {
   margin: "8px 0 0",
-  fontFamily: "var(--font-script)",
+  fontFamily: VALENTINE_TITLE_STACK,
   fontSize: "clamp(30px, 8.2vw, 44px)",
   lineHeight: 0.9,
   color: "#f5e8cf",
