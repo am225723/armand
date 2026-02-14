@@ -61,6 +61,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
   const finalLineReveal = delayedProgress(finalProgress, 0.24);
   const finalLineOpacity = delayedProgress(finalLineReveal, 0.15);
   const finalRevealFade = delayedProgress(finalLineReveal, 0.3);
+  const inkBackdropOpacity = 0.05 + Math.min(0.05, (lineProgress[0] ?? 0) * 0.1);
 
   return (
     <svg
@@ -104,6 +105,10 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
 
         <filter id="softShadow" x="-25%" y="-25%" width="150%" height="150%">
           <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="rgba(0,0,0,0.18)" />
+        </filter>
+
+        <filter id="inkBlur" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="0.9" />
         </filter>
 
         <linearGradient id="goldFoil" x1="0" y1="0" x2="1" y2="1">
@@ -198,6 +203,27 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
         <path d={`M92 ${VB_H - 132} C130 ${VB_H - 150}, 160 ${VB_H - 175}, 175 ${VB_H - 205}`} opacity="0.55" />
         <path d={`M${VB_W - 92} ${VB_H - 132} C${VB_W - 110} ${VB_H - 95}, ${VB_W - 160} ${VB_H - 88}, ${VB_W - 195} ${VB_H - 110}`} />
         <path d={`M${VB_W - 92} ${VB_H - 132} C${VB_W - 130} ${VB_H - 150}, ${VB_W - 160} ${VB_H - 175}, ${VB_W - 175} ${VB_H - 205}`} opacity="0.55" />
+      </g>
+
+      <g
+        opacity={inkBackdropOpacity}
+        filter="url(#inkBlur)"
+        style={{ mixBlendMode: "multiply", transition: "opacity 420ms ease" }}
+      >
+        <ellipse cx="84" cy="188" rx="12" ry="8" fill="#2a1810" />
+        <ellipse cx={VB_W - 82} cy="224" rx="11" ry="7" fill="#1b1109" />
+        <ellipse cx="116" cy="1048" rx="13" ry="9" fill="#2a1810" />
+        <ellipse cx={VB_W - 118} cy="1126" rx="12" ry="8" fill="#1b1109" />
+
+        <ellipse cx="152" cy="332" rx="8" ry="5" fill="#24150d" />
+        <ellipse cx={VB_W - 144} cy="416" rx="8" ry="5" fill="#1d120b" />
+        <ellipse cx="98" cy="768" rx="7" ry="5" fill="#24150d" />
+        <ellipse cx={VB_W - 96} cy="868" rx="7" ry="5" fill="#1d120b" />
+
+        <circle cx="188" cy="236" r="2.6" fill="#2a1810" />
+        <circle cx={VB_W - 206} cy="286" r="2.2" fill="#1b1109" />
+        <circle cx="236" cy="1196" r="2.4" fill="#2a1810" />
+        <circle cx={VB_W - 232} cy="1234" r="2.2" fill="#1b1109" />
       </g>
 
       {(() => {
@@ -461,7 +487,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
       </g>
 
       {/* Ink drops and stains for aged paper look */}
-      <g opacity="0.35">
+      <g opacity="0.08" style={{ mixBlendMode: "multiply", filter: "blur(0.8px)" }}>
         {/* Large ink blots */}
         <ellipse cx="95" cy="180" rx="8" ry="6" fill="#2a1810" opacity="0.15" />
         <ellipse cx={VB_W - 85} cy="280" rx="10" ry="7" fill="#1a1008" opacity="0.12" />

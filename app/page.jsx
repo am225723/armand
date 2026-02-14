@@ -219,7 +219,7 @@ export default function Page() {
         <div style={insideHeaderStrip}>
           <div style={insideBadge}>Unlocked Story</div>
           <h2 style={insideTitle} className="inside-heading-sheen">
-            For Luke
+            For Luke, Always
           </h2>
           <p style={insideSubhead}>The next pages are all yours.</p>
         </div>
@@ -288,7 +288,7 @@ export default function Page() {
         .inside-heading-sheen {
           background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(226,184,119,0.72), rgba(255,255,255,0));
           background-size: 180% 100%;
-          animation: insideHeadingSheen 9s linear infinite;
+          animation: insideHeadingSheen 7.2s linear infinite;
           -webkit-background-clip: text;
         }
 

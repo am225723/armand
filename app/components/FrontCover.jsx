@@ -1,18 +1,37 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ArcheryGame from "./ArcheryGame";
 
+const COVER_HEADLINE_STACK = 'ui-serif, Georgia, "Times New Roman", Times, serif';
+
 const BALLOON_CONFIG = [
-  { left: "-9%", top: "8%", color: "#2d2326", sway: 18, scale: 1.06, duration: 22, delay: -5.2 },
-  { left: "5%", top: "3%", color: "#221b1f", sway: 14, scale: 0.95, duration: 19, delay: -2.4 },
-  { left: "80%", top: "4%", color: "#2a2427", sway: 16, scale: 0.96, duration: 21, delay: -8.1 },
-  { left: "91%", top: "12%", color: "#30272a", sway: 14, scale: 1.02, duration: 23, delay: -3.4 },
-  { left: "-7%", top: "56%", color: "#1f191c", sway: 12, scale: 0.92, duration: 20, delay: -6.2 },
-  { left: "87%", top: "58%", color: "#292126", sway: 18, scale: 0.94, duration: 22, delay: -11.4 },
+  { left: "-9%", top: "8%", color: "#2d2326", scale: 1.04, duration: 11.8, delay: -3.1, ampX: 12, ampY: 16, tilt: 1.8, phase: -8 },
+  { left: "5%", top: "3%", color: "#221b1f", scale: 0.95, duration: 9.7, delay: -1.4, ampX: 10, ampY: 14, tilt: 1.4, phase: 6 },
+  { left: "80%", top: "4%", color: "#2a2427", scale: 0.96, duration: 15.1, delay: -6.2, ampX: 11, ampY: 13, tilt: 1.5, phase: 2 },
+  { left: "91%", top: "12%", color: "#30272a", scale: 1.02, duration: 13.4, delay: -2.7, ampX: 9, ampY: 12, tilt: 1.3, phase: -4 },
+  { left: "-7%", top: "56%", color: "#1f191c", scale: 0.92, duration: 17.2, delay: -4.8, ampX: 13, ampY: 15, tilt: 1.6, phase: 10 },
+  { left: "87%", top: "58%", color: "#292126", scale: 0.94, duration: 12.7, delay: -8.3, ampX: 12, ampY: 14, tilt: 1.7, phase: -12 },
 ];
 
-const CONFETTI_COLORS = ["#2d2326", "#503a2d", "#7d5a38", "#8a2c2d", "#d0a061"];
+const CONFETTI_SVG_FILES = [
+  "/game/con1.svg",
+  "/game/con2.svg",
+  "/game/con3.svg",
+  "/game/con4.svg",
+  "/game/con5.svg",
+  "/game/con6.svg",
+];
+
+const CONFETTI_COLORS = [
+  "#e2b877",
+  "#f5e8cf",
+  "#c9a46a",
+  "#7a5c99",
+  "#2f6b5a",
+  "#b45b6a",
+  "#4a78a6",
+];
 
 const SPARKLES = [
   { left: "18%", top: "14%", size: 15, duration: 5.4, delay: -1.8 },
@@ -23,25 +42,68 @@ const SPARKLES = [
 ];
 
 export default function FrontCover({ onComplete, onSoundChange }) {
-  const confettiPieces = useMemo(
-    () =>
-      Array.from({ length: 18 }).map((_, index) => {
-        const size = index % 4 === 0 ? 6 : 4;
-        return {
-          id: index,
-          left: `${4 + (index * 5.1) % 92}%`,
-          duration: 12 + (index % 6) * 1.7,
-          delay: -(index % 7) * 1.35,
-          drift: 14 + (index % 5) * 6,
-          rotation: -24 + index * 13,
-          width: size,
-          height: size + (index % 3),
-          color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-          opacity: index % 3 === 0 ? 0.46 : 0.3,
-        };
-      }),
-    []
-  );
+  const [confettiMasks, setConfettiMasks] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    let urls = [];
+
+    const loadMasks = async () => {
+      try {
+        const loaded = await Promise.all(
+          CONFETTI_SVG_FILES.map(async (file) => {
+            const response = await fetch(file, { cache: "force-cache" });
+            if (!response.ok) throw new Error(`Failed to load ${file}`);
+            const svgText = await response.text();
+            const blobUrl = URL.createObjectURL(
+              new Blob([svgText], { type: "image/svg+xml" })
+            );
+            return blobUrl;
+          })
+        );
+
+        if (!mounted) {
+          loaded.forEach((url) => URL.revokeObjectURL(url));
+          return;
+        }
+
+        urls = loaded;
+        setConfettiMasks(loaded);
+      } catch {
+        if (mounted) setConfettiMasks([]);
+      }
+    };
+
+    loadMasks();
+
+    return () => {
+      mounted = false;
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  const confettiPieces = useMemo(() => {
+    if (!confettiMasks.length) return [];
+
+    return Array.from({ length: 46 }).map((_, index) => {
+      const size = 10 + (index % 4) * 3;
+      return {
+        id: index,
+        left: `${2 + ((index * 3.7) % 95)}%`,
+        duration: 13 + (index % 6) * 1.3,
+        delay: -(index % 10) * 1.25,
+        swayA: -14 + (index % 7) * 4,
+        swayB: -20 + (index % 9) * 5,
+        rotA: -18 + (index % 8) * 4,
+        rotB: 14 + (index % 7) * 5,
+        width: size,
+        height: Math.round(size * 1.16),
+        color: CONFETTI_COLORS[(index * 3 + 2) % CONFETTI_COLORS.length],
+        opacity: 0.25 + (index % 5) * 0.07,
+        maskUrl: confettiMasks[index % confettiMasks.length],
+      };
+    });
+  }, [confettiMasks]);
 
   return (
     <div style={frontWrap}>
@@ -55,16 +117,24 @@ export default function FrontCover({ onComplete, onSoundChange }) {
         }
 
         .front-headline-sheen {
-          background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(214,109,110,0.82), rgba(255,255,255,0));
+          background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(214,109,110,0.78), rgba(255,255,255,0));
           background-size: 180% 100%;
           -webkit-background-clip: text;
           animation: frontHeadlineSheen 7s linear infinite;
         }
 
+        .front-headline-halo {
+          animation: frontHeadlineHalo 8s ease-in-out infinite;
+          transform-origin: 50% 44%;
+        }
+
         .front-balloon {
           --balloon-color: #e8c07a;
           --balloon-scale: 1;
-          --balloon-sway: 16px;
+          --balloon-amp-x: 12px;
+          --balloon-amp-y: 14px;
+          --balloon-tilt: 1.5;
+          --balloon-phase: 0;
           position: absolute;
           width: clamp(58px, 13vw, 94px);
           aspect-ratio: 0.82;
@@ -75,7 +145,8 @@ export default function FrontCover({ onComplete, onSoundChange }) {
             var(--balloon-color);
           box-shadow: 0 14px 24px rgba(46, 30, 16, 0.16), inset -7px -10px 15px rgba(0, 0, 0, 0.12);
           transform-origin: 50% 70%;
-          animation: frontBalloonFloat 17s ease-in-out infinite;
+          animation: frontBalloonWander ease-in-out infinite;
+          will-change: transform;
         }
 
         .front-balloon-gloss {
@@ -110,13 +181,23 @@ export default function FrontCover({ onComplete, onSoundChange }) {
           transform: translateX(-50%);
         }
 
-        .front-confetti {
-          --confetti-drift: 18px;
-          --confetti-rot: 12deg;
+        .front-confetti-svg {
           position: absolute;
-          border-radius: 2px;
-          animation: frontConfettiDrift 14s linear infinite;
-          filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14));
+          animation: frontConfettiFall linear infinite;
+          will-change: transform, opacity;
+          pointer-events: none;
+        }
+
+        .front-confetti-ink {
+          position: absolute;
+          inset: 0;
+          -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+          -webkit-mask-position: center;
+          mask-position: center;
+          -webkit-mask-size: contain;
+          mask-size: contain;
+          filter: drop-shadow(0 2px 2px rgba(0,0,0,0.16));
         }
 
         .front-sparkle {
@@ -139,6 +220,18 @@ export default function FrontCover({ onComplete, onSoundChange }) {
           }
         }
 
+        @keyframes frontHeadlineHalo {
+          0%,
+          100% {
+            opacity: 0.3;
+            transform: scale(0.98);
+          }
+          50% {
+            opacity: 0.5;
+            transform: scale(1.02);
+          }
+        }
+
         @keyframes frontHeadlinePulse {
           0%,
           100% {
@@ -158,30 +251,44 @@ export default function FrontCover({ onComplete, onSoundChange }) {
           }
         }
 
-        @keyframes frontBalloonFloat {
+        @keyframes frontBalloonWander {
           0%,
           100% {
-            transform: translate3d(0, 0, 0) rotate(-1.3deg) scale(var(--balloon-scale));
+            transform: translate3d(calc(var(--balloon-phase) * 1px), 0, 0)
+              rotate(calc(var(--balloon-tilt) * -0.24deg))
+              scale(var(--balloon-scale));
+          }
+          25% {
+            transform: translate3d(calc(var(--balloon-amp-x) * 0.66), calc(var(--balloon-amp-y) * -0.52), 0)
+              rotate(calc(var(--balloon-tilt) * 0.34deg))
+              scale(var(--balloon-scale));
           }
           50% {
-            transform: translate3d(var(--balloon-sway), -16px, 0) rotate(1.4deg) scale(var(--balloon-scale));
+            transform: translate3d(calc(var(--balloon-amp-x) * 0.12), calc(var(--balloon-amp-y) * -1), 0)
+              rotate(calc(var(--balloon-tilt) * -0.2deg))
+              scale(var(--balloon-scale));
+          }
+          75% {
+            transform: translate3d(calc(var(--balloon-amp-x) * -0.58), calc(var(--balloon-amp-y) * -0.46), 0)
+              rotate(calc(var(--balloon-tilt) * 0.24deg))
+              scale(var(--balloon-scale));
           }
         }
 
-        @keyframes frontConfettiDrift {
+        @keyframes frontConfettiFall {
           0% {
-            transform: translate3d(0, -14%, 0) rotate(calc(var(--confetti-rot) - 15deg));
+            transform: translate3d(0, -16%, 0) rotate(var(--confetti-rot-a));
             opacity: 0;
           }
-          12% {
-            opacity: 0.62;
+          10% {
+            opacity: var(--confetti-opacity);
           }
-          54% {
-            transform: translate3d(var(--confetti-drift), 58vh, 0) rotate(calc(var(--confetti-rot) + 24deg));
+          52% {
+            transform: translate3d(var(--confetti-sway-a), 56vh, 0) rotate(var(--confetti-rot-b));
           }
           100% {
-            transform: translate3d(calc(var(--confetti-drift) * -0.78), 118vh, 0)
-              rotate(calc(var(--confetti-rot) + 52deg));
+            transform: translate3d(var(--confetti-sway-b), 115vh, 0)
+              rotate(calc(var(--confetti-rot-b) + 28deg));
             opacity: 0;
           }
         }
@@ -200,16 +307,17 @@ export default function FrontCover({ onComplete, onSoundChange }) {
 
         @media (prefers-reduced-motion: reduce) {
           .front-golden-sweep,
+          .front-headline-halo,
           .front-headline-pulse,
           .front-headline-sheen,
           .front-balloon,
-          .front-confetti,
+          .front-confetti-svg,
           .front-sparkle {
             animation: none !important;
           }
 
-          .front-confetti {
-            opacity: 0.22;
+          .front-confetti-svg {
+            display: none;
           }
         }
       `}</style>
@@ -234,8 +342,11 @@ export default function FrontCover({ onComplete, onSoundChange }) {
                 animationDuration: `${balloon.duration}s`,
                 animationDelay: `${balloon.delay}s`,
                 "--balloon-color": balloon.color,
-                "--balloon-sway": `${balloon.sway}px`,
                 "--balloon-scale": `${balloon.scale}`,
+                "--balloon-amp-x": `${balloon.ampX}px`,
+                "--balloon-amp-y": `${balloon.ampY}px`,
+                "--balloon-tilt": `${balloon.tilt}`,
+                "--balloon-phase": `${balloon.phase}`,
               }}
             >
               <span className="front-balloon-gloss" />
@@ -248,25 +359,37 @@ export default function FrontCover({ onComplete, onSoundChange }) {
         <div style={frontConfettiLayer} aria-hidden="true">
           {confettiPieces.map((piece) => (
             <span
-              key={piece.id}
-              className="front-confetti"
+              key={`confetti-${piece.id}`}
+              className="front-confetti-svg"
               style={{
                 left: piece.left,
-                top: "-8%",
+                top: "-10%",
                 width: piece.width,
                 height: piece.height,
                 opacity: piece.opacity,
-                background: piece.color,
                 animationDuration: `${piece.duration}s`,
                 animationDelay: `${piece.delay}s`,
-                "--confetti-drift": `${piece.drift}px`,
-                "--confetti-rot": `${piece.rotation}deg`,
+                "--confetti-sway-a": `${piece.swayA}px`,
+                "--confetti-sway-b": `${piece.swayB}px`,
+                "--confetti-rot-a": `${piece.rotA}deg`,
+                "--confetti-rot-b": `${piece.rotB}deg`,
+                "--confetti-opacity": `${piece.opacity}`,
               }}
-            />
+            >
+              <span
+                className="front-confetti-ink"
+                style={{
+                  backgroundColor: piece.color,
+                  WebkitMaskImage: `url("${piece.maskUrl}")`,
+                  maskImage: `url("${piece.maskUrl}")`,
+                }}
+              />
+            </span>
           ))}
         </div>
 
         <div style={frontHeader}>
+          <div style={frontHeadlineHalo} className="front-headline-halo" aria-hidden="true" />
           <div style={frontKicker}>Front Cover Challenge</div>
 
           <h1 style={frontHeading} className="front-headline-pulse">
@@ -415,6 +538,20 @@ const frontHeader = {
   padding: "26px 20px 8px",
 };
 
+const frontHeadlineHalo = {
+  position: "absolute",
+  left: "50%",
+  top: 2,
+  width: "min(74vw, 560px)",
+  height: "min(34vw, 240px)",
+  transform: "translateX(-50%)",
+  borderRadius: "50%",
+  background:
+    "radial-gradient(closest-side, rgba(232, 190, 115, 0.26), rgba(232, 190, 115, 0.08) 52%, rgba(232, 190, 115, 0))",
+  filter: "blur(0.6px)",
+  pointerEvents: "none",
+};
+
 const frontKicker = {
   fontSize: 12,
   textTransform: "uppercase",
@@ -433,17 +570,19 @@ const frontHeading = {
 };
 
 const frontHeadingTop = {
-  fontFamily: "var(--font-script)",
+  fontFamily: COVER_HEADLINE_STACK,
   fontSize: "clamp(52px, 15.2vw, 122px)",
-  letterSpacing: "0.01em",
+  letterSpacing: "-0.012em",
+  fontWeight: 620,
   color: "#6f2f35",
 };
 
 const frontHeadingName = {
   marginTop: -4,
-  fontFamily: "var(--font-script)",
+  fontFamily: COVER_HEADLINE_STACK,
   fontSize: "clamp(66px, 19.6vw, 156px)",
-  letterSpacing: "0.01em",
+  letterSpacing: "-0.01em",
+  fontWeight: 700,
   color: "#802f35",
 };
 

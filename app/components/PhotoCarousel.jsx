@@ -19,6 +19,9 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
   const [i, setI] = useState(0);
   const [activeMemory, setActiveMemory] = useState(null);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [slideDir, setSlideDir] = useState(1);
+  const [slideTick, setSlideTick] = useState(0);
+
   const safePhotos = useMemo(() => (photos || []).filter(Boolean), [photos]);
   const frameRef = useRef(null);
   const tiltRafRef = useRef(0);
@@ -26,11 +29,10 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
 
   const count = safePhotos.length || 1;
 
-  const prev = () => setI((v) => (v - 1 + count) % count);
-  const next = () => setI((v) => (v + 1) % count);
-
   const src = safePhotos[i] || safePhotos[0] || "";
   const cap = captions?.[i] ?? `Memory ${i + 1}`;
+  const memoryLabel = `Memory ${String(i + 1).padStart(2, "0")}`;
+  const memorySubtitle = cap || "A favorite moment";
   const memoryChip = MEMORY_CHIPS[i % MEMORY_CHIPS.length];
   const memoryTitle = MEMORY_TITLES[i % MEMORY_TITLES.length];
   const memoryNote = MEMORY_NOTES[i % MEMORY_NOTES.length];
@@ -76,6 +78,30 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
     if (!tiltRafRef.current) tiltRafRef.current = requestAnimationFrame(applyTilt);
   };
 
+  const changeBy = (delta) => {
+    setSlideDir(delta >= 0 ? 1 : -1);
+    setSlideTick((v) => v + 1);
+    setI((v) => (v + delta + count) % count);
+  };
+
+  const jumpTo = (nextIndex) => {
+    setI((current) => {
+      const normalized = ((nextIndex % count) + count) % count;
+      if (normalized === current) return current;
+
+      const direct = normalized - current;
+      const wrapped = direct > 0 ? direct - count : direct + count;
+      const shortest = Math.abs(direct) <= Math.abs(wrapped) ? direct : wrapped;
+
+      setSlideDir(shortest >= 0 ? 1 : -1);
+      setSlideTick((v) => v + 1);
+      return normalized;
+    });
+  };
+
+  const prev = () => changeBy(-1);
+  const next = () => changeBy(1);
+
   return (
     <div
       style={{
@@ -97,12 +123,54 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
           transition: transform 240ms cubic-bezier(.2,.72,.2,1);
         }
 
+        .memory-slide {
+          animation: memorySlideIn 320ms cubic-bezier(.2,.72,.2,1) both;
+        }
+
+        .memory-caption {
+          animation: memoryCaptionIn 280ms ease both;
+        }
+
         .memory-modal {
           animation: memoryModalIn 340ms cubic-bezier(.2,.72,.2,1) both;
         }
 
         .memory-backdrop {
           animation: memoryBackdropIn 220ms ease both;
+        }
+
+        .memory-grain {
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at 25% 20%, rgba(255,255,255,0.1), rgba(255,255,255,0) 42%),
+            radial-gradient(circle at 70% 65%, rgba(255,255,255,0.08), rgba(255,255,255,0) 35%),
+            repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 3px);
+          mix-blend-mode: soft-light;
+          opacity: 0.18;
+          pointer-events: none;
+        }
+
+        @keyframes memorySlideIn {
+          from {
+            opacity: 0;
+            transform: translate3d(var(--slide-shift, 4px), 0, 0) scale(1.01);
+          }
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+          }
+        }
+
+        @keyframes memoryCaptionIn {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         @keyframes memoryModalIn {
@@ -130,6 +198,8 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
             transform: none !important;
             transition: none !important;
           }
+          .memory-slide,
+          .memory-caption,
           .memory-modal,
           .memory-backdrop {
             animation: none !important;
@@ -158,26 +228,36 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
         onPointerCancel={resetTilt}
       >
         {src ? (
-          <img
-            src={src}
-            alt={cap || `Photo ${i + 1}`}
+          <div
+            key={`${src}-${slideTick}`}
+            className="memory-slide"
             style={{
               width: "100%",
               height: "100%",
-              objectFit: "cover",
-              display: "block",
-              cursor: "zoom-in",
+              "--slide-shift": `${slideDir * 6}px`,
             }}
-            onClick={() =>
-              setActiveMemory({
-                title: memoryTitle,
-                caption: cap,
-                chip: memoryChip,
-                note: memoryNote,
-                src,
-              })
-            }
-          />
+          >
+            <img
+              src={src}
+              alt={cap || `Photo ${i + 1}`}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                cursor: "zoom-in",
+              }}
+              onClick={() =>
+                setActiveMemory({
+                  title: memoryTitle,
+                  caption: cap,
+                  chip: memoryChip,
+                  note: memoryNote,
+                  src,
+                })
+              }
+            />
+          </div>
         ) : (
           <div
             style={{
@@ -192,6 +272,8 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
           </div>
         )}
 
+        <div className="memory-grain" />
+
         <div
           style={{
             position: "absolute",
@@ -201,6 +283,8 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
         />
 
         <div
+          key={`caption-${i}`}
+          className="memory-caption"
           style={{
             position: "absolute",
             left: 12,
@@ -213,15 +297,8 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
           }}
         >
           <div>
-            <div
-              style={{
-                color: "rgba(255, 241, 214, 0.96)",
-                fontWeight: 900,
-                textShadow: "0 2px 16px rgba(0,0,0,.7)",
-              }}
-            >
-              {cap}
-            </div>
+            <div style={memoryMetaTitle}>{memoryLabel}</div>
+            <div style={memoryMetaSub}>{memorySubtitle}</div>
             <span style={chipOverlay}>{memoryChip}</span>
           </div>
 
@@ -240,7 +317,7 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
         {Array.from({ length: count }).map((_, idx) => (
           <span
             key={idx}
-            onClick={() => setI(idx)}
+            onClick={() => jumpTo(idx)}
             style={{
               width: 8,
               height: 8,
@@ -336,6 +413,23 @@ const goldCornerBR = {
   borderRight: "2px solid rgba(226,184,119,0.86)",
   borderBottomRightRadius: 3,
   pointerEvents: "none",
+};
+
+const memoryMetaTitle = {
+  color: "rgba(255, 241, 214, 0.96)",
+  fontWeight: 860,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  fontSize: 11,
+  textShadow: "0 2px 16px rgba(0,0,0,.7)",
+};
+
+const memoryMetaSub = {
+  marginTop: 2,
+  color: "rgba(245, 232, 207, 0.9)",
+  fontWeight: 700,
+  fontSize: 13,
+  textShadow: "0 2px 14px rgba(0,0,0,.66)",
 };
 
 const chipOverlay = {
