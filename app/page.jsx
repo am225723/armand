@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import ArcheryGame from "./components/ArcheryGame";
 import OrnateBirthdayCard from "./components/OrnateBirthdayCard";
 import PhotoCarousel from "./components/PhotoCarousel";
 import StatsCard from "./components/StatsCard";
+import FrontCover from "./components/FrontCover";
 
 export default function Page() {
   const [step, setStep] = useState("archery"); // "archery" | "earned" | "poem"
@@ -38,12 +38,6 @@ export default function Page() {
   return (
     <div style={shell}>
       <style>{`
-        .front-shimmer {
-          background: linear-gradient(90deg, rgba(255,255,255,0), rgba(236,201,137,0.48), rgba(255,255,255,0));
-          background-size: 200% 100%;
-          animation: frontShimmer 3s linear infinite;
-        }
-
         .inside-spark {
           animation: insideSpark 2.6s ease-in-out infinite;
         }
@@ -52,11 +46,6 @@ export default function Page() {
           animation-name: insideConfettiFall;
           animation-timing-function: linear;
           animation-iteration-count: infinite;
-        }
-
-        @keyframes frontShimmer {
-          from { background-position: 200% 0; }
-          to { background-position: -200% 0; }
         }
 
         @keyframes insideSpark {
@@ -80,7 +69,6 @@ export default function Page() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .front-shimmer,
           .inside-spark,
           .inside-confetti {
             animation: none !important;
@@ -89,33 +77,12 @@ export default function Page() {
       `}</style>
 
       {step === "archery" && (
-        <div style={frontWrap}>
-          <div style={frontCard}>
-            <div style={frontPaperTint} />
-            <div style={frontInnerBorderA} />
-            <div style={frontInnerBorderB} />
-
-            <div style={frontHeader}>
-              <div style={frontKicker}>Front Cover Challenge</div>
-              <h1 style={frontTitle}>Happy Birthday Luke</h1>
-              <div style={frontDividerWrap}>
-                <span style={frontDivider} className="front-shimmer" />
-              </div>
-              <p style={frontSubtitle}>Extinguish the candles.</p>
-            </div>
-
-            <div style={frontGameWrap}>
-              <ArcheryGame
-                candleCount={14}
-                height={420}
-                onComplete={({ shots, timeMs }) => {
-                  setResult({ shots, timeMs });
-                  setStep("poem");
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        <FrontCover
+          onComplete={({ shots, timeMs }) => {
+            setResult({ shots, timeMs });
+            setStep("poem");
+          }}
+        />
       )}
 
       {step === "earned" && (
@@ -187,98 +154,6 @@ const shell = {
   color: "white",
   background:
     "radial-gradient(130% 120% at 50% 0%, rgba(255,209,122,0.16), rgba(0,0,0,0.94))",
-};
-
-const frontWrap = {
-  width: "100%",
-  maxWidth: 1040,
-  margin: "0 auto",
-};
-
-const frontCard = {
-  position: "relative",
-  borderRadius: 26,
-  overflow: "hidden",
-  border: "1px solid rgba(233, 208, 160, 0.32)",
-  boxShadow: "0 26px 60px rgba(0, 0, 0, 0.46)",
-  background:
-    "linear-gradient(180deg, rgba(231,219,197,0.96), rgba(214,198,168,0.93)), radial-gradient(110% 120% at 50% 0%, rgba(255,243,219,0.5), rgba(0,0,0,0))",
-};
-
-const frontPaperTint = {
-  position: "absolute",
-  inset: 0,
-  pointerEvents: "none",
-  opacity: 0.35,
-  backgroundImage:
-    "repeating-linear-gradient(0deg, rgba(72,48,22,0.04) 0 1px, transparent 1px 42px), repeating-linear-gradient(90deg, rgba(72,48,22,0.03) 0 1px, transparent 1px 42px)",
-};
-
-const frontInnerBorderA = {
-  position: "absolute",
-  inset: 18,
-  borderRadius: 20,
-  border: "1px solid rgba(172, 136, 86, 0.34)",
-  pointerEvents: "none",
-};
-
-const frontInnerBorderB = {
-  position: "absolute",
-  inset: 28,
-  borderRadius: 16,
-  border: "1px solid rgba(88, 63, 37, 0.14)",
-  pointerEvents: "none",
-};
-
-const frontHeader = {
-  position: "relative",
-  zIndex: 1,
-  textAlign: "center",
-  color: "#3f2c1d",
-  padding: "24px 18px 8px",
-};
-
-const frontKicker = {
-  fontSize: 12,
-  textTransform: "uppercase",
-  letterSpacing: "0.45px",
-  opacity: 0.72,
-  fontWeight: 800,
-};
-
-const frontTitle = {
-  margin: "8px 0 8px",
-  fontSize: "clamp(30px, 5vw, 54px)",
-  lineHeight: 1,
-  fontWeight: 760,
-  letterSpacing: "0.3px",
-};
-
-const frontDividerWrap = {
-  margin: "0 auto",
-  width: "min(420px, 78%)",
-  borderRadius: 999,
-  overflow: "hidden",
-  border: "1px solid rgba(153, 119, 73, 0.2)",
-  background: "rgba(255,255,255,0.2)",
-};
-
-const frontDivider = {
-  display: "block",
-  height: 2,
-  width: "100%",
-};
-
-const frontSubtitle = {
-  margin: "10px 0 8px",
-  color: "rgba(73, 48, 28, 0.86)",
-  fontWeight: 650,
-};
-
-const frontGameWrap = {
-  position: "relative",
-  zIndex: 1,
-  padding: "2px 18px 18px",
 };
 
 const earnedStage = {
