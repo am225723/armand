@@ -33,7 +33,7 @@ const ARROW_DRAW_W = 292;
 const ARROW_DRAW_H = 20;
 const ARROW_NOCK_X_FRAC = 0.0085;
 const ARROW_NOCK_Y_FRAC = 0.5;
-const RELEASE_Y_OFFSET_PX = -52;
+const RELEASE_Y_OFFSET_PX = -97;
 
 // Bow turned to opposite facing direction.
 const BOW_MIRRORED = false;
@@ -1005,7 +1005,8 @@ export default function ArcheryGame({
       const sizeTier = Math.random();
 
       const sizeScale = sizeTier < 0.34 ? 1.62 + Math.random() * 0.32 : sizeTier < 0.76 ? 1.84 + Math.random() * 0.36 : 2.06 + Math.random() * 0.32;
-      const baseSize = sizeScale * 7.8;
+      // Enforce a 2x-3x size jump from the prior confetti presentation.
+      const baseSize = sizeScale * 7.8 * (2 + Math.random());
       const aspect = 0.72 + Math.random() * 0.44;
 
       bit.sprite = confettiSprites.length ? confettiSprites[Math.floor(Math.random() * confettiSprites.length)] : null;
