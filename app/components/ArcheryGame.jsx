@@ -52,9 +52,6 @@ const MAX_VERTICAL_AIM_PX = 142;
 const CENTERLINE_MAGNET_BASE = 0.18;
 const CENTERLINE_MAGNET_PULL = 0.45;
 
-const SPRING_STIFFNESS = 90;
-const SPRING_DAMPING = 13.5;
-
 const STRING_VIBRATION_MS = 340;
 const STRING_CURVE_STRENGTH = 0.38;
 const STRING_GAP = 1.9;
@@ -70,6 +67,7 @@ const WORLD_MIN_EXTRA_PX = 520;
 const CAMERA_LEAD_FRACTION = 0.34;
 const CAMERA_STIFFNESS = 10;
 const CAMERA_DAMPING = 0.84;
+const CAMERA_POST_FLIGHT_HOLD_MS = 520;
 
 const CANDLE_DEFAULT_COUNT = 14;
 const MAX_CANDLES_PER_ARROW = 2;
@@ -895,6 +893,8 @@ export default function ArcheryGame({
         worldW,
         cameraX: 0,
         cameraV: 0,
+        shotCycleActive: false,
+        postFlightHoldMs: 0,
 
         release,
         pull: { ...release },
@@ -1121,16 +1121,16 @@ export default function ArcheryGame({
       const topVecX = anchors.nockVB.x - anchors.topVB.x;
       const topVecY = anchors.nockVB.y - anchors.topVB.y;
       const topLen = Math.hypot(topVecX, topVecY) || 1;
-      const topMove = pullT * (BOW_INWARD_BEND_Y + BOW_INWARD_BEND_X * 0.45);
+      const inwardMove = pullT * (BOW_INWARD_BEND_Y * 1.55 + BOW_INWARD_BEND_X * 0.9);
 
       const bottomVecX = anchors.nockVB.x - anchors.bottomVB.x;
       const bottomVecY = anchors.nockVB.y - anchors.bottomVB.y;
       const bottomLen = Math.hypot(bottomVecX, bottomVecY) || 1;
-      const bottomMove = pullT * (BOW_INWARD_BEND_Y + BOW_INWARD_BEND_X * 0.45);
+      const bottomMove = inwardMove;
 
       const tipTop = {
-        x: anchors.topVB.x + (topVecX / topLen) * topMove,
-        y: anchors.topVB.y + (topVecY / topLen) * topMove,
+        x: anchors.topVB.x + (topVecX / topLen) * inwardMove,
+        y: anchors.topVB.y + (topVecY / topLen) * inwardMove,
       };
       const tipBottom = {
         x: anchors.bottomVB.x + (bottomVecX / bottomLen) * bottomMove,
@@ -1172,15 +1172,16 @@ export default function ArcheryGame({
 
       const bowWrap = bowWrapRef.current;
       if (bowWrap) {
+        const tx = -sim.cameraX;
         if (sim.aiming) {
           const bend = pullT;
-          const sx = 1 - bend * 0.06;
-          const sy = 1 + bend * 0.045;
+          const sx = 1 - bend * 0.09;
+          const sy = 1 + bend * 0.07;
           const skew = bend * 1.3 * (BOW_MIRRORED ? -1 : 1);
-          bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy}) skewY(${skew}deg)`;
+          bowWrap.style.transform = `translate3d(${tx}px, 0, 0) scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy}) skewY(${skew}deg)`;
         } else {
-          // Hard-lock bow pose when not dragging so camera follow never appears to move the bow.
-          bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1})`;
+          // Keep bow fixed in world space; during camera follow it moves off-screen.
+          bowWrap.style.transform = `translate3d(${tx}px, 0, 0) scaleX(${BOW_MIRRORED ? -1 : 1})`;
         }
       }
 
@@ -1193,6 +1194,7 @@ export default function ArcheryGame({
       const sim = simRef.current;
       if (!sim || !assetsRef.current.ready || sim.done || rotateBlockedRef.current) return;
       if (pointerIdRef.current != null) return;
+      if (sim.shotCycleActive) return;
       if (sim.arrows.some((arrow) => arrow.alive)) return;
 
       // Audio unlock moments
@@ -1253,6 +1255,8 @@ export default function ArcheryGame({
 
       sim.shots += 1;
       setShotsUI(sim.shots);
+      sim.shotCycleActive = true;
+      sim.postFlightHoldMs = CAMERA_POST_FLIGHT_HOLD_MS;
 
       sim.stringVibStart = performance.now();
       sim.stringVibAmp = 13 + clamp01(launch.pullDist / MAX_PULL_PX) * 9;
@@ -1386,24 +1390,38 @@ export default function ArcheryGame({
       sim.arrows = sim.arrows.filter((arrow) => arrow.alive);
 
       const maxCamera = Math.max(0, sim.worldW - sim.W);
-      if (!sim.aiming) {
+      if (!sim.aiming && sim.shotCycleActive) {
         const leadArrow =
           sim.arrows.length > 0
             ? sim.arrows.reduce((best, arrow) => (best == null || arrow.x > best.x ? arrow : best), null)
             : null;
-        const targetCamera = leadArrow
-          ? clamp(leadArrow.x - sim.W * CAMERA_LEAD_FRACTION, 0, maxCamera)
-          : 0;
-        const dx = targetCamera - sim.cameraX;
-        sim.cameraV = sim.cameraV * CAMERA_DAMPING + dx * dt * CAMERA_STIFFNESS;
-        sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCamera);
 
-        if (!leadArrow && Math.abs(dx) < 0.5 && Math.abs(sim.cameraV) < 0.2) {
-          sim.cameraX = 0;
-          sim.cameraV = 0;
+        if (leadArrow) {
+          const targetCamera = clamp(leadArrow.x - sim.W * CAMERA_LEAD_FRACTION, 0, maxCamera);
+          const dx = targetCamera - sim.cameraX;
+          sim.cameraV = sim.cameraV * CAMERA_DAMPING + dx * dt * CAMERA_STIFFNESS;
+          sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCamera);
+        } else if (sim.postFlightHoldMs > 0) {
+          sim.postFlightHoldMs -= dt * 1000;
+          sim.cameraV *= 0.78;
+        } else {
+          const dx = -sim.cameraX;
+          sim.cameraV = sim.cameraV * CAMERA_DAMPING + dx * dt * CAMERA_STIFFNESS;
+          sim.cameraX = clamp(sim.cameraX + sim.cameraV * dt * 46, 0, maxCamera);
+          if (Math.abs(dx) < 0.6 && Math.abs(sim.cameraV) < 0.24) {
+            sim.cameraX = 0;
+            sim.cameraV = 0;
+            sim.shotCycleActive = false;
+            sim.postFlightHoldMs = 0;
+          }
         }
       } else {
-        sim.cameraV *= 0.72;
+        if (!sim.aiming && !sim.shotCycleActive) {
+          sim.cameraX = 0;
+          sim.cameraV = 0;
+        } else {
+          sim.cameraV *= 0.72;
+        }
       }
 
       sim.particles = sim.particles.filter((p) => p.life > 0);
@@ -1859,7 +1877,7 @@ export default function ArcheryGame({
             top: 8,
             bottom: 8,
             width: BOW_WIDTH,
-            transform: `scaleX(${BOW_MIRRORED ? -1 : 1})`,
+            transform: `translate3d(0px, 0, 0) scaleX(${BOW_MIRRORED ? -1 : 1})`,
             transformOrigin: "50% 52%",
             pointerEvents: "none",
             opacity: 0.99,
