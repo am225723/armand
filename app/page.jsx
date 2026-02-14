@@ -15,7 +15,7 @@ export default function Page() {
       const detail = event?.detail || {};
       if (detail.shots == null && detail.timeMs == null) return;
       setResult({ shots: detail.shots ?? null, timeMs: detail.timeMs ?? null });
-      setStep("poem");
+      setStep("earned");
     };
 
     window.addEventListener("archery:complete", handler);
@@ -80,7 +80,7 @@ export default function Page() {
         <FrontCover
           onComplete={({ shots, timeMs }) => {
             setResult({ shots, timeMs });
-            setStep("poem");
+            setStep("earned");
           }}
         />
       )}
