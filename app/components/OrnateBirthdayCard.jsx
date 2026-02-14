@@ -18,6 +18,7 @@ import CardInsideOrnate from "./CardInsideOrnate";
 export default function OrnateBirthdayCard({
   name = "Luke",
   audioUrl = "/audio/luke-poem.mp3",
+  fontUrl = "/fonts/InterSignature-q20q2.ttf",
   autoStart = true,
   showControls = true,
 }) {
@@ -27,6 +28,7 @@ export default function OrnateBirthdayCard({
   const [needsGesture, setNeedsGesture] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [status, setStatus] = useState("Ready ✍️");
+  const [fontReady, setFontReady] = useState(false);
 
   // CardInsideOrnate expects lineProgress array (0..1 per line)
   const [lineProgress, setLineProgress] = useState([]);
@@ -41,6 +43,30 @@ export default function OrnateBirthdayCard({
   }, [lineProgress.length]);
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadScriptFont = async () => {
+      try {
+        if (typeof window === "undefined") return;
+
+        const face = new FontFace("InterSignature", `url(${fontUrl})`);
+        const loaded = await face.load();
+        document.fonts.add(loaded);
+        await document.fonts.ready;
+      } catch {
+        // fall back gracefully if font loading fails
+      } finally {
+        if (!cancelled) setFontReady(true);
+      }
+    };
+
+    loadScriptFont();
+    return () => {
+      cancelled = true;
+    };
+  }, [fontUrl]);
 
   function stopRaf() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -94,6 +120,7 @@ export default function OrnateBirthdayCard({
   }
 
   async function attemptAutoplay() {
+    if (!fontReady) return;
     const a = audioRef.current;
     if (!a) return;
 
@@ -122,7 +149,7 @@ export default function OrnateBirthdayCard({
   }, []);
 
   useEffect(() => {
-    if (!autoStart) return;
+    if (!autoStart || !fontReady) return;
 
     const a = audioRef.current;
     if (!a) return;
@@ -137,6 +164,7 @@ export default function OrnateBirthdayCard({
   }, [autoStart]);
 
   function handlePlayPause() {
+    if (!fontReady) return;
     const a = audioRef.current;
     if (!a) return;
 
@@ -159,6 +187,7 @@ export default function OrnateBirthdayCard({
   }
 
   function handleReplay() {
+    if (!fontReady) return;
     const a = audioRef.current;
     if (!a) return;
 

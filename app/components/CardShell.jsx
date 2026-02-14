@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import AmbientFX from "./AmbientFX";
 
 export default function CardShell({ children, stepKey }) {
-  const [parallaxY, setParallaxY] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -24,8 +24,8 @@ export default function CardShell({ children, stepKey }) {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        const next = Math.max(-6, Math.min(6, (window.scrollY || 0) * 0.018));
-        setParallaxY(next);
+        const next = window.scrollY || 0;
+        setScrollY(next);
       });
     };
 
@@ -45,6 +45,11 @@ export default function CardShell({ children, stepKey }) {
           animation: cardshellGlow 14s ease-in-out infinite;
         }
 
+        .cardshell-breathe {
+          animation: cardshellBreathe 6s ease-in-out infinite;
+          transform-origin: 50% 32%;
+        }
+
         @keyframes cardshellGlow {
           0%,
           100% {
@@ -55,8 +60,19 @@ export default function CardShell({ children, stepKey }) {
           }
         }
 
+        @keyframes cardshellBreathe {
+          0%,
+          100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.005);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
-          .cardshell-glow {
+          .cardshell-glow,
+          .cardshell-breathe {
             animation: none !important;
           }
         }
@@ -67,12 +83,32 @@ export default function CardShell({ children, stepKey }) {
       <div style={frameWrap}>
         <div
           style={{
-            ...frameParallaxLayer,
-            transform: reducedMotion ? "none" : `translate3d(0, ${parallaxY}px, 0)`,
+            ...parallaxBackLayer,
+            transform: reducedMotion
+              ? "none"
+              : `translate3d(0, ${clampParallax(scrollY * 0.02)}px, 0)`,
           }}
         />
 
-        <section style={frame}>
+        <div
+          style={{
+            ...parallaxMidLayer,
+            transform: reducedMotion
+              ? "none"
+              : `translate3d(0, ${clampParallax(scrollY * 0.04)}px, 0)`,
+          }}
+        />
+
+        <div
+          style={{
+            ...parallaxFrontGlow,
+            transform: reducedMotion
+              ? "none"
+              : `translate3d(0, ${clampParallax(scrollY * 0.06)}px, 0)`,
+          }}
+        />
+
+        <section style={frame} className="cardshell-breathe">
           <div style={innerBorderA} />
           <div style={innerBorderB} />
           <div style={paperTexture} />
@@ -109,14 +145,32 @@ const frameWrap = {
   position: "relative",
 };
 
-const frameParallaxLayer = {
+const parallaxBackLayer = {
+  position: "absolute",
+  inset: "-16px -20px -2px",
+  borderRadius: 38,
+  pointerEvents: "none",
+  background:
+    "radial-gradient(95% 44% at 50% 0%, rgba(226, 184, 119, 0.08), rgba(255,255,255,0)), repeating-linear-gradient(120deg, rgba(180, 128, 66, 0.04) 0 12px, rgba(180, 128, 66, 0) 12px 26px)",
+};
+
+const parallaxMidLayer = {
   position: "absolute",
   inset: "-12px -14px 0",
   borderRadius: 34,
   pointerEvents: "none",
   background:
-    "radial-gradient(75% 36% at 50% 0%, rgba(244,208,139,0.26), rgba(255,255,255,0)), radial-gradient(80% 70% at 50% 100%, rgba(44,20,34,0.36), rgba(0,0,0,0))",
+    "radial-gradient(75% 36% at 50% 0%, rgba(244,208,139,0.2), rgba(255,255,255,0)), radial-gradient(80% 70% at 50% 100%, rgba(44,20,34,0.24), rgba(0,0,0,0))",
   filter: "blur(0.4px)",
+};
+
+const parallaxFrontGlow = {
+  position: "absolute",
+  inset: "-6px -6px 8px",
+  borderRadius: 30,
+  pointerEvents: "none",
+  background:
+    "radial-gradient(84% 36% at 50% 2%, rgba(235, 191, 111, 0.14), rgba(255,255,255,0)), radial-gradient(120% 100% at 50% 100%, rgba(28, 18, 15, 0.12), rgba(0,0,0,0))",
 };
 
 const frame = {
@@ -169,3 +223,7 @@ const contentWrap = {
   zIndex: 5,
   padding: "12px",
 };
+
+function clampParallax(value) {
+  return Math.max(-6, Math.min(6, value));
+}

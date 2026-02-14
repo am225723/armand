@@ -1,25 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = [] }) {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-
-  useEffect(() => {
-    const loadFonts = async () => {
-      const adelia = new FontFace("Adelia", "url(/fonts/Adelia.ttf)");
-      const mayonice = new FontFace("Mayonice", "url(/fonts/Mayonice.ttf)");
-      try {
-        const [f1, f2] = await Promise.all([adelia.load(), mayonice.load()]);
-        document.fonts.add(f1);
-        document.fonts.add(f2);
-        setFontsLoaded(true);
-      } catch (e) {
-        console.error("Font load error:", e);
-        setFontsLoaded(true);
-      }
-    };
-    loadFonts();
-  }, []);
   const VB_W = 820;
   const VB_H = 1320;
 
@@ -43,7 +25,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
     `And the light he's always shown,`,
     ``,
     `The greatest gift of all Dear ${name},`,
-    `Is To Be - Known`,
+    `Is To Be-Known`,
   ];
 
   const topPad = 270;
@@ -68,6 +50,17 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
   const secondToLastIndex = poemLines.length - 2;
   const finalLineIndex = poemLines.length - 1;
   const finalProgress = lineProgress[finalLineIndex] ?? 0;
+
+  const delayedProgress = (progress, delayFrac) => {
+    const p = Number.isFinite(progress) ? progress : 0;
+    const d = Math.max(0, Math.min(0.85, delayFrac));
+    return Math.max(0, Math.min(1, (p - d) / (1 - d)));
+  };
+
+  const normalLineProgress = (index) => delayedProgress(lineProgress[index] ?? 0, 0.12 + (index % 3) * 0.03);
+  const finalLineReveal = delayedProgress(finalProgress, 0.24);
+  const finalLineOpacity = delayedProgress(finalLineReveal, 0.15);
+  const finalRevealFade = delayedProgress(finalLineReveal, 0.3);
 
   return (
     <svg
@@ -119,6 +112,20 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
           <stop offset="70%" stopColor="#a77c24" stopOpacity="0.55" />
           <stop offset="100%" stopColor="#f1d58a" stopOpacity="0.75" />
         </linearGradient>
+
+        <linearGradient id="finalLineGold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#f5deb0" />
+          <stop offset="45%" stopColor="#d3a656" />
+          <stop offset="100%" stopColor="#f0cf91" />
+        </linearGradient>
+
+        <filter id="finalLineGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2.2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
 
         <pattern id="filigreePattern" width="120" height="120" patternUnits="userSpaceOnUse">
           <g opacity="0.06" stroke="url(#goldFoil)" strokeWidth="2" fill="none">
@@ -203,7 +210,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
           <text
             x="120"
             y="165"
-            fontFamily="'Mayonice', cursive"
+            fontFamily='"InterSignature", cursive'
             fontSize="72"
             style={{ textRendering: "geometricPrecision" }}
           >
@@ -245,7 +252,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
         x="50%"
         y="710"
         textAnchor="middle"
-        fontFamily="'Adelia', cursive"
+        fontFamily='"InterSignature", cursive'
         fontSize="340"
         fill="#000000"
         opacity="0.035"
@@ -256,7 +263,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
 
       {linePositions.slice(0, -2).map((pos, i) => {
         if (pos.isBlank) return null;
-        const progress = lineProgress[i] ?? 0;
+        const progress = normalLineProgress(i);
         const chars = pos.line.split("");
         const totalChars = chars.length;
         const charsRevealed = progress * totalChars;
@@ -268,7 +275,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             x="50%"
             y={pos.y}
             textAnchor="middle"
-            fontFamily="'Adelia', cursive"
+            fontFamily='"InterSignature", cursive'
             fontSize={32}
             style={{ textRendering: "geometricPrecision" }}
           >
@@ -333,7 +340,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
       {(() => {
         const secondLine = `The greatest gift of all Dear ${name},`;
         const chars = secondLine.split("");
-        const secondProgress = lineProgress[secondToLastIndex] ?? 0;
+        const secondProgress = normalLineProgress(secondToLastIndex);
         const charsRevealed = secondProgress * chars.length;
         const words = secondLine.split(/\s+/);
         
@@ -342,7 +349,7 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
             x="50%"
             y={secondToLastLineY}
             textAnchor="middle"
-            fontFamily="'Adelia', cursive"
+            fontFamily='"InterSignature", cursive'
             fontSize="38"
             style={{ textRendering: "geometricPrecision" }}
           >
@@ -384,24 +391,31 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
         );
       })()}
 
-      <g opacity={finalProgress > 0 ? finalProgress : 0} style={{ transition: "opacity 0.5s ease" }}>
-        <g opacity={finalProgress > 0.3 ? 0.75 : 0} stroke="url(#goldFoil)" strokeWidth="2" fill="none" style={{ transition: "opacity 0.3s ease" }}>
+      <g opacity={finalLineOpacity > 0 ? finalLineOpacity : 0} style={{ transition: "opacity 0.65s ease" }}>
+        <g
+          opacity={finalRevealFade > 0.35 ? 0.75 : 0}
+          stroke="url(#goldFoil)"
+          strokeWidth="2"
+          fill="none"
+          style={{ transition: "opacity 0.5s ease" }}
+        >
           <path d={`M${VB_W / 2 - 260} ${finalLineY - 55} C${VB_W / 2 - 140} ${finalLineY - 90}, ${VB_W / 2 + 140} ${finalLineY - 90}, ${VB_W / 2 + 260} ${finalLineY - 55}`} />
           <path d={`M${VB_W / 2 - 170} ${finalLineY - 60} C${VB_W / 2 - 90} ${finalLineY - 80}, ${VB_W / 2 + 90} ${finalLineY - 80}, ${VB_W / 2 + 170} ${finalLineY - 60}`} opacity="0.55" />
         </g>
 
         {(() => {
-          const finalText = "Is To Be Known";
+          const finalText = "Is To Be-Known";
           const chars = finalText.split("");
-          const charsRevealed = finalProgress * chars.length;
+          const charsRevealed = finalLineReveal * chars.length;
           
           return (
             <text
               x="50%"
               y={finalLineY}
               textAnchor="middle"
-              fontFamily="'Mayonice', cursive"
-              fontSize="80"
+              fontFamily='"InterSignature", cursive'
+              fontSize="88"
+              filter="url(#finalLineGlow)"
               style={{ textRendering: "geometricPrecision" }}
             >
               {chars.map((char, ci) => {
@@ -420,8 +434,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
                   <tspan
                     key={ci}
                     fill={`rgba(20, 16, 14, ${fillOpacity})`}
-                    stroke="#14100e"
-                    strokeWidth="1.2"
+                    stroke="url(#finalLineGold)"
+                    strokeWidth="1.45"
                     strokeDasharray={strokeLen}
                     strokeDashoffset={strokeOffset}
                   >
@@ -433,7 +447,13 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
           );
         })()}
 
-        <g opacity={finalProgress > 0.8 ? 0.75 : 0} stroke="url(#goldFoil)" strokeWidth="2" fill="none" style={{ transition: "opacity 0.3s ease" }}>
+        <g
+          opacity={finalRevealFade > 0.82 ? 0.75 : 0}
+          stroke="url(#goldFoil)"
+          strokeWidth="2"
+          fill="none"
+          style={{ transition: "opacity 0.6s ease" }}
+        >
           <path d={`M${VB_W / 2 - 280} ${finalLineY + 45} C${VB_W / 2 - 150} ${finalLineY + 95}, ${VB_W / 2 + 150} ${finalLineY + 95}, ${VB_W / 2 + 280} ${finalLineY + 45}`} />
           <circle cx={VB_W / 2 - 310} cy={finalLineY + 46} r="4" />
           <circle cx={VB_W / 2 + 310} cy={finalLineY + 46} r="4" />

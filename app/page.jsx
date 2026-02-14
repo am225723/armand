@@ -157,7 +157,7 @@ export default function Page() {
 
       const delay =
         Number.isFinite(durationSec) && durationSec > 0
-          ? Math.round(Math.min(52000, Math.max(18000, durationSec * 1000 + 1700)))
+          ? Math.round(Math.min(52000, Math.max(18000, durationSec * 1000 + 300)))
           : 26000;
 
       poemClosingTimerRef.current = setTimeout(() => {
@@ -218,7 +218,9 @@ export default function Page() {
 
         <div style={insideHeaderStrip}>
           <div style={insideBadge}>Unlocked Story</div>
-          <h2 style={insideTitle}>For Luke</h2>
+          <h2 style={insideTitle} className="inside-heading-sheen">
+            For Luke
+          </h2>
           <p style={insideSubhead}>The next pages are all yours.</p>
         </div>
 
@@ -226,7 +228,9 @@ export default function Page() {
           <div style={photoStageWrap}>
             <div style={photoStageCornerTL} />
             <div style={photoStageCornerBR} />
-            <div style={photoStageLabel}>Memory Reel</div>
+            <div style={photoStageLabel} className="inside-heading-sheen">
+              Memory Reel
+            </div>
             <PhotoCarousel
               photos={["/photo1.jpg", "/photo2.jpg", "/photo3.jpg"]}
               captions={["Memory 1", "Memory 2", "Memory 3"]}
@@ -234,7 +238,9 @@ export default function Page() {
           </div>
 
           <div style={poemStageWrap}>
-            <div style={poemStageLabel}>Birthday Verse</div>
+            <div style={poemStageLabel} className="inside-heading-sheen">
+              Birthday Verse
+            </div>
             <div style={poemHint}>Press play if your browser blocked audio.</div>
             <div style={poemFrame}>
               <OrnateBirthdayCard
@@ -279,6 +285,13 @@ export default function Page() {
           animation: poemClosingSweep 950ms cubic-bezier(.2,.72,.2,1) both;
         }
 
+        .inside-heading-sheen {
+          background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(226,184,119,0.72), rgba(255,255,255,0));
+          background-size: 180% 100%;
+          animation: insideHeadingSheen 9s linear infinite;
+          -webkit-background-clip: text;
+        }
+
         @keyframes poemClosingSweep {
           0% {
             opacity: 0;
@@ -293,8 +306,18 @@ export default function Page() {
           }
         }
 
+        @keyframes insideHeadingSheen {
+          from {
+            background-position: 180% 0;
+          }
+          to {
+            background-position: -180% 0;
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
-          .poem-closing-sweep {
+          .poem-closing-sweep,
+          .inside-heading-sheen {
             animation: none !important;
           }
         }

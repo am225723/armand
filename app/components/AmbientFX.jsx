@@ -14,8 +14,9 @@ export default function AmbientFX({
   sparkleCount,
   balloonCount,
 }) {
+  const isInside = variant !== "cover";
   const config =
-    variant === "cover"
+    !isInside
       ? { confetti: confettiCount ?? 20, sparkles: sparkleCount ?? 10, balloons: balloonCount ?? 6 }
       : { confetti: confettiCount ?? 10, sparkles: sparkleCount ?? 8, balloons: balloonCount ?? 3 };
 
@@ -27,12 +28,12 @@ export default function AmbientFX({
         size: index % 3 === 0 ? 6 : 4,
         drift: 10 + (index % 5) * 6,
         rotate: -26 + index * 11,
-        duration: 16 + (index % 6) * 2,
+        duration: (isInside ? 24 : 16) + (index % 6) * 2,
         delay: -(index % 8) * 1.5,
-        opacity: index % 2 === 0 ? 0.24 : 0.17,
+        opacity: isInside ? (index % 2 === 0 ? 0.11 : 0.07) : index % 2 === 0 ? 0.24 : 0.17,
         color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
       })),
-    [config.confetti]
+    [config.confetti, isInside]
   );
 
   const sparkles = useMemo(
@@ -217,6 +218,7 @@ export default function AmbientFX({
             animationDelay: `${piece.delay}s`,
             "--afx-drift": `${piece.drift}px`,
             "--afx-rot": `${piece.rotate}deg`,
+            filter: isInside ? "blur(0.6px)" : "none",
           }}
         />
       ))}
