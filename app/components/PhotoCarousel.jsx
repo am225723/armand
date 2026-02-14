@@ -1,26 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-const MEMORY_CHIPS = ["Session #1", "Milestone", "Victory Lap", "Prime Focus"];
-const MEMORY_TITLES = [
-  "Memory #1: Locked In",
-  "Memory #2: Momentum",
-  "Memory #3: Precision",
-  "Memory #4: Night Shift",
-];
-const MEMORY_NOTES = [
-  "You stayed calm, focused, and fully in command.",
-  "Every step felt intentional, steady, and sharp.",
-  "Your patience made the result feel effortless.",
-  "Confidence looked natural on you that night.",
-];
 const POLAROID_ROTATIONS = [-1.5, 1.2, -0.85, 1.35, -1.1, 0.95];
-const VALENTINE_TITLE_STACK = '"Valentine", "HawaiiLover", "InterSignature", cursive';
-const PHOTO_SCALE_STORAGE_KEY = "birthday-card-photo-scale-v1";
-const PHOTO_SCALE_DEFAULT = 1.08;
-const PHOTO_SCALE_MIN = 0.92;
-const PHOTO_SCALE_MAX = 1.34;
-const PHOTO_SCALE_STEP = 0.02;
+const POLAROID_MESSAGE = "Happy Birthday Luke";
 
 export default function PhotoCarousel({ photos = [], captions = [] }) {
   const [i, setI] = useState(0);
@@ -28,8 +10,6 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [slideDir, setSlideDir] = useState(1);
   const [slideTick, setSlideTick] = useState(0);
-  const [photoScale, setPhotoScale] = useState(PHOTO_SCALE_DEFAULT);
-  const [photoScaleReady, setPhotoScaleReady] = useState(false);
 
   const safePhotos = useMemo(() => (photos || []).filter(Boolean), [photos]);
   const frameRef = useRef(null);
@@ -40,12 +20,7 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
 
   const src = safePhotos[i] || safePhotos[0] || "";
   const cap = captions?.[i] ?? `Memory ${i + 1}`;
-  const memoryLabel = `Memory ${String(i + 1).padStart(2, "0")}`;
-  const memoryChip = MEMORY_CHIPS[i % MEMORY_CHIPS.length];
-  const memoryTitle = MEMORY_TITLES[i % MEMORY_TITLES.length];
-  const memoryNote = MEMORY_NOTES[i % MEMORY_NOTES.length];
   const polaroidRotation = reducedMotion ? 0 : POLAROID_ROTATIONS[i % POLAROID_ROTATIONS.length];
-  const photoScalePct = Math.round(photoScale * 100);
 
   const captionParts = useMemo(() => {
     const raw = typeof cap === "string" ? cap.trim() : "";
@@ -72,29 +47,6 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
     media.addEventListener?.("change", onChange);
     return () => media.removeEventListener?.("change", onChange);
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const storedScale = Number(window.localStorage.getItem(PHOTO_SCALE_STORAGE_KEY));
-      if (Number.isFinite(storedScale)) {
-        setPhotoScale(clampPhotoScale(storedScale));
-      }
-    } catch {
-      // Ignore storage read failures and keep the default.
-    } finally {
-      setPhotoScaleReady(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!photoScaleReady || typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(PHOTO_SCALE_STORAGE_KEY, String(photoScale));
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [photoScale, photoScaleReady]);
 
   useEffect(() => {
     return () => {
@@ -332,20 +284,15 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
                 style={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover",
+                  objectFit: "contain",
                   display: "block",
                   cursor: "zoom-in",
-                  transform: `scale(${photoScale})`,
-                  transformOrigin: "center center",
-                  transition: reducedMotion ? "none" : "transform 360ms cubic-bezier(.22,.61,.36,1)",
+                  background: "rgba(245, 239, 228, 0.82)",
                 }}
                 onClick={() =>
                   setActiveMemory({
-                    title: memoryTitle,
-                    caption: cap,
-                    chip: memoryChip,
-                    note: memoryNote,
                     src,
+                    alt: cap || `Photo ${i + 1}`,
                   })
                 }
               />
@@ -379,15 +326,13 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
             bottom: 12,
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
+            alignItems: "center",
             gap: 10,
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <div style={memoryMetaTitle}>{memoryLabel}</div>
-            <div style={memoryMetaSub}>{captionParts.main || "A favorite moment"}</div>
+            <div style={memoryMetaSub}>{captionParts.main || `Memory ${i + 1}`}</div>
             {captionParts.meta ? <div style={memoryMetaAux}>{captionParts.meta}</div> : null}
-            <span style={chipOverlay}>{memoryChip}</span>
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>
@@ -418,40 +363,6 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
         ))}
       </div>
 
-      <div style={photoScaleControlRow}>
-        <span style={photoScaleLabel}>Photo size</span>
-        <button
-          type="button"
-          onClick={() => setPhotoScale((value) => clampPhotoScale(value - PHOTO_SCALE_STEP))}
-          style={photoScaleBtn}
-          aria-label="Decrease photo size"
-        >
-          -
-        </button>
-        <input
-          type="range"
-          min={Math.round(PHOTO_SCALE_MIN * 100)}
-          max={Math.round(PHOTO_SCALE_MAX * 100)}
-          step={Math.round(PHOTO_SCALE_STEP * 100)}
-          value={photoScalePct}
-          onChange={(event) => setPhotoScale(clampPhotoScale(Number(event.target.value) / 100))}
-          style={photoScaleRange}
-          aria-label="Adjust photo size"
-        />
-        <button
-          type="button"
-          onClick={() => setPhotoScale((value) => clampPhotoScale(value + PHOTO_SCALE_STEP))}
-          style={photoScaleBtn}
-          aria-label="Increase photo size"
-        >
-          +
-        </button>
-        <button type="button" onClick={() => setPhotoScale(PHOTO_SCALE_DEFAULT)} style={photoScaleResetBtn}>
-          Reset
-        </button>
-        <span style={photoScaleValue}>{photoScalePct}%</span>
-      </div>
-
       {activeMemory && (
         <div
           role="button"
@@ -470,35 +381,20 @@ export default function PhotoCarousel({ photos = [], captions = [] }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={activeMemory.title}
+            aria-label={POLAROID_MESSAGE}
             onClick={(event) => event.stopPropagation()}
-            style={modalCard}
+            style={modalPolaroid}
             className="memory-modal"
           >
-            <button
-              type="button"
-              style={modalClose}
-              onClick={() => setActiveMemory(null)}
-              aria-label="Close"
-            >
-              ✕
-            </button>
-
-            <div style={modalHeader}>Memories</div>
-            <h3 style={modalTitle}>{activeMemory.title}</h3>
-            <div style={modalChip}>{activeMemory.chip}</div>
-            <p style={modalNote}>{activeMemory.note}</p>
-            <div style={modalCaption}>{activeMemory.caption}</div>
+            <div style={modalPhotoWindow}>
+              <img src={activeMemory.src} alt={activeMemory.alt} style={modalPhoto} />
+            </div>
+            <div style={modalPolaroidLabel}>{POLAROID_MESSAGE}</div>
           </div>
         </div>
       )}
     </div>
   );
-}
-
-function clampPhotoScale(value) {
-  if (!Number.isFinite(value)) return PHOTO_SCALE_DEFAULT;
-  return Math.min(PHOTO_SCALE_MAX, Math.max(PHOTO_SCALE_MIN, value));
 }
 
 function pillBtn() {
@@ -543,42 +439,21 @@ const goldCornerBR = {
   pointerEvents: "none",
 };
 
-const memoryMetaTitle = {
-  color: "rgba(90, 62, 34, 0.9)",
-  fontWeight: 760,
-  letterSpacing: "0.11em",
-  textTransform: "uppercase",
-  fontSize: 10,
-  fontFamily: "var(--font-ui)",
-};
-
 const memoryMetaSub = {
-  marginTop: 3,
-  color: "rgba(58, 40, 23, 0.95)",
-  fontWeight: 650,
-  fontSize: 14,
+  color: "rgba(58, 40, 23, 0.88)",
+  fontWeight: 640,
+  fontSize: 13,
   lineHeight: 1.2,
   fontFamily: "var(--font-ui)",
+  textTransform: "uppercase",
+  letterSpacing: "0.09em",
 };
 
 const memoryMetaAux = {
-  marginTop: 2,
+  marginTop: 3,
   color: "rgba(72, 50, 30, 0.62)",
-  fontSize: 11,
+  fontSize: 10,
   lineHeight: 1.2,
-  fontFamily: "var(--font-ui)",
-};
-
-const chipOverlay = {
-  display: "inline-block",
-  marginTop: 5,
-  borderRadius: 999,
-  border: "1px solid rgba(170,129,84,0.32)",
-  background: "rgba(255,248,236,0.84)",
-  color: "rgba(98,67,35,0.9)",
-  padding: "3px 8px",
-  fontSize: 11,
-  letterSpacing: "0.03em",
   fontFamily: "var(--font-ui)",
 };
 
@@ -596,134 +471,40 @@ const modalBackdrop = {
   cursor: "pointer",
 };
 
-const modalCard = {
+const modalPolaroid = {
   width: "min(92vw, 430px)",
-  borderRadius: 20,
-  border: "1px solid rgba(226, 184, 119, 0.32)",
-  background:
-    "linear-gradient(170deg, rgba(34,24,19,0.96), rgba(25,18,14,0.94)), radial-gradient(120% 100% at 50% 0%, rgba(226,184,119,0.22), rgba(0,0,0,0))",
-  boxShadow: "0 20px 46px rgba(0, 0, 0, 0.55)",
-  textAlign: "left",
-  color: "#f5e8cf",
-  padding: "16px 14px 14px",
+  borderRadius: 10,
+  border: "1px solid rgba(216, 198, 170, 0.78)",
+  background: "linear-gradient(180deg, rgba(255,255,255,0.99), rgba(248,243,233,0.98))",
+  boxShadow: "0 22px 56px rgba(0, 0, 0, 0.54)",
+  textAlign: "center",
+  color: "#5f3c1f",
+  padding: "12px 12px 20px",
   cursor: "default",
   position: "relative",
 };
 
-const modalClose = {
-  appearance: "none",
-  border: "1px solid rgba(226,184,119,0.34)",
-  background: "rgba(255,255,255,0.05)",
-  color: "#f5e8cf",
-  width: 30,
-  height: 30,
-  borderRadius: 999,
-  fontWeight: 900,
-  cursor: "pointer",
-  position: "absolute",
-  right: 10,
-  top: 10,
+const modalPhotoWindow = {
+  borderRadius: 5,
+  border: "1px solid rgba(192, 170, 140, 0.65)",
+  background: "rgba(244, 236, 223, 0.9)",
+  boxShadow: "0 8px 20px rgba(33, 20, 11, 0.2)",
+  overflow: "hidden",
 };
 
-const modalHeader = {
-  fontSize: 11,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-  opacity: 0.72,
-  fontWeight: 800,
+const modalPhoto = {
+  width: "100%",
+  height: "min(68vh, 560px)",
+  objectFit: "contain",
+  display: "block",
+  background: "rgba(245, 239, 228, 0.82)",
 };
 
-const modalTitle = {
-  margin: "8px 0 0",
-  fontFamily: VALENTINE_TITLE_STACK,
-  fontSize: "clamp(30px, 8.2vw, 44px)",
+const modalPolaroidLabel = {
+  marginTop: 14,
+  fontFamily: '"Valentine", "HawaiiLover", "InterSignature", cursive',
+  fontSize: "clamp(34px, 8.8vw, 52px)",
   lineHeight: 0.9,
-  color: "#f5e8cf",
-};
-
-const modalChip = {
-  marginTop: 8,
-  display: "inline-block",
-  borderRadius: 999,
-  border: "1px solid rgba(226,184,119,0.28)",
-  background: "rgba(226,184,119,0.16)",
-  padding: "4px 10px",
-  fontSize: 12,
-};
-
-const modalNote = {
-  marginTop: 10,
-  marginBottom: 0,
-  fontSize: 14,
-  lineHeight: 1.4,
-  color: "rgba(245,232,207,0.9)",
-};
-
-const modalCaption = {
-  marginTop: 10,
-  fontSize: 12,
-  opacity: 0.74,
-};
-
-const photoScaleControlRow = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "0 12px 10px",
-  color: "rgba(74, 50, 30, 0.84)",
-  flexWrap: "wrap",
-};
-
-const photoScaleLabel = {
-  fontFamily: "var(--font-ui)",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.06em",
-  textTransform: "uppercase",
-  marginRight: 2,
-};
-
-const photoScaleBtn = {
-  appearance: "none",
-  width: 24,
-  height: 24,
-  borderRadius: 999,
-  border: "1px solid rgba(132, 96, 60, 0.42)",
-  background: "rgba(251,245,233,0.9)",
-  color: "rgba(82,56,30,0.9)",
-  fontFamily: "var(--font-ui)",
-  fontWeight: 700,
-  fontSize: 14,
-  lineHeight: "14px",
-  cursor: "pointer",
-};
-
-const photoScaleRange = {
-  flex: "1 1 140px",
-  accentColor: "#b8844f",
-  cursor: "pointer",
-  minWidth: 120,
-};
-
-const photoScaleResetBtn = {
-  appearance: "none",
-  borderRadius: 999,
-  border: "1px solid rgba(132, 96, 60, 0.34)",
-  background: "rgba(250,242,228,0.84)",
-  color: "rgba(82,56,30,0.82)",
-  padding: "4px 8px",
-  fontFamily: "var(--font-ui)",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: "0.03em",
-  cursor: "pointer",
-};
-
-const photoScaleValue = {
-  minWidth: 38,
-  textAlign: "right",
-  fontFamily: "var(--font-ui)",
-  fontSize: 11,
-  fontWeight: 700,
-  color: "rgba(92, 63, 34, 0.86)",
+  color: "#613a1f",
+  textShadow: "0 1px 6px rgba(243, 208, 142, 0.38)",
 };
