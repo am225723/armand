@@ -1187,9 +1187,9 @@ export default function ArcheryGame({
       a.setAttribute("stroke-width", width);
       b.setAttribute("stroke-width", width);
 
-      const sourceNockX = clamp01((nockX - anchors.vbX) / anchors.vbW);
+      const sourceNockX = (nockX - anchors.vbX) / anchors.vbW;
       const renderNockX = BOW_MIRRORED ? 1 - sourceNockX : sourceNockX;
-      const renderNockY = clamp01((nockY - anchors.vbY) / anchors.vbH);
+      const renderNockY = (nockY - anchors.vbY) / anchors.vbH;
       sim.stringNock = {
         x: sim.cameraX + (wrapRect.left - containerRect.left) + renderNockX * wrapRect.width,
         y: wrapRect.top - containerRect.top + renderNockY * wrapRect.height,
