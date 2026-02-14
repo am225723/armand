@@ -1280,9 +1280,10 @@ export default function ArcheryGame({
       sim.aiming = false;
 
       const launch = launchFromPull(sim);
+      const launchOrigin = sim.stringNock ?? sim.release;
       sim.arrows.push({
-        x: sim.release.x,
-        y: sim.release.y,
+        x: launchOrigin.x,
+        y: launchOrigin.y,
         vx: launch.vx,
         vy: launch.vy,
         rot: launch.rot,
@@ -1631,7 +1632,7 @@ export default function ArcheryGame({
       if (sim.done && !sim.aiming) return;
       if (!sim.aiming && sim.arrows.length > 0) return;
 
-      const nock = sim.aiming && sim.stringNock ? sim.stringNock : sim.aiming ? sim.pull : sim.release;
+      const nock = sim.stringNock ?? (sim.aiming ? sim.pull : sim.release);
       const screenX = nock.x - sim.cameraX;
 
       // While aiming: point arrow from pull->release (forward)
@@ -1652,8 +1653,9 @@ export default function ArcheryGame({
       if (!sim.aiming) return;
       const launch = launchFromPull(sim);
 
-      let x = sim.release.x;
-      let y = sim.release.y;
+      const origin = sim.stringNock ?? sim.release;
+      let x = origin.x;
+      let y = origin.y;
       let vx = launch.vx;
       let vy = launch.vy;
 
