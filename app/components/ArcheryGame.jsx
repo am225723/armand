@@ -1111,8 +1111,11 @@ export default function ArcheryGame({
 
       const vibP = clamp01((nowMs - sim.stringVibStart) / STRING_VIBRATION_MS);
       const vibEnv = 1 - vibP;
+      const allowVibration = !sim.aiming && sim.cameraX < 0.5;
       const vib =
-        sim.stringVibAmp > 0 && vibP < 1 ? Math.sin(vibP * Math.PI * 20) * sim.stringVibAmp * vibEnv : 0;
+        allowVibration && sim.stringVibAmp > 0 && vibP < 1
+          ? Math.sin(vibP * Math.PI * 20) * sim.stringVibAmp * vibEnv
+          : 0;
 
       // Bend both limb tips toward the center (nock), not away from each other.
       const topVecX = anchors.nockVB.x - anchors.topVB.x;
@@ -1169,11 +1172,16 @@ export default function ArcheryGame({
 
       const bowWrap = bowWrapRef.current;
       if (bowWrap) {
-        const bend = sim.aiming ? pullT : vibP < 1 ? vibEnv * 0.12 : 0;
-        const sx = 1 - bend * 0.06;
-        const sy = 1 + bend * 0.045;
-        const skew = bend * 1.3 * (BOW_MIRRORED ? -1 : 1);
-        bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy}) skewY(${skew}deg)`;
+        if (sim.aiming) {
+          const bend = pullT;
+          const sx = 1 - bend * 0.06;
+          const sy = 1 + bend * 0.045;
+          const skew = bend * 1.3 * (BOW_MIRRORED ? -1 : 1);
+          bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1}) scale(${sx}, ${sy}) skewY(${skew}deg)`;
+        } else {
+          // Hard-lock bow pose when not dragging so camera follow never appears to move the bow.
+          bowWrap.style.transform = `scaleX(${BOW_MIRRORED ? -1 : 1})`;
+        }
       }
 
       if (!sim.aiming) {
@@ -1295,12 +1303,11 @@ export default function ArcheryGame({
       }
 
       if (!sim.aiming) {
-        const ax = -SPRING_STIFFNESS * (sim.pull.x - sim.release.x) - SPRING_DAMPING * sim.pullVel.x;
-        const ay = -SPRING_STIFFNESS * (sim.pull.y - sim.release.y) - SPRING_DAMPING * sim.pullVel.y;
-        sim.pullVel.x += ax * dt;
-        sim.pullVel.y += ay * dt;
-        sim.pull.x += sim.pullVel.x * dt;
-        sim.pull.y += sim.pullVel.y * dt;
+        // Keep bow/string locked to anchor when not actively dragging.
+        sim.pull.x = sim.release.x;
+        sim.pull.y = sim.release.y;
+        sim.pullVel.x = 0;
+        sim.pullVel.y = 0;
       }
 
       updateBowStrings(sim, nowMs, dt);
