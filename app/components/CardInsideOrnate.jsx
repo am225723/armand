@@ -3,7 +3,7 @@ import React from "react";
 
 export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emphasisWords = [] }) {
   const VB_W = 820;
-  const VB_H = 1320;
+  const VB_H = 1360;
 
   const poemLines = [
     `The world became a brighter place...`,
@@ -45,8 +45,8 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
     linePositions.push({ y: currentY, line, isBlank });
   });
 
-  const secondToLastLineY = 1190;
-  const finalLineY = 1280;
+  const secondToLastLineY = 1216;
+  const finalLineY = 1302;
   const secondToLastIndex = poemLines.length - 2;
   const finalLineIndex = poemLines.length - 1;
   const finalProgress = lineProgress[finalLineIndex] ?? 0;
@@ -113,10 +113,10 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
           <stop offset="100%" stopColor="#f1d58a" stopOpacity="0.75" />
         </linearGradient>
 
-        <linearGradient id="finalLineGold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#f5deb0" />
-          <stop offset="45%" stopColor="#d3a656" />
-          <stop offset="100%" stopColor="#f0cf91" />
+        <linearGradient id="finalLineCrimson" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#f2c0b7" />
+          <stop offset="42%" stopColor="#a93536" />
+          <stop offset="100%" stopColor="#eab587" />
         </linearGradient>
 
         <filter id="finalLineGlow" x="-40%" y="-40%" width="180%" height="180%">
@@ -433,9 +433,9 @@ export default function CardInsideOrnate({ name = "Luke", lineProgress = [], emp
                 return (
                   <tspan
                     key={ci}
-                    fill={`rgba(20, 16, 14, ${fillOpacity})`}
-                    stroke="url(#finalLineGold)"
-                    strokeWidth="1.45"
+                    fill={`rgba(110, 32, 34, ${fillOpacity * 0.92})`}
+                    stroke="url(#finalLineCrimson)"
+                    strokeWidth="1.62"
                     strokeDasharray={strokeLen}
                     strokeDashoffset={strokeOffset}
                   >

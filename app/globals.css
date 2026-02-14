@@ -1,11 +1,18 @@
 @font-face {
-  font-family: "CardScript";
+  font-family: "InterSignature";
   src: url("/fonts/InterSignature-q20q2.ttf") format("truetype");
   font-display: swap;
 }
 
+@font-face {
+  font-family: "HawaiiLover";
+  src: url("/fonts/HawaiiLover.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
-  --font-script: "CardScript", "Brush Script MT", cursive;
+  --font-script: "HawaiiLover", "InterSignature", "Brush Script MT", cursive;
+  --font-poem: "InterSignature", cursive;
   --font-ui: "Avenir Next", "Segoe UI", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
 
   --cream-paper: #eee1c8;

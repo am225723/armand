@@ -225,5 +225,5 @@ const contentWrap = {
 };
 
 function clampParallax(value) {
-  return Math.max(-6, Math.min(6, value));
+  return Math.max(-4, Math.min(4, value));
 }

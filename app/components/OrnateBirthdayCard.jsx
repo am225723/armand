@@ -19,6 +19,7 @@ export default function OrnateBirthdayCard({
   name = "Luke",
   audioUrl = "/audio/luke-poem.mp3",
   fontUrl = "/fonts/InterSignature-q20q2.ttf",
+  titleFontUrl = "/fonts/HawaiiLover.ttf",
   autoStart = true,
   showControls = true,
 }) {
@@ -29,13 +30,14 @@ export default function OrnateBirthdayCard({
   const [isPlaying, setIsPlaying] = useState(false);
   const [status, setStatus] = useState("Ready ✍️");
   const [fontReady, setFontReady] = useState(false);
+  const lineScheduleRef = useRef([]);
 
   // CardInsideOrnate expects lineProgress array (0..1 per line)
   const [lineProgress, setLineProgress] = useState([]);
 
   // If CardInsideOrnate exports/uses a fixed poem length, we align to it by “probing”
-  // but we keep it defensive: start with 24 lines and adapt if needed.
-  const defaultLineCount = 24;
+  // but we keep it defensive.
+  const defaultLineCount = 20;
 
   const ensureLineCount = useMemo(() => {
     // If we already have progress, use its length, else default
@@ -51,9 +53,11 @@ export default function OrnateBirthdayCard({
       try {
         if (typeof window === "undefined") return;
 
-        const face = new FontFace("InterSignature", `url(${fontUrl})`);
-        const loaded = await face.load();
-        document.fonts.add(loaded);
+        const handwritingFace = new FontFace("InterSignature", `url(${fontUrl})`);
+        const headingFace = new FontFace("HawaiiLover", `url(${titleFontUrl})`);
+        const [loadedHand, loadedTitle] = await Promise.all([handwritingFace.load(), headingFace.load()]);
+        document.fonts.add(loadedHand);
+        document.fonts.add(loadedTitle);
         await document.fonts.ready;
       } catch {
         // fall back gracefully if font loading fails
@@ -66,29 +70,51 @@ export default function OrnateBirthdayCard({
     return () => {
       cancelled = true;
     };
-  }, [fontUrl]);
+  }, [fontUrl, titleFontUrl]);
 
   function stopRaf() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
   }
 
-  // Simple, even timing if you don’t pass a custom schedule into CardInsideOrnate
-  // (CardInsideOrnate may have its own more accurate timings; this just drives progress smoothly.)
+  function buildLineSchedule(duration, lineCount) {
+    // Weight by line density and reserve tiny pacing buffers to avoid premature finishes.
+    const characterWeights = [
+      1.12, 1.1, 1.0, 1.0, 0.48, 1.08, 1.08, 1.12, 1.02, 0.5, 1.15, 1.12, 1.08, 1.08, 0.5, 1.08, 1.08, 0.5, 1.2, 1.38,
+    ];
+    const fallbackWeights = Array.from({ length: lineCount }).map((_, index) => 1 + (index % 5) * 0.04);
+    const weights = fallbackWeights.map((base, index) => characterWeights[index] ?? base);
+
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    const perWeight = duration / Math.max(0.001, totalWeight);
+    let cursor = 0;
+
+    return weights.map((weight, index) => {
+      const start = cursor;
+      const end = cursor + perWeight * weight;
+      // Visual pacing only; audio stays clock source.
+      const lineDelaySec = index === lineCount - 1 ? 0.24 : 0.12 + (index % 2) * 0.03;
+      cursor = end;
+      return {
+        start,
+        end,
+        lineDelaySec,
+      };
+    });
+  }
+
   function computeProgressFromAudio(t, duration, lineCount) {
     if (!Number.isFinite(duration) || duration <= 0) return new Array(lineCount).fill(0);
 
-    // Allocate time proportionally but gently: line i starts at i/lineCount of the audio.
-    const per = duration / lineCount;
-    const out = new Array(lineCount).fill(0);
-
-    for (let i = 0; i < lineCount; i++) {
-      const t0 = i * per;
-      const t1 = (i + 1) * per;
-      const p = clamp((t - t0) / Math.max(0.22, t1 - t0), 0, 1);
-      out[i] = p;
+    if (!lineScheduleRef.current.length || lineScheduleRef.current.length !== lineCount) {
+      lineScheduleRef.current = buildLineSchedule(duration, lineCount);
     }
-    return out;
+    const schedule = lineScheduleRef.current;
+
+    return schedule.map((slot) => {
+      const delayedStart = slot.start + slot.lineDelaySec;
+      return clamp((t - delayedStart) / Math.max(0.22, slot.end - delayedStart), 0, 1);
+    });
   }
 
   function startSyncedAnimation() {
@@ -155,6 +181,7 @@ export default function OrnateBirthdayCard({
     if (!a) return;
 
     const onMeta = () => {
+      lineScheduleRef.current = [];
       attemptAutoplay();
     };
 

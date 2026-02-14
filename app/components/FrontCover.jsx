@@ -4,15 +4,15 @@ import React, { useMemo } from "react";
 import ArcheryGame from "./ArcheryGame";
 
 const BALLOON_CONFIG = [
-  { left: "-9%", top: "8%", color: "#e9a8a0", sway: 18, scale: 1.06, duration: 18, delay: -5.2 },
-  { left: "5%", top: "3%", color: "#e8c07a", sway: 14, scale: 0.95, duration: 15, delay: -2.4 },
-  { left: "80%", top: "4%", color: "#9ec5d0", sway: 16, scale: 0.96, duration: 17, delay: -8.1 },
-  { left: "91%", top: "12%", color: "#dab0cc", sway: 14, scale: 1.02, duration: 19, delay: -3.4 },
-  { left: "-7%", top: "56%", color: "#b6c7a2", sway: 12, scale: 0.92, duration: 16, delay: -6.2 },
-  { left: "87%", top: "58%", color: "#edb7a1", sway: 18, scale: 0.94, duration: 18, delay: -11.4 },
+  { left: "-9%", top: "8%", color: "#2d2326", sway: 18, scale: 1.06, duration: 22, delay: -5.2 },
+  { left: "5%", top: "3%", color: "#221b1f", sway: 14, scale: 0.95, duration: 19, delay: -2.4 },
+  { left: "80%", top: "4%", color: "#2a2427", sway: 16, scale: 0.96, duration: 21, delay: -8.1 },
+  { left: "91%", top: "12%", color: "#30272a", sway: 14, scale: 1.02, duration: 23, delay: -3.4 },
+  { left: "-7%", top: "56%", color: "#1f191c", sway: 12, scale: 0.92, duration: 20, delay: -6.2 },
+  { left: "87%", top: "58%", color: "#292126", sway: 18, scale: 0.94, duration: 22, delay: -11.4 },
 ];
 
-const CONFETTI_COLORS = ["#f0c379", "#e8a7a0", "#c4d4ae", "#9ec4d0", "#d2b2cb"];
+const CONFETTI_COLORS = ["#2d2326", "#503a2d", "#7d5a38", "#8a2c2d", "#d0a061"];
 
 const SPARKLES = [
   { left: "18%", top: "14%", size: 15, duration: 5.4, delay: -1.8 },
@@ -26,7 +26,7 @@ export default function FrontCover({ onComplete, onSoundChange }) {
   const confettiPieces = useMemo(
     () =>
       Array.from({ length: 18 }).map((_, index) => {
-        const size = index % 4 === 0 ? 5 : 4;
+        const size = index % 4 === 0 ? 6 : 4;
         return {
           id: index,
           left: `${4 + (index * 5.1) % 92}%`,
@@ -37,7 +37,7 @@ export default function FrontCover({ onComplete, onSoundChange }) {
           width: size,
           height: size + (index % 3),
           color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-          opacity: index % 3 === 0 ? 0.45 : 0.32,
+          opacity: index % 3 === 0 ? 0.46 : 0.3,
         };
       }),
     []
@@ -48,6 +48,17 @@ export default function FrontCover({ onComplete, onSoundChange }) {
       <style>{`
         .front-golden-sweep {
           animation: frontGoldenSweep 16s ease-in-out infinite;
+        }
+
+        .front-headline-pulse {
+          animation: frontHeadlinePulse 7s ease-in-out infinite;
+        }
+
+        .front-headline-sheen {
+          background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(214,109,110,0.82), rgba(255,255,255,0));
+          background-size: 180% 100%;
+          -webkit-background-clip: text;
+          animation: frontHeadlineSheen 7s linear infinite;
         }
 
         .front-balloon {
@@ -128,6 +139,25 @@ export default function FrontCover({ onComplete, onSoundChange }) {
           }
         }
 
+        @keyframes frontHeadlinePulse {
+          0%,
+          100% {
+            text-shadow: 0 0 16px rgba(181, 65, 67, 0.22), 0 2px 3px rgba(44, 28, 30, 0.42);
+          }
+          50% {
+            text-shadow: 0 0 28px rgba(187, 63, 66, 0.5), 0 2px 3px rgba(44, 28, 30, 0.5);
+          }
+        }
+
+        @keyframes frontHeadlineSheen {
+          from {
+            background-position: 180% 0;
+          }
+          to {
+            background-position: -180% 0;
+          }
+        }
+
         @keyframes frontBalloonFloat {
           0%,
           100% {
@@ -170,6 +200,8 @@ export default function FrontCover({ onComplete, onSoundChange }) {
 
         @media (prefers-reduced-motion: reduce) {
           .front-golden-sweep,
+          .front-headline-pulse,
+          .front-headline-sheen,
           .front-balloon,
           .front-confetti,
           .front-sparkle {
@@ -184,6 +216,7 @@ export default function FrontCover({ onComplete, onSoundChange }) {
 
       <section style={frontCard} aria-label="Birthday front cover">
         <div style={frontPaperTint} />
+        <div style={frontCrimsonPulse} />
         <div style={frontGoldGlowTop} />
         <div style={frontGoldGlowCenter} />
         <div style={frontGoldSweep} className="front-golden-sweep" />
@@ -236,9 +269,13 @@ export default function FrontCover({ onComplete, onSoundChange }) {
         <div style={frontHeader}>
           <div style={frontKicker}>Front Cover Challenge</div>
 
-          <h1 style={frontHeading}>
-            <span style={frontHeadingTop}>Happy Birthday</span>
-            <span style={frontHeadingName}>Luke</span>
+          <h1 style={frontHeading} className="front-headline-pulse">
+            <span style={frontHeadingTop} className="front-headline-sheen">
+              Happy Birthday
+            </span>
+            <span style={frontHeadingName} className="front-headline-sheen">
+              Luke
+            </span>
           </h1>
 
           <p style={frontSubtitle}>Extinguish every candle to unlock your card.</p>
@@ -311,14 +348,22 @@ const frontGoldGlowTop = {
   position: "absolute",
   inset: 0,
   pointerEvents: "none",
-  background: "radial-gradient(72% 48% at 50% 6%, rgba(244, 200, 118, 0.34), rgba(255,255,255,0))",
+  background: "radial-gradient(72% 48% at 50% 6%, rgba(214, 109, 110, 0.26), rgba(255,255,255,0))",
 };
 
 const frontGoldGlowCenter = {
   position: "absolute",
   inset: 0,
   pointerEvents: "none",
-  background: "radial-gradient(42% 28% at 50% 33%, rgba(255, 214, 139, 0.18), rgba(255,255,255,0))",
+  background: "radial-gradient(42% 28% at 50% 33%, rgba(222, 126, 95, 0.18), rgba(255,255,255,0))",
+};
+
+const frontCrimsonPulse = {
+  position: "absolute",
+  inset: 0,
+  pointerEvents: "none",
+  background:
+    "radial-gradient(42% 24% at 50% 18%, rgba(176, 50, 52, 0.34), rgba(176, 50, 52, 0) 72%), radial-gradient(60% 24% at 50% 0%, rgba(96, 26, 28, 0.2), rgba(96,26,28,0))",
 };
 
 const frontGoldSweep = {
@@ -384,14 +429,14 @@ const frontHeading = {
   justifyItems: "center",
   gap: 2,
   lineHeight: 0.9,
-  textShadow: "0 3px 16px rgba(255, 236, 193, 0.64), 0 2px 3px rgba(87, 54, 28, 0.28)",
+  textShadow: "0 3px 16px rgba(201, 98, 92, 0.4), 0 2px 3px rgba(48, 30, 30, 0.3)",
 };
 
 const frontHeadingTop = {
   fontFamily: "var(--font-script)",
   fontSize: "clamp(52px, 15.2vw, 122px)",
   letterSpacing: "0.01em",
-  color: "#6a4020",
+  color: "#6f2f35",
 };
 
 const frontHeadingName = {
@@ -399,7 +444,7 @@ const frontHeadingName = {
   fontFamily: "var(--font-script)",
   fontSize: "clamp(66px, 19.6vw, 156px)",
   letterSpacing: "0.01em",
-  color: "#7f4b21",
+  color: "#802f35",
 };
 
 const frontSubtitle = {
